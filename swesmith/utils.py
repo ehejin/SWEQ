@@ -82,9 +82,9 @@ def clone_repo(repo: str, dest: str | None = None, org: str = ORG_NAME) -> str |
     """Clone a repository from GitHub."""
     if not os.path.exists(dest or repo):
         clone_cmd = (
-            f"git clone git@github.com:{org}/{repo}.git"
+            f"git clone https://github.com/{org}/{repo}.git"
             if dest is None
-            else f"git clone git@github.com:{org}/{repo}.git {dest}"
+            else f"git clone https://github.com/{org}/{repo}.git {dest}"
         )
         subprocess.run(
             clone_cmd,
