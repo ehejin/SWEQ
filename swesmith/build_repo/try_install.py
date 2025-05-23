@@ -56,7 +56,8 @@ def main(
         # Shallow clone repository at the specified commit
         if not os.path.exists(repo_name):
             subprocess.run(
-                f"git clone git@github.com:{repo}.git",
+                # f"git clone git@github.com:{repo}.git",
+                f"git clone https://github.com/{repo}.git",
                 check=True,
                 shell=True,
                 stdout=subprocess.DEVNULL,
@@ -90,7 +91,8 @@ def main(
 
         # Construct installation script
         installation_cmds = [
-            ". /opt/miniconda3/bin/activate",
+            # ". /opt/miniconda3/bin/activate",
+            "source /nlp/scr/cchoi1/miniconda3/etc/profile.d/conda.sh",
             f"conda create -n {ENV_NAME} python={python_version} -yq",
             f"conda activate {ENV_NAME}",
             f". {install_script}",
@@ -100,7 +102,7 @@ def main(
         print("> Installing repo...")
         temp = "\n" + "\n- ".join(installation_cmds)
         print(f"> Script:{temp}\n")
-        subprocess.run(" && ".join(installation_cmds), check=True, shell=True)
+        subprocess.run(["bash", "-c", " && ".join(installation_cmds)], check=True)
         print("> Successfully installed repo")
 
         # If installation succeeded, export the conda environment + record install script

@@ -532,6 +532,7 @@ SPECS_REPO_PANDAS = {
         "install": [
             "git remote add upstream https://github.com/pandas-dev/pandas.git",
             "git fetch upstream --tags",
+            "pip install hypothesis versioneer cython meson-python ninja",
             "python -m pip install -ve . --no-build-isolation -Ceditable-verbose=true",
             """sed -i 's/__version__="[^"]*"/__version__="3.0.0.dev0+1992.g95280573e1"/' build/cp310/_version_meson.py""",
         ],

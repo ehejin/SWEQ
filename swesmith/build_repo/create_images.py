@@ -79,7 +79,53 @@ def get_repo_setup_script(repo: str, commit: str, org: str):
         f"conda activate {ENV_NAME}",
         'echo "Current environment: $CONDA_DEFAULT_ENV"',
     ] + specs["install"]
-    return "\n".join(setup_commands) + "\n"
+    command = "\n".join(setup_commands) + "\n"
+    print("COMMAND\n", command)
+    return command
+
+# def get_repo_setup_script(repo: str, commit: str, org: str):
+#     """
+#     Create a setup script for a repository at a specific commit.
+#     """
+
+#     repo_name = get_repo_name(repo, commit)
+
+#     setup_commands = [
+#         "#!/bin/bash",
+#         "set -euo pipefail",
+
+#         # Clone target repo
+#         f"git clone -o origin https://github.com/{org}/{repo_name} {DOCKER_WORKDIR}",
+#         f"cd {DOCKER_WORKDIR}",
+
+#         # Activate conda
+#         "source /opt/miniconda3/bin/activate",
+
+#         # Use in-repo environment.yml if available
+#         "if [ -f environment.yml ]; then conda env create --file environment.yml || true; fi",
+
+#         f"conda activate pandas-dev || (echo 'Failed to activate environment pandas-dev' && conda info --envs && exit 1)",
+#         # Install versioneer if needed
+#         "pip install versioneer",
+
+#         # Install build deps
+#         "pip install meson-python ninja",
+
+#         # Setup repo
+#         "git remote add upstream https://github.com/pandas-dev/pandas.git",
+#         "git fetch upstream --tags",
+#         # Install repo
+#         "python -m pip install -ve . --no-build-isolation -Ceditable-verbose=true || true",
+
+#         # Patch version string if file exists
+#         f"if [ -f build/cp310/_version_meson.py ]; then sed -i 's/__version__=\"[^\"]*\"/__version__=\"3.0.0.dev0+{commit}\"/' build/cp310/_version_meson.py; fi",
+
+#         # Confirm env
+#         'echo "Current environment: $CONDA_DEFAULT_ENV"'
+#     ]
+
+#     return "\n".join(setup_commands) + "\n"
+
 
 
 def build_base_image(
