@@ -11,8 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def get_vllm_model(model, max_model_len, enforce_eager, num_gpus=1, gpu_memory_utilization=None):
-    model = "Qwen/Qwen2.5-Coder-7B-Instruct"
+def get_vllm_model(model, max_model_len, enforce_eager=True, num_gpus=1, gpu_memory_utilization=None):
     memory_per_model = 0.9 if gpu_memory_utilization is None else gpu_memory_utilization
     return LLM(
         model=model,
@@ -23,7 +22,7 @@ def get_vllm_model(model, max_model_len, enforce_eager, num_gpus=1, gpu_memory_u
         max_model_len=max_model_len,
         gpu_memory_utilization=memory_per_model,
         tensor_parallel_size=num_gpus,
-        enforce_eager=True #enforce_eager NOTE: SKIP for NOW
+        enforce_eager=enforce_eager
     )
 
 

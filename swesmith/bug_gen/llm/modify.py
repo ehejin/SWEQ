@@ -25,10 +25,10 @@ import litellm
 import logging
 import os
 import random
+import time
 import torch
 import yaml
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from litellm import completion
 from litellm.cost_calculator import completion_cost
@@ -51,12 +51,6 @@ from swesmith.constants import (
 from swesmith.utils import clone_repo, does_repo_exist
 from swesmith.vllm_utils import get_vllm_model, generate_response
 from tqdm.auto import tqdm
-from tqdm.contrib.logging import logging_redirect_tqdm
-from typing import Any, Optional
-
-from vllm import LLM
-from vllm.sampling_params import SamplingParams
-from vllm.lora.request import LoRARequest
 
 load_dotenv(dotenv_path=os.getenv("SWEFT_DOTENV_PATH"))
 
@@ -65,7 +59,7 @@ litellm.suppress_debug_info = True
 
 
 def gen_bug_from_code_lm(
-    candidate: CodeEntity, configs: dict, n_bugs: int, model: str, vllm_model=None
+    args: argparse.Namespace, candidate: CodeEntity, configs: dict, n_bugs: int, model: str, vllm_model=None
 ) -> list[BugRewrite]:
     """
     Given the source code of a function, return `n` bugs with an LM
@@ -100,12 +94,16 @@ def gen_bug_from_code_lm(
 
     if vllm_model is not None:
         response = generate_response(
-                    chat=messages,
-                    vllm_model=vllm_model,
-                    model=model,
-                    n=n_bugs,
-                    temperature=1,
-                )
+            chat=messages,
+            vllm_model=vllm_model,
+            model=model,
+            n=n_bugs,
+            max_tokens=args.max_new_tokens,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            top_k=args.top_k,
+            repetition_penalty=args.repetition_penalty,
+        )
     else:
         response: Any = completion(model=model, messages=messages, n=n_bugs, temperature=1)
     
@@ -163,12 +161,18 @@ def main(
     )
 
     # Clone repository, identify valid candidates
+    start_time = time.time()
     print("Cloning repository...")
     clone_repo(repo)
+    print(f"Cloning repository took {time.time() - start_time} seconds")
     print("Extracting candidates...")
+    start_time = time.time()
     candidates = extract_entities_from_directory(repo, entity_type)
     print(f"{len(candidates)} candidates found for {entity_type} in {repo}")
+    print(f"Extracting candidates took {time.time() - start_time} seconds")
     candidates = [x for x in candidates if MAP_KEY_TO_CRITERIA[configs["criteria"]](x)]
+    if kwargs["debug"]:
+        candidates = candidates[:10]
     print(f"{len(candidates)} candidates passed criteria")
     if not candidates:
         print(f"No candidates found for {entity_type} in {repo}.")
@@ -185,19 +189,21 @@ def main(
     print(f"Logging bugs to {log_dir}")
 
     if "Qwen" in model:
-        print("Building QWEN model!!")
+        print(f"Loading {model}...")
         vllm_model = get_vllm_model(
             model=model,
-            max_model_len=8192,
+            max_model_len=kwargs["max_model_len"],
             enforce_eager=False,
-            num_gpus=torch.cuda.device_count(),  
+            num_gpus=torch.cuda.device_count(),
+            gpu_memory_utilization=kwargs["gpu_memory_utilization"],
         )
     else:
         vllm_model = None
 
-    def _process_candidate(candidate: CodeEntity, vllm_model):
+    def _process_candidate(args: argparse.Namespace, candidate: CodeEntity, vllm_model):
         # Run bug generation
-        bugs = gen_bug_from_code_lm(candidate, configs, n_bugs, model, vllm_model)
+        bugs = gen_bug_from_code_lm(args, candidate, configs, n_bugs, model, vllm_model)
+        breakpoint()
         cost, n_bugs_generated, n_generation_failed = sum([x.cost for x in bugs]), 0, 0
 
         for bug in bugs:
@@ -241,7 +247,7 @@ def main(
     stats = {"cost": 0.0, "n_bugs_generated": 0, "n_generation_failed": 0}
     with tqdm(total=len(candidates), desc="Candidates") as pbar:
         for cand in candidates:
-            cost = _process_candidate(cand, vllm_model)   # ← run directly
+            cost = _process_candidate(args, cand, vllm_model)   # ← run directly
             for k, v in cost.items():
                 stats[k] += v
             pbar.set_postfix(stats, refresh=True)
@@ -301,5 +307,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_workers", type=int, help="Number of workers to use", default=1
     )
+    parser.add_argument("--debug", action="store_true", help="Debug mode")
+    
+    # vLLM Sampling Parameters
+    parser.add_argument("--max_model_len", type=int, default=8192, help="Max model length")
+    parser.add_argument("--max_new_tokens", type=int, default=8192, help="Max new tokens")
+    parser.add_argument("--gpu_memory_utilization", type=float, default=0.7, help="GPU memory utilization")
+    parser.add_argument("--temperature", type=float, help="Sampling temperature", default=0.7)
+    parser.add_argument("--top_p", type=float, default=0.8, help="Top-p")
+    parser.add_argument("--top_k", type=int, default=20, help="Top-k")
+    parser.add_argument("--repetition_penalty", type=float, default=1.1, help="Repetition penalty")
+
     args = parser.parse_args()
     main(**vars(args))
