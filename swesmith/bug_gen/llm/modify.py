@@ -14,6 +14,8 @@ Example:
 
 python -m swesmith.bug_gen.llm.modify tkrajina__gpxpy.09fc46b3 --config_file configs/bug_gen/class_basic.yml --model claude-3-7-sonnet-20250219 --n_bugs 1
 """
+from dotenv import load_dotenv
+load_dotenv()
 
 import argparse
 import shutil
@@ -23,11 +25,11 @@ import litellm
 import logging
 import os
 import random
+import torch
 import yaml
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
-from dotenv import load_dotenv
 from litellm import completion
 from litellm.cost_calculator import completion_cost
 from swesmith.bug_gen.criteria import MAP_KEY_TO_CRITERIA
@@ -47,6 +49,7 @@ from swesmith.constants import (
     PREFIX_METADATA,
 )
 from swesmith.utils import clone_repo, does_repo_exist
+from swesmith.vllm_utils import get_vllm_model, generate_response
 from tqdm.auto import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing import Any, Optional
@@ -55,115 +58,11 @@ from vllm import LLM
 from vllm.sampling_params import SamplingParams
 from vllm.lora.request import LoRARequest
 
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "4, 5, 6, 7"
-
-
 load_dotenv(dotenv_path=os.getenv("SWEFT_DOTENV_PATH"))
 
 logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 litellm.suppress_debug_info = True
 
-def get_vllm_model(model, max_model_len, enforce_eager, num_gpus=1, gpu_memory_utilization=None):
-    model = "Qwen/Qwen2.5-Coder-7B-Instruct"
-    memory_per_model = 0.9 if gpu_memory_utilization is None else gpu_memory_utilization
-    return LLM(
-        model=model,
-        dtype="float16",
-        quantization="bitsandbytes",
-        load_format="bitsandbytes", 
-        enable_lora=True,
-        max_model_len=max_model_len,
-        gpu_memory_utilization=memory_per_model,
-        tensor_parallel_size=num_gpus,
-        enforce_eager=True #enforce_eager NOTE: SKIP for NOW
-    )
-
-def generate_response(
-    chat,
-    vllm_model: Optional[LLM] = None,
-    peft_dir: Optional[str] = None,
-    **generation_kwargs,
-):
-    """Generate a response from the assistant model.
-    
-    Args:
-        chat: Either a single message or list of messages for batch processing
-        local_model: Optional HuggingFace model
-        local_tokenizer: Optional HuggingFace tokenizer
-        is_api_model: Whether to use API model
-        vllm_model: Optional vLLM model
-        **generation_kwargs: Additional generation parameters
-        
-    Returns:
-        str or List[str]: Generated response(s)
-    """
-    assistant_model_name = generation_kwargs['model']
-    if isinstance(chat, str):
-        chat = [{"role": "user", "content": chat}]
-    elif isinstance(chat[0], str):
-        chat = [[{"role": "user", "content": message}] for message in chat]
-
-    generation_kwargs.pop("model", None)
-    sampling_params = convert_to_sampling_params(generation_kwargs)
-    lora_request = LoRARequest("interactive_adapter", 1, peft_dir) if peft_dir else None
-    responses = vllm_model.chat(
-        messages=chat,
-        sampling_params=sampling_params,
-        lora_request=lora_request
-    )
-    
-    results = []
-    for response_set in responses:
-        if response_set.outputs:
-            results.append(response_set.outputs[0].text)
-            # results.extend([c.text for c in response_set.outputs])
-        else:
-            results.append("")  # Fallback for empty responses
-    return results
-
-
-def convert_to_sampling_params(generation_kwargs: dict) -> SamplingParams:
-    """Convert generation kwargs to vllm SamplingParams."""
-
-    # Valid sampling parameter keys from SamplingParams class
-    valid_params = {
-        "n",
-        "best_of",
-        "presence_penalty",
-        "frequency_penalty",
-        "repetition_penalty",
-        "temperature",
-        "top_p",
-        "top_k",
-        "min_p",
-        "seed",
-        "stop",
-        "stop_token_ids",
-        "bad_words",
-        "ignore_eos",
-        "max_tokens",
-        "min_tokens",
-        "logprobs",
-        "prompt_logprobs",
-        "detokenize",
-        "skip_special_tokens",
-        "spaces_between_special_tokens",
-        "truncate_prompt_tokens",
-    }
-
-    # Filter valid params and log unmapped ones
-    sampling_kwargs = {}
-    for key, value in generation_kwargs.items():
-        if key in valid_params:
-            sampling_kwargs[key] = value
-        else:
-            print(
-                f"Warning: Parameter '{key}' not found in VLLM-supported sampling parameters"
-            )
-
-    # Create SamplingParams object
-    return SamplingParams.from_optional(**sampling_kwargs)
 
 def gen_bug_from_code_lm(
     candidate: CodeEntity, configs: dict, n_bugs: int, model: str, vllm_model=None
@@ -285,13 +184,13 @@ def main(
     log_dir.mkdir(parents=True, exist_ok=True)
     print(f"Logging bugs to {log_dir}")
 
-    if "qwen" in model:
+    if "Qwen" in model:
         print("Building QWEN model!!")
         vllm_model = get_vllm_model(
             model=model,
             max_model_len=8192,
             enforce_eager=False,
-            num_gpus=4,  
+            num_gpus=torch.cuda.device_count(),  
         )
     else:
         vllm_model = None
