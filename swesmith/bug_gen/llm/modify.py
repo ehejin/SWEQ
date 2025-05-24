@@ -28,6 +28,7 @@ import random
 import time
 import torch
 import yaml
+from datetime import datetime
 
 from dataclasses import asdict
 from litellm import completion
@@ -172,7 +173,7 @@ def main(
     print(f"Extracting candidates took {time.time() - start_time} seconds")
     candidates = [x for x in candidates if MAP_KEY_TO_CRITERIA[configs["criteria"]](x)]
     if kwargs["debug"]:
-        candidates = candidates[:10]
+        candidates = candidates[:5]
     print(f"{len(candidates)} candidates passed criteria")
     if not candidates:
         print(f"No candidates found for {entity_type} in {repo}.")
@@ -184,7 +185,9 @@ def main(
             return'''
 
     # Set up logging
-    log_dir = LOG_DIR_BUG_GEN / repo
+    # log_dir = LOG_DIR_BUG_GEN / repo
+    time_date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_dir = LOG_DIR_BUG_GEN / "lm_modify" / f"{repo}__{model.replace('/', '_')}__{time_date_str}"
     log_dir.mkdir(parents=True, exist_ok=True)
     print(f"Logging bugs to {log_dir}")
 
@@ -203,7 +206,6 @@ def main(
     def _process_candidate(args: argparse.Namespace, candidate: CodeEntity, vllm_model):
         # Run bug generation
         bugs = gen_bug_from_code_lm(args, candidate, configs, n_bugs, model, vllm_model)
-        breakpoint()
         cost, n_bugs_generated, n_generation_failed = sum([x.cost for x in bugs]), 0, 0
 
         for bug in bugs:
@@ -308,7 +310,7 @@ if __name__ == "__main__":
         "--n_workers", type=int, help="Number of workers to use", default=1
     )
     parser.add_argument("--debug", action="store_true", help="Debug mode")
-    
+
     # vLLM Sampling Parameters
     parser.add_argument("--max_model_len", type=int, default=8192, help="Max model length")
     parser.add_argument("--max_new_tokens", type=int, default=8192, help="Max new tokens")

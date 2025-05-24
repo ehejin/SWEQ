@@ -22,7 +22,9 @@ import os
 import random
 import shutil
 import subprocess
+import torch
 import yaml
+from datetime import datetime
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from litellm import completion
@@ -43,6 +45,7 @@ from swesmith.bug_gen.utils import (
 )
 from swesmith.constants import LOG_DIR_BUG_GEN, PREFIX_BUG, PREFIX_METADATA
 from swesmith.utils import clone_repo
+from swesmith.vllm_utils import get_vllm_model, generate_response
 from tqdm.auto import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from typing import Any
@@ -81,16 +84,33 @@ def main(
         for x in extract_entities_from_directory(repo, entity_type)
         if filter_min_simple_complexity(x, 3)
     ]
+    if kwargs["debug"]:
+        candidates = candidates[:5]
     if max_bugs:
         random.shuffle(candidates)
         candidates = candidates[:max_bugs]
 
     # Set up logging
-    log_dir = LOG_DIR_BUG_GEN / repo
+    # log_dir = LOG_DIR_BUG_GEN / repo
+    time_date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_dir = LOG_DIR_BUG_GEN / "lm_rewrite" / f"{repo}__{model.replace('/', '_')}__{time_date_str}"
     log_dir.mkdir(parents=True, exist_ok=True)
     print(f"Logging bugs to {log_dir}")
     if not redo_existing:
         print("Skipping existing bugs.")
+
+    # Initialize vLLM model if using Qwen
+    if "Qwen" in model:
+        print(f"Loading {model}...")
+        vllm_model = get_vllm_model(
+            model=model,
+            max_model_len=kwargs["max_model_len"],
+            enforce_eager=False,
+            num_gpus=torch.cuda.device_count(),
+            gpu_memory_utilization=kwargs["gpu_memory_utilization"],
+        )
+    else:
+        vllm_model = None
 
     def _process_candidate(candidate: CodeEntity) -> dict[str, Any]:
         bug_dir = (
@@ -133,13 +153,31 @@ def main(
             if k in configs
         ]
         messages = [x for x in messages if x["content"]]
-        response: Any = completion(model=model, messages=messages, n=1, temperature=0)
-        choice = response.choices[0]
-        message = choice.message
+
+        if vllm_model is not None:
+            response = generate_response(
+                chat=messages,
+                vllm_model=vllm_model,
+                model=model,
+                n=1,
+                max_tokens=kwargs["max_new_tokens"],
+                temperature=kwargs["temperature"],
+                top_p=kwargs["top_p"],
+                top_k=kwargs["top_k"],
+                repetition_penalty=kwargs["repetition_penalty"],
+            )
+            content = response[0]
+            cost = 0.0  # Can't compute cost for vLLM
+        else:
+            response: Any = completion(model=model, messages=messages, n=1, temperature=0)
+            choice = response.choices[0]
+            message = choice.message
+            content = message.content
+            cost = completion_cost(completion_response=response)
 
         # Revert the blank-out change to the current file and apply the rewrite
-        code_block = extract_code_block(message.content)
-        explanation = message.content.split("```", 1)[0].strip()
+        code_block = extract_code_block(content)
+        explanation = content.split("```", 1)[0].strip()
 
         subprocess.run(
             f"cd {repo}; git reset --hard",
@@ -148,13 +186,12 @@ def main(
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        cost = completion_cost(completion_response=response)
         rewrite = BugRewrite(
             rewrite=code_block,
             explanation=explanation,
             strategy=LM_REWRITE,
             cost=cost,
-            output=message.content,
+            output=content,
         )
         apply_code_change(candidate, rewrite)
         patch = get_patch(repo, reset_changes=True)
@@ -195,6 +232,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generate bug patches for functions/classes/objects in a repository."
     )
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "repo", type=str, help="Repository to generate bug patches for."
     )
@@ -218,5 +256,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_bugs", type=int, help="Maximum number of bugs to generate."
     )
+    parser.add_argument("--debug", action="store_true", help="Debug mode")
+
+    # vLLM Sampling Parameters
+    parser.add_argument("--max_model_len", type=int, default=8192, help="Max model length")
+    parser.add_argument("--max_new_tokens", type=int, default=8192, help="Max new tokens")
+    parser.add_argument("--gpu_memory_utilization", type=float, default=0.7, help="GPU memory utilization")
+    parser.add_argument("--temperature", type=float, help="Sampling temperature", default=0.7)
+    parser.add_argument("--top_p", type=float, default=0.8, help="Top-p")
+    parser.add_argument("--top_k", type=int, default=20, help="Top-k")
+    parser.add_argument("--repetition_penalty", type=float, default=1.1, help="Repetition penalty")
+
     args = parser.parse_args()
     main(**vars(args))
