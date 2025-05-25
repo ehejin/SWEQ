@@ -12,6 +12,8 @@ import json
 import os
 from pathlib import Path
 import shutil
+import docker
+from docker.errors import NotFound
 
 from swebench.harness.constants import (
     KEY_INSTANCE_ID,
@@ -68,6 +70,20 @@ def run_validation(
     """
     instance_id = instance[KEY_INSTANCE_ID]
     valid_folder = LOG_DIR_RUN_VALIDATION / run_id
+
+    # Clean up any previous container with the same name
+    client = docker.from_env()
+    container_name = f"swesmith.val.{run_id}.{instance_id}"
+    try:
+        old = client.containers.get(container_name)
+        try:
+            old.remove(force=True)
+        except Exception as e:
+            # container existed but removal failed; log & continue
+            print(f"Warning: failed to remove old container {container_name}: {e}")
+    except docker.errors.NotFound:
+        # no such container, great
+        pass
     val_postgold_path = (
         valid_folder / f"{instance[KEY_IMAGE_NAME]}{REF_SUFFIX}" / LOG_TEST_OUTPUT
     )
@@ -144,6 +160,17 @@ def main(
     #     "image_name": <image_name = repo_commit>,
     # }
     print(f"[{run_id}] Running validation for {bug_patches}...")
+    # 1) clean up ANY old containers leftover from previous runs
+    client = docker.from_env()
+    prefix = f"swesmith.val.{run_id}."
+    # remove *every* existing container with that prefix
+    for c in client.containers.list(all=True, filters={"name": prefix}):
+        try:
+            c.remove(force=True)
+        except Exception:
+            pass
+    
+    # 2) now load your JSON, group by image, mkdir the run dir, etc…
     bug_patches = json.load(open(bug_patches, "r"))
     bug_patches = [
         {
