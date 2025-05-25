@@ -105,7 +105,8 @@ def check_if_branch_exists(
     branch_exists = None
     branch_commit = None
     try:
-        api.repos.get_branch(ORG_NAME, repo_name, subfolder)
+        # api.repos.get_branch(ORG_NAME, repo_name, subfolder)
+        api.repos.get_branch("cchoi1", repo_name, subfolder)
         subprocess.run(f"cd {repo_name}; git checkout {subfolder}", **SUBPROCESS_ARGS)
         if override_branch:
             # Delete the branch remotely
@@ -223,6 +224,7 @@ def _main(
 
         repo = subfolder.rsplit(".", 2)[0].replace("__", "/")
         commit = get_full_commit(repo, subfolder.rsplit(".", 2)[1])
+        orig_commit = commit
         repo_name = repo.split("/")[1]
 
         # Create repository if it doesn't exist
@@ -230,7 +232,8 @@ def _main(
 
         task_instance = {
             KEY_INSTANCE_ID: subfolder,
-            "repo": f"{ORG_NAME}/{repo_name}",
+            # "repo": f"{ORG_NAME}/{repo_name}",
+            "repo": f"cchoi1/{repo_name}",
             KEY_PATCH: open(path_patch).read(),
             FAIL_TO_PASS: results[FAIL_TO_PASS],
             PASS_TO_PASS: results[PASS_TO_PASS],
@@ -297,7 +300,7 @@ def _main(
             f"cd {repo_name}; git checkout -B {subfolder}",
             f"cd {repo_name}; git add .",
             f"cd {repo_name}; git commit -m 'Bug Patch'",
-            f"cd {repo_name}; git push -u origin {subfolder}",
+            f"cd {repo_name}; git push -u origin {subfolder} --force",
             f"cd {repo_name}; git rev-parse HEAD",
             f"cd {repo_name}; git checkout {main_branch}",
             f"cd {repo_name}; git reset --hard",
@@ -318,7 +321,8 @@ def _main(
         if verbose:
             print(f"[{subfolder}] Bug @ branch `{subfolder}` {bug_commit[:8]}")
 
-        task_instance["base_commit"] = bug_commit
+        task_instance["base_commit"] = orig_commit
+        task_instance["bug_commit"] = bug_commit
         task_instances.append(task_instance)
         if verbose:
             print(f"[{subfolder}] Created task instance")

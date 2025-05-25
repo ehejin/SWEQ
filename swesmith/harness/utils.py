@@ -265,11 +265,18 @@ def run_patch_in_container(
 
         # If provided, checkout commit in container
         if commit is not None:
-            logger.info(f"Checking out commit {commit}")
-            container.exec_run("git fetch", workdir=DOCKER_WORKDIR, user=DOCKER_USER)
-            val = container.exec_run(
-                f"git checkout {commit}", workdir=DOCKER_WORKDIR, user=DOCKER_USER
+            # logger.info(f"Checking out commit {commit}")
+            # container.exec_run("git fetch", workdir=DOCKER_WORKDIR, user=DOCKER_USER)
+            # val = container.exec_run(
+            #     f"git checkout {commit}", workdir=DOCKER_WORKDIR, user=DOCKER_USER
+            # )
+            logger.info(f"Fetching and checking out commit {commit}")
+            container.exec_run(
+                f"git fetch origin {commit}:{commit}",
+                workdir=DOCKER_WORKDIR,
+                user=DOCKER_USER,
             )
+            val = container.exec_run(f"git checkout {commit}", workdir=DOCKER_WORKDIR, user=DOCKER_USER)
             if val.exit_code != 0:
                 logger.info(f"CHECKOUT FAILED: {val.output.decode(UTF8)}")
                 return logger, False
