@@ -252,6 +252,14 @@ def _main(
 
         # Clone repository
         cloned = clone_repo(repo_name)
+        # Rewrite origin to use GITHUB_TOKEN so git push is non-interactive
+        if cloned and os.getenv("GITHUB_TOKEN"):
+            token = os.getenv("GITHUB_TOKEN")
+            # assumes your GH username is in ORG_NAME or cchoi1
+            authenticated_url = f"https://{token}@github.com/cchoi1/{repo_name}.git"
+            subprocess.run(
+                f"cd {repo_name} && git remote set-url origin {authenticated_url}", shell=True, check=True
+            )
         if cloned:
             created_repos.append(repo_name)
         main_branch = (
