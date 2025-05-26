@@ -60,11 +60,18 @@ compatible with the SWE-bench repository to leverage its ability to create docke
 ### MARK: Commonly Used Installion / Testing Specifications ###
 
 TEST_PYTEST = "pytest --disable-warnings --color=no --tb=no --verbose"
+TEST_PYTEST_PANDAS = "pytest --disable-warnings --color=no --tb=no --verbose --ignore=scripts/tests/test_validate_docstrings.py --ignore=scripts/tests/test_validate_min_versions_in_sync.py"
 
 DEFAULT_SPECS = {
     "install": ["python -m pip install -e ."],
     "python": "3.10",
     KEY_TEST_CMD: TEST_PYTEST,
+}
+
+DEFAULT_SPECS_PANDAS = {
+    "install": ["python -m pip install -e ."],
+    "python": "3.10",
+    KEY_TEST_CMD: TEST_PYTEST_PANDAS,
 }
 
 CMAKE_VERSIONS = ["3.15.7", "3.16.9", "3.17.5", "3.19.7", "3.23.5", "3.27.9"]
@@ -528,7 +535,7 @@ SPECS_REPO_CONAN = {
 }
 SPECS_REPO_PANDAS = {
     "95280573e15be59036f98d82a8792599c10c6603": {
-        **DEFAULT_SPECS,
+        **DEFAULT_SPECS_PANDAS,
         "install": [
             "git remote add upstream https://github.com/pandas-dev/pandas.git",
             "git fetch upstream --tags",

@@ -237,6 +237,8 @@ def run_patch_in_container(
     client = docker.from_env()
     instance_id = instance[KEY_INSTANCE_ID]
     image_name = instance[KEY_IMAGE_NAME]
+    test_command, _ = get_test_command(instance)
+    print(f"Test command: {test_command}")
     try:
         container_type = None
         if log_dir == RUN_EVALUATION_LOG_DIR:
@@ -300,6 +302,7 @@ def run_patch_in_container(
                     "source /opt/miniconda3/bin/activate",
                     f"conda activate {ENV_NAME}",
                     f"cd {DOCKER_WORKDIR}",
+                    f"export PYTHONPATH={DOCKER_WORKDIR}",
                     f": '{TEST_OUTPUT_START}'",
                     test_command,
                     f": '{TEST_OUTPUT_END}'",

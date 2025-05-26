@@ -222,8 +222,17 @@ def _main(
             )
             continue
 
-        repo = subfolder.rsplit(".", 2)[0].replace("__", "/")
-        commit = get_full_commit(repo, subfolder.rsplit(".", 2)[1])
+        # repo = subfolder.rsplit(".", 2)[0].replace("__", "/")
+        # commit = get_full_commit(repo, subfolder.rsplit(".", 2)[1])
+        # orig_commit = commit
+        # repo_name = repo.split("/")[1]
+        repo_part, raw_commit = subfolder.split(".", 1)
+        # strip off any “__…” that was appended after the 8-char git SHA:
+        clean_commit = raw_commit.split("__", 1)[0]
+        # reconstruct the repo “owner/repo” string:
+        repo = repo_part.replace("__", "/")
+        # now look up the full SHA:
+        commit = get_full_commit(repo, clean_commit)
         orig_commit = commit
         repo_name = repo.split("/")[1]
 

@@ -152,6 +152,7 @@ def main(
     timeout: int,
     timeout_ref: int,
     redo_existing: bool = False,
+    debug: bool = False,
 ) -> None:
     # Bug patch should be a dict that looks like this:
     # {
@@ -179,6 +180,9 @@ def main(
         }
         for x in bug_patches
     ]
+    if debug:
+        bug_patches = bug_patches[5:10]
+        print(bug_patches)
     print(f"Found {len(bug_patches)} candidate patches.")
 
     completed = []
@@ -279,5 +283,6 @@ if __name__ == "__main__":
         action="store_true",
         help="Redo completed validation instances.",
     )
+    parser.add_argument("--debug", action="store_true", help="Debug mode.")
     args = parser.parse_args()
     main(**vars(args))
