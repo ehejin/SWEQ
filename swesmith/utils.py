@@ -81,6 +81,8 @@ def get_repo_name(repo, commit) -> str:
 def clone_repo(repo: str, dest: str | None = None, org: str = ORG_NAME) -> str | None:
     """Clone a repository from GitHub."""
     if not os.path.exists(dest or repo):
+        print("INSIDE IF")
+        print("https://github.com/", org, '/', repo, '.git')
         clone_cmd = (
             f"git clone https://github.com/{org}/{repo}.git"
             if dest is None

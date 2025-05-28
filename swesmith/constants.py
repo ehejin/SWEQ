@@ -27,7 +27,7 @@ LOG_DIR_RUN_VALIDATION = Path("logs/run_validation")
 LOG_DIR_TASKS = Path("logs/task_insts")
 LOG_TEST_OUTPUT_PRE_GOLD = "test_output_pre_gold.txt"
 MAX_INPUT_TOKENS = 128000
-ORG_NAME = "swesmith"
+ORG_NAME = "ehejin"
 PREFIX_BUG = "bug"
 PREFIX_METADATA = "metadata"
 REF_SUFFIX = ".ref"
@@ -533,20 +533,48 @@ SPECS_REPO_CONAN = {
         KEY_MIN_TESTING: True,
     }
 }
+
 SPECS_REPO_PANDAS = {
     "95280573e15be59036f98d82a8792599c10c6603": {
         **DEFAULT_SPECS_PANDAS,
         "install": [
             "git remote add upstream https://github.com/pandas-dev/pandas.git",
             "git fetch upstream --tags",
-            "pip install hypothesis versioneer cython meson-python ninja",
+
+            # 🧩 🔧 Missing build-time dependencies go here
+            "conda install -y -c conda-forge numpy=1.26.* cython meson meson-python ninja pybind11 packaging wheel",
+
+            # ✔ Runtime testing deps
+            "pip install hypothesis versioneer",
+
+            # 🏗 Build pandas in editable mode
             "python -m pip install -ve . --no-build-isolation -Ceditable-verbose=true",
+
+            # Patch version string
             """sed -i 's/__version__="[^"]*"/__version__="3.0.0.dev0+1992.g95280573e1"/' build/cp310/_version_meson.py""",
         ],
         KEY_MIN_PREGOLD: True,
         KEY_MIN_TESTING: True,
     }
 }
+
+
+'''SPECS_REPO_PANDAS = {
+   "95280573e15be59036f98d82a8792599c10c6603": {
+       **DEFAULT_SPECS,
+       "install": [
+           "git remote add upstream https://github.com/pandas-dev/pandas.git",
+           "git fetch upstream --tags",
+           "pip install hypothesis versioneer cython meson-python ninja",
+           "python -m pip install -ve . --no-build-isolation -Ceditable-verbose=true",
+           """sed -i 's/__version__="[^"]*"/__version__="3.0.0.dev0+1992.g95280573e1"/' build/cp310/_version_meson.py""",
+       ],
+       KEY_MIN_PREGOLD: True,
+       KEY_MIN_TESTING: True,
+   }
+}'''
+
+
 SPECS_REPO_MONKEYTYPE = {
     "70c3acf62950be5dfb28743c7a719bfdecebcd84": DEFAULT_SPECS,
 }

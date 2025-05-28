@@ -69,7 +69,8 @@ def get_repo_setup_script(repo: str, commit: str, org: str):
     setup_commands = [
         "#!/bin/bash",
         "set -euxo pipefail",
-        f"git clone -o origin https://github.com/{org}/{repo_name} {DOCKER_WORKDIR}",
+        f"git clone --no-single-branch -o origin https://github.com/{org}/{repo_name} {DOCKER_WORKDIR}",
+        f"cd {DOCKER_WORKDIR} && git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' && git fetch --prune",
         f"cd {DOCKER_WORKDIR}",
         "source /opt/miniconda3/bin/activate",
         f"cat <<'{HEREDOC_DELIMITER}' > {path_to_reqs}\n{reqs}\n{HEREDOC_DELIMITER}",
@@ -131,13 +132,14 @@ def create_repo_commit_mirror(repo: str, commit: str, org: str):
     """
     Create a mirror of the repository at the given commit.
     """
-    repo_name = get_repo_name(repo, commit)
+    '''repo_name = get_repo_name(repo, commit)
     if does_repo_exist(repo_name):
         return
     if repo_name in os.listdir():
         shutil.rmtree(repo_name)
     print(f"[{repo}][{commit[:8]}] Creating Mirror")
     api.repos.create_in_org(org, repo_name)
+
     for cmd in [
         f"git clone git@github.com:{repo}.git {repo_name}",
         (
@@ -163,7 +165,8 @@ def create_repo_commit_mirror(repo: str, commit: str, org: str):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-    print(f"[{repo}][{commit[:8]}] Mirror created successfully")
+    print(f"[{repo}][{commit[:8]}] Mirror created successfully")'''
+    return
 
 
 def build_repo_image(

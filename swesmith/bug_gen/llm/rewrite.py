@@ -78,6 +78,7 @@ def main(
     configs = yaml.safe_load(open(config_file))
     print(f"Cloning {repo}...")
     clone_repo(repo)
+    subprocess.run(["git", "-C", repo, "checkout", "main"], check=True)
     print(f"Extracting entities from {repo}...")
     candidates = [
         x
@@ -113,6 +114,15 @@ def main(
         vllm_model = None
 
     def _process_candidate(candidate: CodeEntity) -> dict[str, Any]:
+        bug_dir = (
+            # Reset back to the clean mirror snapshot before doing anything
+            subprocess.run(
+                ["git", "-C", repo, "reset", "--hard"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+        ))
+
         bug_dir = (
             log_dir / candidate.file_path.replace("/", "__") / candidate.src_node.name
         )

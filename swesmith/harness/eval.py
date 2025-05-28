@@ -43,7 +43,9 @@ def run_evaluation(
         run_id,
         RUN_EVALUATION_LOG_DIR,
         patch=pred[KEY_PREDICTION],
-        commit=instance["base_commit"],
+        #commit="b114f6b58e749b8ab47f80490dce73ea80d8015f",
+        #commit=instance["base_commit"],
+        commit=instance[KEY_INSTANCE_ID],
         is_gold=is_gold,
         timeout=timeout,
     )

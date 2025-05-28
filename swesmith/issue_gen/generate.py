@@ -112,7 +112,8 @@ class IssueGen:
         # Get execution output from running pytest for this instance (from validation step)
         test_output = (
             LOG_DIR_RUN_VALIDATION
-            / instance["repo"].split("/")[-1]
+            / "test_openai1"
+            #/ instance["repo"].split("/")[-1]
             / instance[KEY_INSTANCE_ID]
             / LOG_TEST_OUTPUT
         ).read_text()

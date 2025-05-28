@@ -106,7 +106,7 @@ def check_if_branch_exists(
     branch_commit = None
     try:
         # api.repos.get_branch(ORG_NAME, repo_name, subfolder)
-        api.repos.get_branch("cchoi1", repo_name, subfolder)
+        api.repos.get_branch("ehejin", repo_name, subfolder)
         subprocess.run(f"cd {repo_name}; git checkout {subfolder}", **SUBPROCESS_ARGS)
         if override_branch:
             # Delete the branch remotely
@@ -221,11 +221,7 @@ def _main(
                 verbose,
             )
             continue
-
-        # repo = subfolder.rsplit(".", 2)[0].replace("__", "/")
-        # commit = get_full_commit(repo, subfolder.rsplit(".", 2)[1])
-        # orig_commit = commit
-        # repo_name = repo.split("/")[1]
+        
         repo_part, raw_commit = subfolder.split(".", 1)
         # strip off any “__…” that was appended after the 8-char git SHA:
         clean_commit = raw_commit.split("__", 1)[0]
@@ -233,6 +229,9 @@ def _main(
         repo = repo_part.replace("__", "/")
         # now look up the full SHA:
         commit = get_full_commit(repo, clean_commit)
+
+        #repo = subfolder.rsplit(".", 2)[0].replace("__", "/")
+        #commit = get_full_commit(repo, subfolder.rsplit(".", 2)[1])
         orig_commit = commit
         repo_name = repo.split("/")[1]
 
@@ -242,7 +241,7 @@ def _main(
         task_instance = {
             KEY_INSTANCE_ID: subfolder,
             # "repo": f"{ORG_NAME}/{repo_name}",
-            "repo": f"cchoi1/{repo_name}",
+            "repo": f"ehejin/{repo_name}",
             KEY_PATCH: open(path_patch).read(),
             FAIL_TO_PASS: results[FAIL_TO_PASS],
             PASS_TO_PASS: results[PASS_TO_PASS],
@@ -251,15 +250,8 @@ def _main(
         }
 
         # Clone repository
+        print("CLONE REPO NAME:", repo_name)
         cloned = clone_repo(repo_name)
-        # Rewrite origin to use GITHUB_TOKEN so git push is non-interactive
-        if cloned and os.getenv("GITHUB_TOKEN"):
-            token = os.getenv("GITHUB_TOKEN")
-            # assumes your GH username is in ORG_NAME or cchoi1
-            authenticated_url = f"https://{token}@github.com/cchoi1/{repo_name}.git"
-            subprocess.run(
-                f"cd {repo_name} && git remote set-url origin {authenticated_url}", shell=True, check=True
-            )
         if cloned:
             created_repos.append(repo_name)
         main_branch = (

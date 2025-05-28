@@ -210,7 +210,45 @@ def _apply_patch(
         apply_failed_msg = f"{APPLY_PATCH_FAIL}:\n{val.output.decode(UTF8)}"
         logger.info(apply_failed_msg)
         raise EvaluationError(instance_id, apply_failed_msg, logger)
-
+    
+    '''apply_succeeded = False
+    for git_apply_cmd in GIT_APPLY_CMDS:
+        # Because gold patches = bug patches, so fix = revert
+        if git_apply_cmd.startswith("git apply"):
+            # git apply supports --reverse
+            if is_gold:
+                cmd = f"{git_apply_cmd} --reverse {DOCKER_PATCH}"
+            else:
+                cmd = f"{git_apply_cmd} {DOCKER_PATCH}"
+        else:
+            # external patch program: use -i instead of shell redirection
+            if is_gold:
+                cmd = f"{git_apply_cmd} -R -i {DOCKER_PATCH}"
+            else:
+                cmd = f"{git_apply_cmd} -i {DOCKER_PATCH}"
+        if is_gold:
+            logger.info("Assuming patch is already a gold patch (i.e., a fix); applying it in reverse.")
+            if "patch" in git_apply_cmd:
+                git_apply_cmd = git_apply_cmd.replace("-i", "--reverse -i")
+            else:
+                git_apply_cmd = f"{git_apply_cmd} --reverse"
+        git_apply_cmd = f"{git_apply_cmd} {DOCKER_PATCH}"
+        print(git_apply_cmd)
+        val = container.exec_run(
+            git_apply_cmd, workdir=DOCKER_WORKDIR, user=DOCKER_USER
+        )
+        if val.exit_code == 0:
+            apply_succeeded = True
+            logger.info(f"{APPLY_PATCH_PASS}:\n{val.output.decode(UTF8)}")
+            break
+        logger.info(
+            f"Failed to apply patch to container with {git_apply_cmd}.\n"
+            + f"Error Message: {val.output.decode(UTF8)}\nTrying again..."
+        )
+    if not apply_succeeded:
+        apply_failed_msg = f"{APPLY_PATCH_FAIL}:\n{val.output.decode(UTF8)}"
+        logger.info(apply_failed_msg)
+        raise EvaluationError(instance_id, apply_failed_msg, logger)'''
 
 def run_patch_in_container(
     instance: dict,
@@ -266,7 +304,17 @@ def run_patch_in_container(
         container.start()
 
         # If provided, checkout commit in container
-        if commit is not None:
+        if commit is 'main': 
+            logger.info("Checking out mirror HEAD (main)")
+            val = container.exec_run(
+                "git checkout main",
+                workdir=DOCKER_WORKDIR,
+                user=DOCKER_USER,
+            )
+            if val.exit_code != 0:
+                logger.info(f"CHECKOUT FAILED: {val.output.decode(UTF8)}")
+                return logger, False
+        elif commit is not None:
             # logger.info(f"Checking out commit {commit}")
             # container.exec_run("git fetch", workdir=DOCKER_WORKDIR, user=DOCKER_USER)
             # val = container.exec_run(
