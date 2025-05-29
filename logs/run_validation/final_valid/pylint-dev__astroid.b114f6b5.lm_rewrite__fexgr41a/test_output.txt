@@ -1,0 +1,201 @@
++ source /opt/miniconda3/bin/activate
+++ _CONDA_ROOT=/opt/miniconda3
+++ . /opt/miniconda3/etc/profile.d/conda.sh
++++ export CONDA_EXE=/opt/miniconda3/bin/conda
++++ CONDA_EXE=/opt/miniconda3/bin/conda
++++ export _CE_M=
++++ _CE_M=
++++ export _CE_CONDA=
++++ _CE_CONDA=
++++ export CONDA_PYTHON_EXE=/opt/miniconda3/bin/python
++++ CONDA_PYTHON_EXE=/opt/miniconda3/bin/python
++++ '[' -z '' ']'
++++ export CONDA_SHLVL=0
++++ CONDA_SHLVL=0
++++ '[' -n '' ']'
++++++ dirname /opt/miniconda3/bin/conda
+++++ dirname /opt/miniconda3/bin
++++ PATH=/opt/miniconda3/condabin:/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++++ export PATH
++++ '[' -z '' ']'
++++ PS1=
+++ conda activate
+++ local cmd=activate
+++ case "$cmd" in
+++ __conda_activate activate
+++ '[' -n '' ']'
+++ local ask_conda
++++ PS1=
++++ __conda_exe shell.posix activate
++++ /opt/miniconda3/bin/conda shell.posix activate
+++ ask_conda='PS1='\''(base) '\''
+export PATH='\''/opt/miniconda3/bin:/opt/miniconda3/condabin:/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'\''
+export CONDA_PREFIX='\''/opt/miniconda3'\''
+export CONDA_SHLVL='\''1'\''
+export CONDA_DEFAULT_ENV='\''base'\''
+export CONDA_PROMPT_MODIFIER='\''(base) '\''
+export CONDA_EXE='\''/opt/miniconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/opt/miniconda3/bin/python'\'''
+++ eval 'PS1='\''(base) '\''
+export PATH='\''/opt/miniconda3/bin:/opt/miniconda3/condabin:/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'\''
+export CONDA_PREFIX='\''/opt/miniconda3'\''
+export CONDA_SHLVL='\''1'\''
+export CONDA_DEFAULT_ENV='\''base'\''
+export CONDA_PROMPT_MODIFIER='\''(base) '\''
+export CONDA_EXE='\''/opt/miniconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/opt/miniconda3/bin/python'\'''
++++ PS1='(base) '
++++ export PATH=/opt/miniconda3/bin:/opt/miniconda3/condabin:/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++++ PATH=/opt/miniconda3/bin:/opt/miniconda3/condabin:/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++++ export CONDA_PREFIX=/opt/miniconda3
++++ CONDA_PREFIX=/opt/miniconda3
++++ export CONDA_SHLVL=1
++++ CONDA_SHLVL=1
++++ export CONDA_DEFAULT_ENV=base
++++ CONDA_DEFAULT_ENV=base
++++ export 'CONDA_PROMPT_MODIFIER=(base) '
++++ CONDA_PROMPT_MODIFIER='(base) '
++++ export CONDA_EXE=/opt/miniconda3/bin/conda
++++ CONDA_EXE=/opt/miniconda3/bin/conda
++++ export _CE_M=
++++ _CE_M=
++++ export _CE_CONDA=
++++ _CE_CONDA=
++++ export CONDA_PYTHON_EXE=/opt/miniconda3/bin/python
++++ CONDA_PYTHON_EXE=/opt/miniconda3/bin/python
+++ __conda_hashr
+++ '[' -n '' ']'
+++ '[' -n '' ']'
+++ hash -r
++ conda activate testbed
++ local cmd=activate
++ case "$cmd" in
++ __conda_activate activate testbed
++ '[' -n '' ']'
++ local ask_conda
+++ PS1='(base) '
+++ __conda_exe shell.posix activate testbed
+++ /opt/miniconda3/bin/conda shell.posix activate testbed
++ ask_conda='PS1='\''(testbed) '\''
+export PATH='\''/opt/miniconda3/envs/testbed/bin:/opt/miniconda3/condabin:/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'\''
+export CONDA_PREFIX='\''/opt/miniconda3/envs/testbed'\''
+export CONDA_SHLVL='\''2'\''
+export CONDA_DEFAULT_ENV='\''testbed'\''
+export CONDA_PROMPT_MODIFIER='\''(testbed) '\''
+export CONDA_PREFIX_1='\''/opt/miniconda3'\''
+export CONDA_EXE='\''/opt/miniconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/opt/miniconda3/bin/python'\'''
++ eval 'PS1='\''(testbed) '\''
+export PATH='\''/opt/miniconda3/envs/testbed/bin:/opt/miniconda3/condabin:/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'\''
+export CONDA_PREFIX='\''/opt/miniconda3/envs/testbed'\''
+export CONDA_SHLVL='\''2'\''
+export CONDA_DEFAULT_ENV='\''testbed'\''
+export CONDA_PROMPT_MODIFIER='\''(testbed) '\''
+export CONDA_PREFIX_1='\''/opt/miniconda3'\''
+export CONDA_EXE='\''/opt/miniconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/opt/miniconda3/bin/python'\'''
+++ PS1='(testbed) '
+++ export PATH=/opt/miniconda3/envs/testbed/bin:/opt/miniconda3/condabin:/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+++ PATH=/opt/miniconda3/envs/testbed/bin:/opt/miniconda3/condabin:/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+++ export CONDA_PREFIX=/opt/miniconda3/envs/testbed
+++ CONDA_PREFIX=/opt/miniconda3/envs/testbed
+++ export CONDA_SHLVL=2
+++ CONDA_SHLVL=2
+++ export CONDA_DEFAULT_ENV=testbed
+++ CONDA_DEFAULT_ENV=testbed
+++ export 'CONDA_PROMPT_MODIFIER=(testbed) '
+++ CONDA_PROMPT_MODIFIER='(testbed) '
+++ export CONDA_PREFIX_1=/opt/miniconda3
+++ CONDA_PREFIX_1=/opt/miniconda3
+++ export CONDA_EXE=/opt/miniconda3/bin/conda
+++ CONDA_EXE=/opt/miniconda3/bin/conda
+++ export _CE_M=
+++ _CE_M=
+++ export _CE_CONDA=
+++ _CE_CONDA=
+++ export CONDA_PYTHON_EXE=/opt/miniconda3/bin/python
+++ CONDA_PYTHON_EXE=/opt/miniconda3/bin/python
++ __conda_hashr
++ '[' -n '' ']'
++ '[' -n '' ']'
++ hash -r
++ cd /testbed
++ export PYTHONPATH=/testbed
++ PYTHONPATH=/testbed
++ : '>>>>> Start Test Output'
++ pytest --disable-warnings --color=no --tb=no --verbose
+============================= test session starts ==============================
+platform linux -- Python 3.10.17, pytest-8.3.5, pluggy-1.6.0 -- /opt/miniconda3/envs/testbed/bin/python
+cachedir: .pytest_cache
+rootdir: /testbed
+configfile: pyproject.toml
+testpaths: tests
+collecting ... collected 17 items / 55 errors
+
+=========================== short test summary info ============================
+ERROR tests/brain/numpy/test_core_einsumfunc.py - AttributeError: 'AstroidMan...
+ERROR tests/brain/numpy/test_core_fromnumeric.py - AttributeError: 'AstroidMa...
+ERROR tests/brain/numpy/test_core_function_base.py - AttributeError: 'Astroid...
+ERROR tests/brain/numpy/test_core_multiarray.py - AttributeError: 'AstroidMan...
+ERROR tests/brain/numpy/test_core_numeric.py - AttributeError: 'AstroidManage...
+ERROR tests/brain/numpy/test_core_numerictypes.py - AttributeError: 'AstroidM...
+ERROR tests/brain/numpy/test_core_umath.py - AttributeError: 'AstroidManager'...
+ERROR tests/brain/numpy/test_ma.py - AttributeError: 'AstroidManager' object ...
+ERROR tests/brain/numpy/test_ndarray.py - AttributeError: 'AstroidManager' ob...
+ERROR tests/brain/numpy/test_random_mtrand.py - AttributeError: 'AstroidManag...
+ERROR tests/brain/test_argparse.py - AttributeError: 'AstroidManager' object ...
+ERROR tests/brain/test_attr.py - AttributeError: 'AstroidManager' object has ...
+ERROR tests/brain/test_brain.py - AttributeError: 'AstroidManager' object has...
+ERROR tests/brain/test_builtin.py - AttributeError: 'AstroidManager' object h...
+ERROR tests/brain/test_ctypes.py - AttributeError: 'AstroidManager' object ha...
+ERROR tests/brain/test_dataclasses.py - AttributeError: 'AstroidManager' obje...
+ERROR tests/brain/test_dateutil.py - AttributeError: 'AstroidManager' object ...
+ERROR tests/brain/test_enum.py - AttributeError: 'AstroidManager' object has ...
+ERROR tests/brain/test_hashlib.py - AttributeError: 'AstroidManager' object h...
+ERROR tests/brain/test_multiprocessing.py - AttributeError: 'AstroidManager' ...
+ERROR tests/brain/test_named_tuple.py - AttributeError: 'AstroidManager' obje...
+ERROR tests/brain/test_nose.py - AttributeError: 'AstroidManager' object has ...
+ERROR tests/brain/test_pathlib.py - AttributeError: 'AstroidManager' object h...
+ERROR tests/brain/test_pytest.py - AttributeError: 'AstroidManager' object ha...
+ERROR tests/brain/test_qt.py - AttributeError: 'AstroidManager' object has no...
+ERROR tests/brain/test_regex.py - AttributeError: 'AstroidManager' object has...
+ERROR tests/brain/test_signal.py - AttributeError: 'AstroidManager' object ha...
+ERROR tests/brain/test_six.py - AttributeError: 'AstroidManager' object has n...
+ERROR tests/brain/test_ssl.py - AttributeError: 'AstroidManager' object has n...
+ERROR tests/brain/test_threading.py - AttributeError: 'AstroidManager' object...
+ERROR tests/brain/test_typing.py - AttributeError: 'AstroidManager' object ha...
+ERROR tests/brain/test_typing_extensions.py - AttributeError: 'AstroidManager...
+ERROR tests/brain/test_unittest.py - AttributeError: 'AstroidManager' object ...
+ERROR tests/test_builder.py - AttributeError: 'AstroidManager' object has no ...
+ERROR tests/test_constraint.py - AttributeError: 'AstroidManager' object has ...
+ERROR tests/test_group_exceptions.py - AttributeError: 'AstroidManager' objec...
+ERROR tests/test_helpers.py - AttributeError: 'AstroidManager' object has no ...
+ERROR tests/test_inference.py - AttributeError: 'AstroidManager' object has n...
+ERROR tests/test_inference_calls.py - AttributeError: 'AstroidManager' object...
+ERROR tests/test_lookup.py - AttributeError: 'AstroidManager' object has no a...
+ERROR tests/test_manager.py - AttributeError: 'AstroidManager' object has no ...
+ERROR tests/test_modutils.py - AttributeError: 'AstroidManager' object has no...
+ERROR tests/test_nodes.py - AttributeError: 'AstroidManager' object has no at...
+ERROR tests/test_nodes_lineno.py - AttributeError: 'AstroidManager' object ha...
+ERROR tests/test_nodes_position.py - AttributeError: 'AstroidManager' object ...
+ERROR tests/test_object_model.py - AttributeError: 'AstroidManager' object ha...
+ERROR tests/test_objects.py - AttributeError: 'AstroidManager' object has no ...
+ERROR tests/test_protocols.py - AttributeError: 'AstroidManager' object has n...
+ERROR tests/test_python3.py - AttributeError: 'AstroidManager' object has no ...
+ERROR tests/test_regrtest.py - AttributeError: 'AstroidManager' object has no...
+ERROR tests/test_scoped_nodes.py - AttributeError: 'AstroidManager' object ha...
+ERROR tests/test_stdlib.py - AttributeError: 'AstroidManager' object has no a...
+ERROR tests/test_transforms.py - AttributeError: 'AstroidManager' object has ...
+ERROR tests/test_type_params.py - AttributeError: 'AstroidManager' object has...
+ERROR tests/test_utils.py - AttributeError: 'AstroidManager' object has no at...
+!!!!!!!!!!!!!!!!!!! Interrupted: 55 errors during collection !!!!!!!!!!!!!!!!!!!
+============================== 55 errors in 2.16s ==============================
++ : '>>>>> End Test Output'

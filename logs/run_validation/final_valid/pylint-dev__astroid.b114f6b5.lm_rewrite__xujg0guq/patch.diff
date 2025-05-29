@@ -1,0 +1,24 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..4a2df2d 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -458,9 +458,8 @@ class AssignName(
+         return _infer_stmts(stmts, context)
+ 
+     @decorators.raise_if_nothing_inferred
+-    def infer_lhs(
+-        self, context: InferenceContext | None = None, **kwargs: Any
+-    ) -> Generator[InferenceResult, None, InferenceErrorInfo | None]:
++    def infer_lhs(self, context: (InferenceContext | None)=None, **kwargs: Any
++        ) -> Generator[InferenceResult, None, InferenceErrorInfo | None]:
+         """Infer a Name: use name lookup rules.
+ 
+         Same implementation as Name._infer."""
+@@ -486,7 +485,6 @@ class AssignName(
+ 
+         return _infer_stmts(stmts, context, frame)
+ 
+-
+ class DelName(
+     _base_nodes.NoChildrenNode, _base_nodes.LookupMixIn, _base_nodes.ParentAssignNode
+ ):

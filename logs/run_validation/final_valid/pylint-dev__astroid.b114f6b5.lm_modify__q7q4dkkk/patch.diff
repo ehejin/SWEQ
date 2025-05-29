@@ -1,0 +1,69 @@
+diff --git a/astroid/interpreter/_import/spec.py b/astroid/interpreter/_import/spec.py
+index e0c54d4..c2aa7f0 100644
+--- a/astroid/interpreter/_import/spec.py
++++ b/astroid/interpreter/_import/spec.py
+@@ -143,6 +143,7 @@ class ImportlibFinder(Finder):
+                 type=ModuleType.C_BUILTIN,
+             )
+         else:
++            search_paths = sys.path
+             try:
+                 with warnings.catch_warnings():
+                     warnings.filterwarnings("ignore", category=UserWarning)
+@@ -152,7 +153,6 @@ class ImportlibFinder(Finder):
+                     and spec.loader  # type: ignore[comparison-overlap] # noqa: E501
+                     is importlib.machinery.FrozenImporter
+                 ):
+-                    # No need for BuiltinImporter; builtins handled above
+                     return ModuleSpec(
+                         name=modname,
+                         location=getattr(spec.loader_state, "filename", None),
+@@ -160,7 +160,6 @@ class ImportlibFinder(Finder):
+                     )
+             except ValueError:
+                 pass
+-            search_paths = sys.path
+ 
+         suffixes = (".py", ".pyi", importlib.machinery.BYTECODE_SUFFIXES[0])
+         for entry in search_paths:
+@@ -185,12 +184,9 @@ class ImportlibFinder(Finder):
+         self, spec: ModuleSpec, processed: list[str]
+     ) -> Sequence[str] | None:
+         if spec.location is None:
+-            # Builtin.
+             return None
+ 
+         if _is_setuptools_namespace(Path(spec.location)):
+-            # extend_path is called, search sys.path for module/packages
+-            # of this name see pkgutil.extend_path documentation
+             path = [
+                 os.path.join(p, *processed)
+                 for p in sys.path
+@@ -200,25 +196,18 @@ class ImportlibFinder(Finder):
+             spec.location.lower().startswith(ext_lib_dir.lower())
+             for ext_lib_dir in EXT_LIB_DIRS
+         ):
+-            # virtualenv below 20.0 patches distutils in an unexpected way
+-            # so we just find the location of distutils that will be
+-            # imported to avoid spurious import-error messages
+-            # https://github.com/pylint-dev/pylint/issues/5645
+-            # A regression test to create this scenario exists in release-tests.yml
+-            # and can be triggered manually from GitHub Actions
+             distutils_spec = importlib.util.find_spec("distutils")
+             if distutils_spec and distutils_spec.origin:
+                 origin_path = Path(
+                     distutils_spec.origin
+-                )  # e.g. .../distutils/__init__.py
+-                path = [str(origin_path.parent)]  # e.g. .../distutils
++                )
++                path = [str(origin_path.parent)]
+             else:
+                 path = [spec.location]
+         else:
+             path = [spec.location]
+         return path
+ 
+-
+ class ExplicitNamespacePackageFinder(ImportlibFinder):
+     """A finder for the explicit namespace packages."""
+ 

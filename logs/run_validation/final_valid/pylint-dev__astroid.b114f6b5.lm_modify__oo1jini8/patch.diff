@@ -1,0 +1,31 @@
+diff --git a/astroid/constraint.py b/astroid/constraint.py
+index 08bb80e..26c52ab 100644
+--- a/astroid/constraint.py
++++ b/astroid/constraint.py
+@@ -87,17 +87,9 @@ class NoneConstraint(Constraint):
+ def get_constraints(
+     expr: _NameNodes, frame: nodes.LocalsDictNodeNG
+ ) -> dict[nodes.If, set[Constraint]]:
+-    """Returns the constraints for the given expression.
+-
+-    The returned dictionary maps the node where the constraint was generated to the
+-    corresponding constraint(s).
+-
+-    Constraints are computed statically by analysing the code surrounding expr.
+-    Currently this only supports constraints generated from if conditions.
+-    """
+     current_node: nodes.NodeNG | None = expr
+     constraints_mapping: dict[nodes.If, set[Constraint]] = {}
+-    while current_node is not None and current_node is not frame:
++    while current_node is not None and current_node != frame:
+         parent = current_node.parent
+         if isinstance(parent, nodes.If):
+             branch, _ = parent.locate_child(current_node)
+@@ -113,7 +105,6 @@ def get_constraints(
+ 
+     return constraints_mapping
+ 
+-
+ ALL_CONSTRAINT_CLASSES = frozenset((NoneConstraint,))
+ """All supported constraint types."""
+ 

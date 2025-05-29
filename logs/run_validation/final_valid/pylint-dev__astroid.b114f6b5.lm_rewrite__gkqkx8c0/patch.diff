@@ -1,0 +1,15 @@
+diff --git a/astroid/brain/brain_typing.py b/astroid/brain/brain_typing.py
+index c44687b..3f80b7c 100644
+--- a/astroid/brain/brain_typing.py
++++ b/astroid/brain/brain_typing.py
+@@ -275,9 +275,8 @@ def _forbid_class_getitem_access(node: ClassDef) -> None:
+         Otherwise, just call origin_func.
+         """
+         if attr == "__class_getitem__":
+-            raise AttributeInferenceError("__class_getitem__ access is not allowed")
++            raise AttributeInferenceError(f"Access to {attr} is forbidden.")
+         return origin_func(attr, *args, **kwargs)
+-
+     try:
+         node.getattr("__class_getitem__")
+         # If we are here, then we are sure to modify an object that does have

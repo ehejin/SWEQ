@@ -1,0 +1,26 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..4b7b8d7 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -419,10 +419,17 @@ class NodeNG:
+ 
+         Can also return 0 if the line can not be determined.
+         """
+-        if self.lineno is None:
+-            return self._fixed_source_line()
+-        return self.lineno
+-
++        if self.lineno is not None:
++            return self.lineno
++        # Try to find the earliest line number from children
++        for child in self.get_children():
++            if child.lineno is not None:
++                return child.lineno
++        # Fallback to parent's line number if available
++        if self.parent is not None:
++            return self.parent.fromlineno
++        # Default to 0 if no line number can be determined
++        return 0
+     @cached_property
+     def tolineno(self) -> int:
+         """The last line that this node appears on in the source code.

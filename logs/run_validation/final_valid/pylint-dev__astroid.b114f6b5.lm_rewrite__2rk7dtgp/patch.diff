@@ -1,0 +1,12 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..df3ac74 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -3897,7 +3897,6 @@ class Try(_base_nodes.MultiLineWithElseBlockNode, _base_nodes.Statement):
+             if self.finalbody[0].fromlineno <= lineno <= self.finalbody[-1].tolineno:
+                 return lineno, self.finalbody[-1].tolineno
+         return lineno, self.tolineno
+-
+     def get_children(self):
+         yield from self.body
+         yield from self.handlers

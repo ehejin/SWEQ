@@ -1,0 +1,44 @@
+diff --git a/astroid/helpers.py b/astroid/helpers.py
+index ea7523b..6565bf6 100644
+--- a/astroid/helpers.py
++++ b/astroid/helpers.py
+@@ -233,25 +233,9 @@ def class_instance_as_index(node: bases.Instance) -> nodes.Const | None:
+ 
+ 
+ def object_len(node, context: InferenceContext | None = None):
+-    """Infer length of given node object.
+-
+-    :param Union[nodes.ClassDef, nodes.Instance] node:
+-    :param node: Node to infer length of
+-
+-    :raises AstroidTypeError: If an invalid node is returned
+-        from __len__ method or no __len__ method exists
+-    :raises InferenceError: If the given node cannot be inferred
+-        or if multiple nodes are inferred or if the code executed in python
+-        would result in a infinite recursive check for length
+-    :rtype int: Integer length of node
+-    """
+-    # pylint: disable=import-outside-toplevel; circular import
+     from astroid.objects import FrozenSet
+ 
+     inferred_node = real_safe_infer(node, context=context)
+-
+-    # prevent self referential length calls from causing a recursion error
+-    # see https://github.com/pylint-dev/astroid/issues/777
+     node_frame = node.frame()
+     if (
+         isinstance(node_frame, scoped_nodes.FunctionDef)
+@@ -305,13 +289,11 @@ def object_len(node, context: InferenceContext | None = None):
+         or isinstance(result_of_len, bases.Instance)
+         and result_of_len.is_subtype_of("builtins.int")
+     ):
+-        # Fake a result as we don't know the arguments of the instance call.
+         return 0
+     raise AstroidTypeError(
+         f"'{result_of_len}' object cannot be interpreted as an integer"
+     )
+ 
+-
+ def _higher_function_scope(node: nodes.NodeNG) -> nodes.FunctionDef | None:
+     """Search for the first function which encloses the given
+     scope.

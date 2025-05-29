@@ -1,0 +1,29 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..9748d10 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -40,18 +40,16 @@ DATACLASS_MODULES = frozenset(
+ DEFAULT_FACTORY = "_HAS_DEFAULT_FACTORY"  # based on typing.py
+ 
+ 
+-def is_decorated_with_dataclass(
+-    node: nodes.ClassDef, decorator_names: frozenset[str] = DATACLASSES_DECORATORS
+-) -> bool:
++def is_decorated_with_dataclass(node: nodes.ClassDef, decorator_names: frozenset[str] = DATACLASSES_DECORATORS) -> bool:
+     """Return True if a decorated node has a `dataclass` decorator applied."""
+-    if not isinstance(node, nodes.ClassDef) or not node.decorators:
++    if not node.decorators:
+         return False
+ 
+-    return any(
+-        _looks_like_dataclass_decorator(decorator_attribute, decorator_names)
+-        for decorator_attribute in node.decorators.nodes
+-    )
++    for decorator in node.decorators.nodes:
++        if _looks_like_dataclass_decorator(decorator, decorator_names):
++            return True
+ 
++    return False
+ 
+ def dataclass_transform(node: nodes.ClassDef) -> None:
+     """Rewrite a dataclass to be easily understood by pylint."""

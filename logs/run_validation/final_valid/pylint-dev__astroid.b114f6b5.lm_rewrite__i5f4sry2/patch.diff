@@ -1,0 +1,24 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..e9c331e 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -137,13 +137,12 @@ class AsStringVisitor:
+ 
+     def visit_annassign(self, node: nodes.AnnAssign) -> str:
+         """Return an astroid.AnnAssign node as string"""
+-
+-        target = node.target.accept(self)
+-        annotation = node.annotation.accept(self)
+-        if node.value is None:
+-            return f"{target}: {annotation}"
+-        return f"{target}: {annotation} = {node.value.accept(self)}"
+-
++        target_str = node.target.accept(self)
++        annotation_str = node.annotation.accept(self)
++        if node.value:
++            value_str = node.value.accept(self)
++            return f"{target_str}: {annotation_str} = {value_str}"
++        return f"{target_str}: {annotation_str}"
+     def visit_binop(self, node: nodes.BinOp) -> str:
+         """return an astroid.BinOp node as string"""
+         left = self._precedence_parens(node, node.left)

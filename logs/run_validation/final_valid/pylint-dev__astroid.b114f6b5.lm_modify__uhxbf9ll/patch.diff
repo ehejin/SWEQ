@@ -1,0 +1,35 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..5d43661 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -629,12 +629,7 @@ class OperatorNode(NodeNG):
+         context: InferenceContext,
+         flow_factory: GetFlowFactory,
+     ) -> Generator[InferenceResult | util.BadBinaryOperationMessage]:
+-        """Infer a binary operation between a left operand and a right operand.
+-
+-        This is used by both normal binary operations and augmented binary
+-        operations, the only difference is the flow factory used.
+-        """
+-        from astroid import helpers  # pylint: disable=import-outside-toplevel
++        from astroid import helpers
+ 
+         context, reverse_context = OperatorNode._get_binop_contexts(
+             context, left, right
+@@ -664,13 +659,11 @@ class OperatorNode(NodeNG):
+                 not_implemented = sum(
+                     1 for result in results if OperatorNode._is_not_implemented(result)
+                 )
+-                if not_implemented and not_implemented != len(results):
+-                    # Can't infer yet what this is.
++                if not_implemented > 0:
+                     yield util.Uninferable
+                     return
+ 
+                 yield from results
+                 return
+ 
+-        # The operation doesn't seem to be supported so let the caller know about it
+-        yield util.BadBinaryOperationMessage(left_type, binary_opnode.op, right_type)
++        yield util.BadBinaryOperationMessage(left_type, binary_opnode.op, right_type)
+\ No newline at end of file

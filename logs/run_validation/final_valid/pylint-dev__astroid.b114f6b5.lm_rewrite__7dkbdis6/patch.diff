@@ -1,0 +1,23 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..dd191e2 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4275,9 +4275,7 @@ class UnaryOp(_base_nodes.OperatorNode):
+     def postinit(self, operand: NodeNG) -> None:
+         self.operand = operand
+ 
+-    def type_errors(
+-        self, context: InferenceContext | None = None
+-    ) -> list[util.BadUnaryOperationMessage]:
++    def type_errors(self, context: InferenceContext | None = None) -> list[util.BadUnaryOperationMessage]:
+         """Get a list of type errors which can occur during inference.
+ 
+         Each TypeError is represented by a :class:`BadUnaryOperationMessage`,
+@@ -4295,7 +4293,6 @@ class UnaryOp(_base_nodes.OperatorNode):
+         except InferenceError:
+             return []
+         return bad
+-
+     def get_children(self):
+         yield self.operand
+ 

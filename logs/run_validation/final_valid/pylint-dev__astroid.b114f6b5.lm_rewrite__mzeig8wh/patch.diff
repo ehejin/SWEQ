@@ -1,0 +1,12 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..6f417a1 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -217,7 +217,6 @@ class MultiLineBlockNode(NodeNG):
+                 if child_node.is_function:
+                     continue
+                 yield from child_node._get_yield_nodes_skip_functions()
+-
+     def _get_yield_nodes_skip_lambdas(self):
+         for block in self._multi_line_blocks:
+             for child_node in block:

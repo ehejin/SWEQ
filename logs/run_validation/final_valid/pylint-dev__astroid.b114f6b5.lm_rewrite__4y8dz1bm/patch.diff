@@ -1,0 +1,12 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..194c7d4 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -224,7 +224,6 @@ class MultiLineBlockNode(NodeNG):
+                 if child_node.is_lambda:
+                     continue
+                 yield from child_node._get_yield_nodes_skip_lambdas()
+-
+     @cached_property
+     def _assign_nodes_in_scope(self) -> list[nodes.Assign]:
+         children_assign_nodes = (

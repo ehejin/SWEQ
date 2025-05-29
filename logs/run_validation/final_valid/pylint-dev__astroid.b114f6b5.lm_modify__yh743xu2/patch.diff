@@ -1,0 +1,30 @@
+diff --git a/astroid/brain/brain_functools.py b/astroid/brain/brain_functools.py
+index c11b856..921a47b 100644
+--- a/astroid/brain/brain_functools.py
++++ b/astroid/brain/brain_functools.py
+@@ -95,8 +95,6 @@ def _functools_partial_inference(
+     if not isinstance(inferred_wrapped_function, FunctionDef):
+         raise UseInferenceDefault("The wrapped function is not a function")
+ 
+-    # Determine if the passed keywords into the callsite are supported
+-    # by the wrapped function.
+     if not inferred_wrapped_function.args:
+         function_parameters = []
+     else:
+@@ -106,7 +104,7 @@ def _functools_partial_inference(
+             inferred_wrapped_function.args.kwonlyargs or (),
+         )
+     parameter_names = {
+-        param.name for param in function_parameters if isinstance(param, AssignName)
++        param.name for param in function_parameters
+     }
+     if set(call.keyword_arguments) - parameter_names:
+         raise UseInferenceDefault("wrapped function received unknown parameters")
+@@ -129,7 +127,6 @@ def _functools_partial_inference(
+     )
+     return iter((partial_function,))
+ 
+-
+ def _looks_like_lru_cache(node) -> bool:
+     """Check if the given function node is decorated with lru_cache."""
+     if not node.decorators:

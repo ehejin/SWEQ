@@ -1,0 +1,28 @@
+diff --git a/astroid/context.py b/astroid/context.py
+index d5efc9a..3e1a2a2 100644
+--- a/astroid/context.py
++++ b/astroid/context.py
+@@ -113,13 +113,16 @@ class InferenceContext:
+         Allows one to see if the given node has already
+         been looked at for this inference context
+         """
+-        name = self.lookupname
+-        if (node, name) in self.path:
+-            return True
+-
+-        self.path.add((node, name))
+-        return False
+-
++        # Create a tuple of the node and the current lookupname
++        node_tuple = (node, self.lookupname)
++    
++        # Check if this node tuple is already in the path
++        if node_tuple in self.path:
++            return True  # Node has already been visited
++    
++        # Add the node tuple to the path
++        self.path.add(node_tuple)
++        return False  # Node was not previously visited
+     def clone(self) -> InferenceContext:
+         """Clone inference path.
+ 

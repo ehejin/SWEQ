@@ -1,0 +1,30 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..ee69240 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -128,19 +128,16 @@ def _path_from_filename(filename: str, is_jython: bool = IS_JYTHON) -> str:
+     return filename
+ 
+ 
+-def _handle_blacklist(
+-    blacklist: Sequence[str], dirnames: list[str], filenames: list[str]
+-) -> None:
++def _handle_blacklist(blacklist: Sequence[str], dirnames: list[str], filenames: list[str]) -> None:
+     """Remove files/directories in the black list.
+ 
+     dirnames/filenames are usually from os.walk
+     """
+-    for norecurs in blacklist:
+-        if norecurs in dirnames:
+-            dirnames.remove(norecurs)
+-        elif norecurs in filenames:
+-            filenames.remove(norecurs)
+-
++    # Remove blacklisted directories
++    dirnames[:] = [d for d in dirnames if d not in blacklist]
++    
++    # Remove blacklisted files
++    filenames[:] = [f for f in filenames if f not in blacklist]
+ 
+ @lru_cache
+ def _cache_normalize_path_(path: str) -> str:

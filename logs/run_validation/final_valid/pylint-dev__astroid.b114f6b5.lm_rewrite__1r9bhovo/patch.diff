@@ -1,0 +1,17 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..7802b51 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -512,9 +512,9 @@ def _looks_like_dataclasses(node: nodes.Module) -> bool:
+ def _resolve_private_replace_to_public(node: nodes.Module) -> None:
+     """In python/cpython@6f3c138, a _replace() method was extracted from
+     replace(), and this indirection made replace() uninferable."""
+-    if "_replace" in node.locals:
+-        node.locals["replace"] = node.locals["_replace"]
+-
++    if node.qname() == "dataclasses":
++        if "_replace" in node.locals:
++            node.locals["replace"] = node.locals["_replace"]
+ 
+ def _get_field_default(field_call: nodes.Call) -> _FieldDefaultReturn:
+     """Return a the default value of a field call, and the corresponding keyword

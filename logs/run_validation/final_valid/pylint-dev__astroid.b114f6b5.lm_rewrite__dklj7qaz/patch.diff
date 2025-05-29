@@ -1,0 +1,12 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..853745a 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -346,7 +346,6 @@ class OperatorNode(NodeNG):
+     def _is_not_implemented(const) -> bool:
+         """Check if the given const node is NotImplemented."""
+         return isinstance(const, nodes.Const) and const.value is NotImplemented
+-
+     @staticmethod
+     def _infer_old_style_string_formatting(
+         instance: nodes.Const, other: nodes.NodeNG, context: InferenceContext

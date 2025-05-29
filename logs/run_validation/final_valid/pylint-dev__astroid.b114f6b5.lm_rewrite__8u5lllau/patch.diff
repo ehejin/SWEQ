@@ -1,0 +1,45 @@
+diff --git a/astroid/constraint.py b/astroid/constraint.py
+index 08bb80e..fd4a3dc 100644
+--- a/astroid/constraint.py
++++ b/astroid/constraint.py
+@@ -118,17 +118,36 @@ ALL_CONSTRAINT_CLASSES = frozenset((NoneConstraint,))
+ """All supported constraint types."""
+ 
+ 
+-def _matches(node1: nodes.NodeNG | bases.Proxy, node2: nodes.NodeNG) -> bool:
++def _matches(node1: (nodes.NodeNG | bases.Proxy), node2: nodes.NodeNG) -> bool:
+     """Returns True if the two nodes match."""
++    # Check if both nodes are of the same type
++    if type(node1) is not type(node2):
++        return False
++
++    # If both nodes are constants, compare their values
++    if isinstance(node1, nodes.Const) and isinstance(node2, nodes.Const):
++        return node1.value == node2.value
++
++    # If both nodes are names, compare their names
+     if isinstance(node1, nodes.Name) and isinstance(node2, nodes.Name):
+         return node1.name == node2.name
++
++    # If both nodes are attributes, compare their attributes
+     if isinstance(node1, nodes.Attribute) and isinstance(node2, nodes.Attribute):
+         return node1.attrname == node2.attrname and _matches(node1.expr, node2.expr)
+-    if isinstance(node1, nodes.Const) and isinstance(node2, nodes.Const):
+-        return node1.value == node2.value
+ 
+-    return False
++    # If both nodes are assign names, compare their names
++    if isinstance(node1, nodes.AssignName) and isinstance(node2, nodes.AssignName):
++        return node1.name == node2.name
++
++    # If both nodes are assign attributes, compare their attributes
++    if isinstance(node1, nodes.AssignAttr) and isinstance(node2, nodes.AssignAttr):
++        return node1.attrname == node2.attrname and _matches(node1.expr, node2.expr)
++
++    # Add more cases as needed for other node types
+ 
++    # If none of the above conditions are met, assume they do not match
++    return False
+ 
+ def _match_constraint(
+     node: _NameNodes, expr: nodes.NodeNG, invert: bool = False

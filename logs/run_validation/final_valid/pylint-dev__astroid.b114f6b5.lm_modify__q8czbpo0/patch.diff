@@ -1,0 +1,343 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..d1134b8 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -181,37 +181,16 @@ def _infer_last(
+ 
+ 
+ class Module(LocalsDictNodeNG):
+-    """Class representing an :class:`ast.Module` node.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('import astroid')
+-    >>> node
+-    <Import l.1 at 0x7f23b2e4e5c0>
+-    >>> node.parent
+-    <Module l.0 at 0x7f23b2e4eda0>
+-    """
+-
+     _astroid_fields = ("doc_node", "body")
+ 
+     doc_node: Const | None
+-    """The doc node associated with this node."""
+-
+-    # attributes below are set by the builder module or by raw factories
+ 
+     file_bytes: str | bytes | None = None
+-    """The string/bytes that this ast was built from."""
+ 
+     file_encoding: str | None = None
+-    """The encoding of the source file.
+-
+-    This is used to get unicode out of a source file.
+-    Python 2 only.
+-    """
+ 
+     special_attributes = ModuleModel()
+-    """The names of special attributes that this module has."""
+ 
+-    # names of module attributes available through the global scope
+     scope_attrs: ClassVar[set[str]] = {
+         "__name__",
+         "__doc__",
+@@ -219,7 +198,6 @@ class Module(LocalsDictNodeNG):
+         "__path__",
+         "__package__",
+     }
+-    """The names of module attributes available through the global scope."""
+ 
+     _other_fields = (
+         "name",
+@@ -240,41 +218,27 @@ class Module(LocalsDictNodeNG):
+         pure_python: bool = True,
+     ) -> None:
+         self.name = name
+-        """The name of the module."""
+ 
+         self.file = file
+-        """The path to the file that this ast has been extracted from.
+-
+-        This will be ``None`` when the representation has been built from a
+-        built-in module.
+-        """
+ 
+         self.path = path
+ 
+         self.package = package
+-        """Whether the node represents a package or a module."""
+ 
+         self.pure_python = pure_python
+-        """Whether the ast was built from source."""
+ 
+         self.globals: dict[str, list[InferenceResult]]
+-        """A map of the name of a global variable to the node defining the global."""
+ 
+         self.locals = self.globals = {}
+-        """A map of the name of a local variable to the node defining the local."""
+ 
+         self.body: list[node_classes.NodeNG] = []
+-        """The contents of the module."""
+ 
+         self.future_imports: set[str] = set()
+-        """The imports from ``__future__``."""
+ 
+         super().__init__(
+             lineno=0, parent=None, col_offset=0, end_lineno=None, end_col_offset=None
+         )
+ 
+-    # pylint: enable=redefined-builtin
+-
+     def postinit(
+         self, body: list[node_classes.NodeNG], *, doc_node: Const | None = None
+     ):
+@@ -285,43 +249,19 @@ class Module(LocalsDictNodeNG):
+         if self.file_bytes is not None:
+             return io.BytesIO(self.file_bytes)
+         if self.file is not None:
+-            # pylint: disable=consider-using-with
+             stream = open(self.file, "rb")
+             return stream
+         return None
+ 
+     def stream(self):
+-        """Get a stream to the underlying file or bytes.
+-
+-        :type: file or io.BytesIO or None
+-        """
+         return self._get_stream()
+ 
+     def block_range(self, lineno: int) -> tuple[int, int]:
+-        """Get a range from where this node starts to where this node ends.
+-
+-        :param lineno: Unused.
+-
+-        :returns: The range of line numbers that this node belongs to.
+-        """
+         return self.fromlineno, self.tolineno
+ 
+     def scope_lookup(
+         self, node: LookupMixIn, name: str, offset: int = 0
+     ) -> tuple[LocalsDictNodeNG, list[node_classes.NodeNG]]:
+-        """Lookup where the given variable is assigned.
+-
+-        :param node: The node to look for assignments up to.
+-            Any assignments after the given node are ignored.
+-
+-        :param name: The name of the variable to find assignments for.
+-
+-        :param offset: The line offset to filter statements up to.
+-
+-        :returns: This scope node and the list of assignments associated to the
+-            given name according to the scope where it has been found (locals,
+-            globals or builtin).
+-        """
+         if name in self.scope_attrs and name not in self.locals:
+             try:
+                 return self, self.getattr(name)
+@@ -330,18 +270,9 @@ class Module(LocalsDictNodeNG):
+         return self._scope_lookup(node, name, offset)
+ 
+     def pytype(self) -> Literal["builtins.module"]:
+-        """Get the name of the type that this node represents.
+-
+-        :returns: The name of the type.
+-        """
+         return "builtins.module"
+ 
+     def display_type(self) -> str:
+-        """A human readable type of this node.
+-
+-        :returns: The type of this node.
+-        :rtype: str
+-        """
+         return "Module"
+ 
+     def getattr(
+@@ -376,14 +307,6 @@ class Module(LocalsDictNodeNG):
+     def igetattr(
+         self, name: str, context: InferenceContext | None = None
+     ) -> Iterator[InferenceResult]:
+-        """Infer the possible values of the given variable.
+-
+-        :param name: The name of the variable to infer.
+-
+-        :returns: The inferred possible values.
+-        """
+-        # set lookup name since this is necessary to infer on import nodes for
+-        # instance
+         context = copy_context(context)
+         context.lookupname = name
+         try:
+@@ -394,20 +317,9 @@ class Module(LocalsDictNodeNG):
+             ) from error
+ 
+     def fully_defined(self) -> bool:
+-        """Check if this module has been build from a .py file.
+-
+-        If so, the module contains a complete representation,
+-        including the code.
+-
+-        :returns: Whether the module has been built from a .py file.
+-        """
+         return self.file is not None and self.file.endswith(".py")
+ 
+     def statement(self, *, future: Literal[None, True] = None) -> NoReturn:
+-        """The first parent node, including self, marked as statement node.
+-
+-        When called on a :class:`Module` this raises a StatementMissing.
+-        """
+         if future is not None:
+             warnings.warn(
+                 "The future arg will be removed in astroid 4.0.",
+@@ -417,26 +329,14 @@ class Module(LocalsDictNodeNG):
+         raise StatementMissing(target=self)
+ 
+     def previous_sibling(self):
+-        """The previous sibling statement.
+-
+-        :returns: The previous sibling statement node.
+-        :rtype: NodeNG or None
+-        """
++        pass
+ 
+     def next_sibling(self):
+-        """The next sibling statement node.
+-
+-        :returns: The next sibling statement node.
+-        :rtype: NodeNG or None
+-        """
++        pass
+ 
+     _absolute_import_activated = True
+ 
+     def absolute_import_activated(self) -> bool:
+-        """Whether :pep:`328` absolute import behaviour has been enabled.
+-
+-        :returns: Whether :pep:`328` has been enabled.
+-        """
+         return self._absolute_import_activated
+ 
+     def import_module(
+@@ -446,18 +346,6 @@ class Module(LocalsDictNodeNG):
+         level: int | None = None,
+         use_cache: bool = True,
+     ) -> Module:
+-        """Get the ast for a given module as if imported from this module.
+-
+-        :param modname: The name of the module to "import".
+-
+-        :param relative_only: Whether to only consider relative imports.
+-
+-        :param level: The level of relative import.
+-
+-        :param use_cache: Whether to use the astroid_cache of modules.
+-
+-        :returns: The imported module ast.
+-        """
+         if relative_only and level is None:
+             level = 0
+         absmodname = self.relative_to_absolute_name(modname, level)
+@@ -467,33 +355,13 @@ class Module(LocalsDictNodeNG):
+                 absmodname, use_cache=use_cache
+             )
+         except AstroidBuildingError:
+-            # we only want to import a sub module or package of this module,
+-            # skip here
+             if relative_only:
+                 raise
+-            # Don't repeat the same operation, e.g. for missing modules
+-            # like "_winapi" or "nt" on POSIX systems.
+             if modname == absmodname:
+                 raise
+         return AstroidManager().ast_from_module_name(modname, use_cache=use_cache)
+ 
+     def relative_to_absolute_name(self, modname: str, level: int | None) -> str:
+-        """Get the absolute module name for a relative import.
+-
+-        The relative import can be implicit or explicit.
+-
+-        :param modname: The module name to convert.
+-
+-        :param level: The level of relative import.
+-
+-        :returns: The absolute module name.
+-
+-        :raises TooManyLevelsError: When the relative import refers to a
+-            module too far above this one.
+-        """
+-        # XXX this returns non sens when called on an absolute import
+-        # like 'pylint.checkers.astroid.utils'
+-        # XXX doesn't return absolute name if self.name isn't absolute name
+         if self.absolute_import_activated() and level is None:
+             return modname
+         if level:
+@@ -526,16 +394,6 @@ class Module(LocalsDictNodeNG):
+         return modname
+ 
+     def wildcard_import_names(self):
+-        """The list of imported names when this module is 'wildcard imported'.
+-
+-        It doesn't include the '__builtins__' name which is added by the
+-        current CPython implementation of wildcard imports.
+-
+-        :returns: The list of imported names.
+-        :rtype: list(str)
+-        """
+-        # We separate the different steps of lookup in try/excepts
+-        # to avoid catching too many Exceptions
+         default = [name for name in self.keys() if not name.startswith("_")]
+         try:
+             all_values = self["__all__"]
+@@ -547,11 +405,8 @@ class Module(LocalsDictNodeNG):
+         except (InferenceError, StopIteration):
+             return default
+         except AttributeError:
+-            # not an assignment node
+-            # XXX infer?
+             return default
+ 
+-        # Try our best to detect the exported name.
+         inferred = []
+         try:
+             explicit = next(explicit.infer())
+@@ -576,32 +431,15 @@ class Module(LocalsDictNodeNG):
+         return inferred
+ 
+     def public_names(self):
+-        """The list of the names that are publicly available in this module.
+-
+-        :returns: The list of public names.
+-        :rtype: list(str)
+-        """
+         return [name for name in self.keys() if not name.startswith("_")]
+ 
+     def bool_value(self, context: InferenceContext | None = None) -> bool:
+-        """Determine the boolean value of this node.
+-
+-        :returns: The boolean value of this node.
+-            For a :class:`Module` this is always ``True``.
+-        """
+         return True
+ 
+     def get_children(self):
+         yield from self.body
+ 
+     def frame(self: _T, *, future: Literal[None, True] = None) -> _T:
+-        """The node's frame node.
+-
+-        A frame node is a :class:`Module`, :class:`FunctionDef`,
+-        :class:`ClassDef` or :class:`Lambda`.
+-
+-        :returns: The node itself.
+-        """
+         return self
+ 
+     def _infer(
+@@ -609,7 +447,6 @@ class Module(LocalsDictNodeNG):
+     ) -> Generator[Module]:
+         yield self
+ 
+-
+ class __SyntheticRoot(Module):
+     def __init__(self):
+         super().__init__("__astroid_synthetic", pure_python=False)

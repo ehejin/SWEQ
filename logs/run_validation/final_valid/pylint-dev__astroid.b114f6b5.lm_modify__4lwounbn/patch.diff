@@ -1,0 +1,100 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..ef1dd3f 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1329,24 +1329,11 @@ class AnnAssign(_base_nodes.AssignTypeNode, _base_nodes.Statement):
+ class AugAssign(
+     _base_nodes.AssignTypeNode, _base_nodes.OperatorNode, _base_nodes.Statement
+ ):
+-    """Class representing an :class:`ast.AugAssign` node.
+-
+-    An :class:`AugAssign` is an assignment paired with an operator.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('variable += 1')
+-    >>> node
+-    <AugAssign l.1 at 0x7effe1db4d68>
+-    """
+-
+     _astroid_fields = ("target", "value")
+     _other_fields = ("op",)
+ 
+     target: Name | Attribute | Subscript
+-    """What is being assigned to."""
+-
+     value: NodeNG
+-    """The value being assigned to the variable."""
+ 
+     def __init__(
+         self,
+@@ -1359,10 +1346,6 @@ class AugAssign(
+         end_col_offset: int | None,
+     ) -> None:
+         self.op = op
+-        """The operator that is being combined with the assignment.
+-
+-        This includes the equals sign.
+-        """
+ 
+         super().__init__(
+             lineno=lineno,
+@@ -1377,20 +1360,10 @@ class AugAssign(
+         self.value = value
+ 
+     assigned_stmts = protocols.assign_assigned_stmts
+-    """Returns the assigned statement (non inferred) according to the assignment type.
+-    See astroid/protocols.py for actual implementation.
+-    """
+ 
+     def type_errors(
+         self, context: InferenceContext | None = None
+     ) -> list[util.BadBinaryOperationMessage]:
+-        """Get a list of type errors which can occur during inference.
+-
+-        Each TypeError is represented by a :class:`BadBinaryOperationMessage` ,
+-        which holds the original exception.
+-
+-        If any inferred result is uninferable, an empty list is returned.
+-        """
+         bad = []
+         try:
+             for result in self._infer_augassign(context=context):
+@@ -1407,29 +1380,25 @@ class AugAssign(
+         yield self.value
+ 
+     def _get_yield_nodes_skip_functions(self):
+-        """An AugAssign node can contain a Yield node in the value"""
+         yield from self.value._get_yield_nodes_skip_functions()
+         yield from super()._get_yield_nodes_skip_functions()
+ 
+     def _get_yield_nodes_skip_lambdas(self):
+-        """An AugAssign node can contain a Yield node in the value"""
+         yield from self.value._get_yield_nodes_skip_lambdas()
+         yield from super()._get_yield_nodes_skip_lambdas()
+ 
+     def _infer_augassign(
+         self, context: InferenceContext | None = None
+     ) -> Generator[InferenceResult | util.BadBinaryOperationMessage]:
+-        """Inference logic for augmented binary operations."""
+         context = context or InferenceContext()
+ 
+         rhs_context = context.clone()
+ 
+-        lhs_iter = self.target.infer_lhs(context=context)
+         rhs_iter = self.value.infer(context=rhs_context)
++        lhs_iter = self.target.infer_lhs(context=context)  # Switched the order
+ 
+         for lhs, rhs in itertools.product(lhs_iter, rhs_iter):
+             if any(isinstance(value, util.UninferableBase) for value in (rhs, lhs)):
+-                # Don't know how to process this.
+                 yield util.Uninferable
+                 return
+ 
+@@ -1453,7 +1422,6 @@ class AugAssign(
+             self._infer_augassign, context, util.BadBinaryOperationMessage
+         )
+ 
+-
+ class BinOp(_base_nodes.OperatorNode):
+     """Class representing an :class:`ast.BinOp` node.
+ 

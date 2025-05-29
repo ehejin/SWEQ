@@ -1,0 +1,12 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..019e361 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -523,7 +523,6 @@ class AsStringVisitor:
+         if node.finalbody:
+             trys.append(f"finally:\n{self._stmt_list(node.finalbody)}")
+         return "\n".join(trys)
+-
+     def visit_trystar(self, node: nodes.TryStar) -> str:
+         """return an astroid.TryStar node as string"""
+         trys = [f"try:\n{self._stmt_list(node.body)}"]

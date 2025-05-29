@@ -1,0 +1,28 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..71932f6 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -568,14 +568,16 @@ class AsStringVisitor:
+             whiles = f"{whiles}\nelse:\n{self._stmt_list(node.orelse)}"
+         return whiles
+ 
+-    def visit_with(self, node: nodes.With) -> str:  # 'with' without 'as' is possible
++    def visit_with(self, node: nodes.With) -> str:
+         """return an astroid.With node as string"""
+-        items = ", ".join(
+-            f"{expr.accept(self)}" + (v and f" as {v.accept(self)}" or "")
+-            for expr, v in node.items
+-        )
+-        return f"with {items}:\n{self._stmt_list(node.body)}"
+-
++        items = []
++        for context_expr, optional_vars in node.items:
++            if optional_vars:
++                items.append(f"{context_expr.accept(self)} as {optional_vars.accept(self)}")
++            else:
++                items.append(context_expr.accept(self))
++        with_stmt = f"with {', '.join(items)}:\n{self._stmt_list(node.body)}"
++        return with_stmt
+     def visit_yield(self, node: nodes.Yield) -> str:
+         """yield an ast.Yield node as string"""
+         yi_val = (" " + node.value.accept(self)) if node.value else ""

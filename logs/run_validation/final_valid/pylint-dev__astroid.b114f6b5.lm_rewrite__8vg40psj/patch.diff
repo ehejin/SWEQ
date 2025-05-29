@@ -1,0 +1,21 @@
+diff --git a/script/bump_changelog.py b/script/bump_changelog.py
+index a08a1ae..c01e9d0 100644
+--- a/script/bump_changelog.py
++++ b/script/bump_changelog.py
+@@ -78,13 +78,11 @@ def get_next_versions(version: str, version_type: VersionType) -> list[str]:
+ 
+ def get_version_type(version: str) -> VersionType:
+     if version.endswith(".0.0"):
+-        version_type = VersionType.MAJOR
++        return VersionType.MAJOR
+     elif version.endswith(".0"):
+-        version_type = VersionType.MINOR
++        return VersionType.MINOR
+     else:
+-        version_type = VersionType.PATCH
+-    return version_type
+-
++        return VersionType.PATCH
+ 
+ def get_whats_new(
+     version: str, add_date: bool = False, change_date: bool = False

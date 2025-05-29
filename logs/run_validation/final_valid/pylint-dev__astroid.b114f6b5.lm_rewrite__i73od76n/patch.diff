@@ -1,0 +1,46 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..a33a273 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -137,28 +137,22 @@ def _check_generate_dataclass_init(node: nodes.ClassDef) -> bool:
+         - node doesn't define its own __init__ method
+         - the dataclass decorator was called *without* the keyword argument init=False
+     """
++    # Check if the class already defines an __init__ method
+     if "__init__" in node.locals:
+         return False
+ 
+-    found = None
+-
+-    for decorator_attribute in node.decorators.nodes:
+-        if not isinstance(decorator_attribute, nodes.Call):
+-            continue
+-
+-        if _looks_like_dataclass_decorator(decorator_attribute):
+-            found = decorator_attribute
+-
+-    if found is None:
+-        return True
+-
+-    # Check for keyword arguments of the form init=False
+-    return not any(
+-        keyword.arg == "init"
+-        and not keyword.value.bool_value()  # type: ignore[union-attr] # value is never None
+-        for keyword in found.keywords
+-    )
+-
++    # Check if the dataclass decorator was called with init=False
++    if node.decorators:
++        for decorator in node.decorators.nodes:
++            if isinstance(decorator, nodes.Call):
++                # Check if the decorator is a dataclass decorator
++                if _looks_like_dataclass_decorator(decorator.func):
++                    # Check for init=False in the decorator's keywords
++                    for keyword in decorator.keywords:
++                        if keyword.arg == "init" and not keyword.value.bool_value():
++                            return False
++
++    return True
+ 
+ def _find_arguments_from_base_classes(
+     node: nodes.ClassDef,

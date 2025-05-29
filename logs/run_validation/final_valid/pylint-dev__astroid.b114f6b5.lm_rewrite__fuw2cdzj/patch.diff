@@ -1,0 +1,14 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..ad12e71 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -401,8 +401,7 @@ class Module(LocalsDictNodeNG):
+ 
+         :returns: Whether the module has been built from a .py file.
+         """
+-        return self.file is not None and self.file.endswith(".py")
+-
++        return self.file is not None and self.file.endswith('.py')
+     def statement(self, *, future: Literal[None, True] = None) -> NoReturn:
+         """The first parent node, including self, marked as statement node.
+ 

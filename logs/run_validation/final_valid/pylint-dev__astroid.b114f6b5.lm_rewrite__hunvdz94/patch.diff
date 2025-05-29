@@ -1,0 +1,24 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..a305a74 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -283,13 +283,14 @@ class Module(LocalsDictNodeNG):
+ 
+     def _get_stream(self):
+         if self.file_bytes is not None:
++            # If file_bytes is available, return a BytesIO stream
++            if isinstance(self.file_bytes, str):
++                return io.BytesIO(self.file_bytes.encode(self.file_encoding or 'utf-8'))
+             return io.BytesIO(self.file_bytes)
+-        if self.file is not None:
+-            # pylint: disable=consider-using-with
+-            stream = open(self.file, "rb")
+-            return stream
++        elif self.file is not None:
++            # If file is available, open the file in binary read mode
++            return open(self.file, 'rb')
+         return None
+-
+     def stream(self):
+         """Get a stream to the underlying file or bytes.
+ 

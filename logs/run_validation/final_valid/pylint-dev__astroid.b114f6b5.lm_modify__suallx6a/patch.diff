@@ -1,0 +1,32 @@
+diff --git a/astroid/interpreter/_import/spec.py b/astroid/interpreter/_import/spec.py
+index e0c54d4..4953d8b 100644
+--- a/astroid/interpreter/_import/spec.py
++++ b/astroid/interpreter/_import/spec.py
+@@ -452,10 +452,9 @@ def _find_spec(
+ ) -> ModuleSpec:
+     _path = path or sys.path
+ 
+-    # Need a copy for not mutating the argument.
+     modpath = list(module_path)
+ 
+-    search_paths = None
++    search_paths = ()
+     processed: list[str] = []
+ 
+     while modpath:
+@@ -472,13 +471,10 @@ def _find_spec(
+         if modpath:
+             if isinstance(finder, Finder):
+                 search_paths = finder.contribute_to_path(spec, processed)
+-            # If modname is a package from an editable install, update search_paths
+-            # so that the next module in the path will be found inside of it using importlib.
+-            # Existence of __name__ is guaranteed by _find_spec_with_path.
+             elif finder.__name__ in _EditableFinderClasses:  # type: ignore[attr-defined]
+                 search_paths = spec.submodule_search_locations
+ 
+         if spec.type == ModuleType.PKG_DIRECTORY:
+             spec = spec._replace(submodule_search_locations=search_paths)
+ 
+-    return spec
++    return spec
+\ No newline at end of file

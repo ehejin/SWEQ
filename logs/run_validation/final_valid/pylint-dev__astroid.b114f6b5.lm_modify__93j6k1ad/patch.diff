@@ -1,0 +1,26 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..c4a9308 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4794,10 +4794,10 @@ class JoinedStr(NodeNG):
+             yield from nodes[0]._infer(context, **kwargs)
+             return
+         uninferable_already_generated = False
+-        for prefix in nodes[0]._infer(context, **kwargs):
+-            for suffix in cls._infer_from_values(nodes[1:], context, **kwargs):
++        for prefix in nodes[-1]._infer(context, **kwargs):  # Changed nodes[0] to nodes[-1]
++            for suffix in cls._infer_from_values(nodes[:-1], context, **kwargs):  # Changed nodes[1:] to nodes[:-1]
+                 result = ""
+-                for node in (prefix, suffix):
++                for node in (suffix, prefix):  # Reversed node order from (prefix, suffix) to (suffix, prefix)
+                     if isinstance(node, Const):
+                         result += str(node.value)
+                         continue
+@@ -4809,7 +4809,6 @@ class JoinedStr(NodeNG):
+                 else:
+                     yield Const(result)
+ 
+-
+ class NamedExpr(_base_nodes.AssignTypeNode):
+     """Represents the assignment from the assignment expression
+ 

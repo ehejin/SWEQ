@@ -1,0 +1,194 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..f29a0a4 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -335,27 +335,18 @@ class OperatorNode(NodeNG):
+     ) -> Generator[InferenceResult]:
+         for result in infer_callable(context):
+             if isinstance(result, error):
+-                # For the sake of .infer(), we don't care about operation
+-                # errors, which is the job of a linter. So return something
+-                # which shows that we can't infer the result.
+                 yield util.Uninferable
+             else:
+                 yield result
+ 
+     @staticmethod
+     def _is_not_implemented(const) -> bool:
+-        """Check if the given const node is NotImplemented."""
+         return isinstance(const, nodes.Const) and const.value is NotImplemented
+ 
+     @staticmethod
+     def _infer_old_style_string_formatting(
+         instance: nodes.Const, other: nodes.NodeNG, context: InferenceContext
+     ) -> tuple[util.UninferableBase | nodes.Const]:
+-        """Infer the result of '"string" % ...'.
+-
+-        TODO: Instead of returning Uninferable we should rely
+-        on the call to '%' to see if the result is actually uninferable.
+-        """
+         if isinstance(other, nodes.Tuple):
+             if util.Uninferable in other.elts:
+                 return (util.Uninferable,)
+@@ -393,7 +384,6 @@ class OperatorNode(NodeNG):
+         context: InferenceContext,
+         method_name: str,
+     ) -> Generator[InferenceResult]:
+-        """Invoke binary operation inference on the given instance."""
+         methods = dunder_lookup.lookup(instance, method_name)
+         context = bind_context_to_node(context, instance)
+         method = methods[0]
+@@ -420,7 +410,7 @@ class OperatorNode(NodeNG):
+             instance,
+             (nodes.Const, nodes.Tuple, nodes.List, nodes.ClassDef, bases.Instance),
+         ):
+-            raise InferenceError  # pragma: no cover # Used as a failsafe
++            raise InferenceError
+         return instance.infer_binary_op(opnode, op, other, context, inferred)
+ 
+     @staticmethod
+@@ -432,7 +422,6 @@ class OperatorNode(NodeNG):
+         context: InferenceContext,
+         reverse: bool = False,
+     ) -> partial[Generator[InferenceResult]]:
+-        """Get an inference callable for an augmented binary operation."""
+         method_name = AUGMENTED_OP_METHOD[op]
+         return partial(
+             OperatorNode._invoke_binop_inference,
+@@ -453,10 +442,6 @@ class OperatorNode(NodeNG):
+         context: InferenceContext,
+         reverse: bool = False,
+     ) -> partial[Generator[InferenceResult]]:
+-        """Get an inference callable for a normal binary operation.
+-
+-        If *reverse* is True, then the reflected method will be used instead.
+-        """
+         if reverse:
+             method_name = REFLECTED_BIN_OP_METHOD[op]
+         else:
+@@ -476,19 +461,10 @@ class OperatorNode(NodeNG):
+         left: bases.UnionType | nodes.ClassDef | nodes.Const,
+         right: bases.UnionType | nodes.ClassDef | nodes.Const,
+     ) -> Generator[InferenceResult]:
+-        """Create a new UnionType instance for binary or, e.g. int | str."""
+         yield bases.UnionType(left, right)
+ 
+     @staticmethod
+     def _get_binop_contexts(context, left, right):
+-        """Get contexts for binary operations.
+-
+-        This will return two inference contexts, the first one
+-        for x.__op__(y), the other one for y.__rop__(x), where
+-        only the arguments are inversed.
+-        """
+-        # The order is important, since the first one should be
+-        # left.__op__(right).
+         for arg in (right, left):
+             new_context = context.clone()
+             new_context.callcontext = CallContext(args=[arg])
+@@ -497,7 +473,6 @@ class OperatorNode(NodeNG):
+ 
+     @staticmethod
+     def _same_type(type1, type2) -> bool:
+-        """Check if type1 is the same as type2."""
+         return type1.qname() == type2.qname()
+ 
+     @staticmethod
+@@ -510,22 +485,7 @@ class OperatorNode(NodeNG):
+         context: InferenceContext,
+         reverse_context: InferenceContext,
+     ) -> list[partial[Generator[InferenceResult]]]:
+-        """Get the flow for augmented binary operations.
+-
+-        The rules are a bit messy:
+-
+-            * if left and right have the same type, then left.__augop__(right)
+-            is first tried and then left.__op__(right).
+-            * if left and right are unrelated typewise, then
+-            left.__augop__(right) is tried, then left.__op__(right)
+-            is tried and then right.__rop__(left) is tried.
+-            * if left is a subtype of right, then left.__augop__(right)
+-            is tried and then left.__op__(right).
+-            * if left is a supertype of right, then left.__augop__(right)
+-            is tried, then right.__rop__(left) and then
+-            left.__op__(right)
+-        """
+-        from astroid import helpers  # pylint: disable=import-outside-toplevel
++        from astroid import helpers
+ 
+         bin_op = aug_opnode.op.strip("=")
+         aug_op = aug_opnode.op
+@@ -567,32 +527,18 @@ class OperatorNode(NodeNG):
+         context: InferenceContext,
+         reverse_context: InferenceContext,
+     ) -> list[partial[Generator[InferenceResult]]]:
+-        """Get the flow for binary operations.
+-
+-        The rules are a bit messy:
+-
+-            * if left and right have the same type, then only one
+-            method will be called, left.__op__(right)
+-            * if left and right are unrelated typewise, then first
+-            left.__op__(right) is tried and if this does not exist
+-            or returns NotImplemented, then right.__rop__(left) is tried.
+-            * if left is a subtype of right, then only left.__op__(right)
+-            is tried.
+-            * if left is a supertype of right, then right.__rop__(left)
+-            is first tried and then left.__op__(right)
+-        """
+-        from astroid import helpers  # pylint: disable=import-outside-toplevel
++        from astroid import helpers
+ 
+         op = binary_opnode.op
+         if OperatorNode._same_type(left_type, right_type):
+             methods = [OperatorNode._bin_op(left, binary_opnode, op, right, context)]
+         elif helpers.is_subtype(left_type, right_type):
+             methods = [OperatorNode._bin_op(left, binary_opnode, op, right, context)]
+-        elif helpers.is_supertype(left_type, right_type):
+-            methods = [
++        elif helpers.is_supertype(right_type, left_type):
++            methods = [ 
+                 OperatorNode._bin_op(
+                     right, binary_opnode, op, left, reverse_context, reverse=True
+-                ),
++                ), 
+                 OperatorNode._bin_op(left, binary_opnode, op, right, context),
+             ]
+         else:
+@@ -603,7 +549,6 @@ class OperatorNode(NodeNG):
+                 ),
+             ]
+ 
+-        # pylint: disable = too-many-boolean-expressions
+         if (
+             PY310_PLUS
+             and op == "|"
+@@ -629,12 +574,7 @@ class OperatorNode(NodeNG):
+         context: InferenceContext,
+         flow_factory: GetFlowFactory,
+     ) -> Generator[InferenceResult | util.BadBinaryOperationMessage]:
+-        """Infer a binary operation between a left operand and a right operand.
+-
+-        This is used by both normal binary operations and augmented binary
+-        operations, the only difference is the flow factory used.
+-        """
+-        from astroid import helpers  # pylint: disable=import-outside-toplevel
++        from astroid import helpers
+ 
+         context, reverse_context = OperatorNode._get_binop_contexts(
+             context, left, right
+@@ -665,12 +605,10 @@ class OperatorNode(NodeNG):
+                     1 for result in results if OperatorNode._is_not_implemented(result)
+                 )
+                 if not_implemented and not_implemented != len(results):
+-                    # Can't infer yet what this is.
+                     yield util.Uninferable
+                     return
+ 
+                 yield from results
+                 return
+ 
+-        # The operation doesn't seem to be supported so let the caller know about it
+-        yield util.BadBinaryOperationMessage(left_type, binary_opnode.op, right_type)
++        yield util.BadBinaryOperationMessage(left_type, binary_opnode.op, right_type)
+\ No newline at end of file

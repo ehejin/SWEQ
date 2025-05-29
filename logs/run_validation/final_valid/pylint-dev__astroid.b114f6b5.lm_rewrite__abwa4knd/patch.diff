@@ -1,0 +1,25 @@
+diff --git a/astroid/brain/brain_io.py b/astroid/brain/brain_io.py
+index ab6e607..7ae89a5 100644
+--- a/astroid/brain/brain_io.py
++++ b/astroid/brain/brain_io.py
+@@ -36,9 +36,15 @@ def _transform_buffered(node):
+ 
+ 
+ def register(manager: AstroidManager) -> None:
++    """Register transformation functions for _io module classes."""
+     manager.register_transform(
+-        ClassDef, _transform_buffered, lambda node: node.name in BUFFERED
+-    )
+-    manager.register_transform(
+-        ClassDef, _transform_text_io_wrapper, lambda node: node.name == TextIOWrapper
++        ClassDef,
++        _transform_text_io_wrapper,
++        lambda node: node.qname() == "_io.TextIOWrapper"
+     )
++    for buffered_class in BUFFERED:
++        manager.register_transform(
++            ClassDef,
++            _transform_buffered,
++            lambda node, buffered_class=buffered_class: node.qname() == f"_io.{buffered_class}"
++        )
+\ No newline at end of file

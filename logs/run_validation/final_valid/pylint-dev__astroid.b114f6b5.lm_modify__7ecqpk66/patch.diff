@@ -1,0 +1,27 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..9ccf90c 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -86,8 +86,6 @@ def _c3_merge(sequences, cls, context):
+             else:
+                 break
+         if not candidate:
+-            # Show all the remaining bases, which were considered as
+-            # candidates for the next mro sequence.
+             raise InconsistentMroError(
+                 message="Cannot create a consistent method resolution order "
+                 "for MROs {mros} of class {cls!r}.",
+@@ -97,13 +95,11 @@ def _c3_merge(sequences, cls, context):
+             )
+ 
+         result.append(candidate)
+-        # remove the chosen candidate
+         for seq in sequences:
+             if seq[0] == candidate:
+                 del seq[0]
+     return None
+ 
+-
+ def clean_typing_generic_mro(sequences: list[list[ClassDef]]) -> None:
+     """A class can inherit from typing.Generic directly, as base,
+     and as base of bases. The merged MRO must however only contain the last entry.

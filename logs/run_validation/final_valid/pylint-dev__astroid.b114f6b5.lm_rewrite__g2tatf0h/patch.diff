@@ -1,0 +1,19 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..b35be0c 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -537,10 +537,11 @@ class AsStringVisitor:
+ 
+     def visit_tuple(self, node: nodes.Tuple) -> str:
+         """return an astroid.Tuple node as string"""
++        elements = ", ".join(child.accept(self) for child in node.elts)
+         if len(node.elts) == 1:
+-            return f"({node.elts[0].accept(self)}, )"
+-        return f"({', '.join(child.accept(self) for child in node.elts)})"
+-
++            # Single element tuple needs a trailing comma
++            return f"({elements},)"
++        return f"({elements})"
+     def visit_typealias(self, node: nodes.TypeAlias) -> str:
+         """return an astroid.TypeAlias node as string"""
+         return node.name.accept(self) if node.name else "_"

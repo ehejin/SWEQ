@@ -1,0 +1,24 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..8063065 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -239,15 +239,12 @@ class NodeNG:
+     def get_children(self) -> Iterator[NodeNG]:
+         """Get the child nodes below this node."""
+         for field in self._astroid_fields:
+-            attr = getattr(self, field)
+-            if attr is None:
+-                continue
++            attr = getattr(self, field, None)
+             if isinstance(attr, (list, tuple)):
+-                yield from attr
+-            else:
++                for child in attr:
++                    yield child
++            elif attr is not None:
+                 yield attr
+-        yield from ()
+-
+     def last_child(self) -> NodeNG | None:
+         """An optimized version of list(get_children())[-1]."""
+         for field in self._astroid_fields[::-1]:

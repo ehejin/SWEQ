@@ -1,0 +1,24 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..394d5ae 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -483,9 +483,9 @@ def _looks_like_dataclass_field_call(
+ 
+     If check_scope is False, skips checking the statement and body.
+     """
++    stmt = node.statement()
++    scope = stmt.scope()
+     if check_scope:
+-        stmt = node.statement()
+-        scope = stmt.scope()
+         if not (
+             isinstance(stmt, nodes.AnnAssign)
+             and stmt.value is not None
+@@ -504,7 +504,6 @@ def _looks_like_dataclass_field_call(
+ 
+     return inferred.name == FIELD_NAME and inferred.root().name in DATACLASS_MODULES
+ 
+-
+ def _looks_like_dataclasses(node: nodes.Module) -> bool:
+     return node.qname() == "dataclasses"
+ 

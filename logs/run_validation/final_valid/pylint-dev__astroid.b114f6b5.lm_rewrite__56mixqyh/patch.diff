@@ -1,0 +1,27 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..d14a306 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -945,15 +945,17 @@ class Lambda(_base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG):
+         self.args = args
+         self.body = body
+ 
+-    def pytype(self) -> Literal["builtins.instancemethod", "builtins.function"]:
++    def pytype(self) -> Literal['builtins.instancemethod', 'builtins.function']:
+         """Get the name of the type that this node represents.
+ 
+         :returns: The name of the type.
+         """
+-        if "method" in self.type:
+-            return "builtins.instancemethod"
+-        return "builtins.function"
+-
++        # Check if the lambda is defined within a class
++        if self.parent and isinstance(self.parent.scope(), ClassDef):
++            # Check if the first argument is 'self'
++            if self.args.arguments and self.args.arguments[0].name == "self":
++                return 'builtins.instancemethod'
++        return 'builtins.function'
+     def display_type(self) -> str:
+         """A human readable type of this node.
+ 

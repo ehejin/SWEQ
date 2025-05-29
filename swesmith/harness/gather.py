@@ -224,7 +224,8 @@ def _main(
         
         repo_part, raw_commit = subfolder.split(".", 1)
         # strip off any “__…” that was appended after the 8-char git SHA:
-        clean_commit = raw_commit.split("__", 1)[0]
+        #clean_commit = raw_commit.split("__", 1)[0]
+        clean_commit = raw_commit.split("__", 1)[0].split(".", 1)[0]
         # reconstruct the repo “owner/repo” string:
         repo = repo_part.replace("__", "/")
         # now look up the full SHA:
@@ -250,7 +251,6 @@ def _main(
         }
 
         # Clone repository
-        print("CLONE REPO NAME:", repo_name)
         cloned = clone_repo(repo_name)
         if cloned:
             created_repos.append(repo_name)

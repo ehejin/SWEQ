@@ -1,0 +1,37 @@
+diff --git a/astroid/brain/brain_typing.py b/astroid/brain/brain_typing.py
+index c44687b..aa67bf8 100644
+--- a/astroid/brain/brain_typing.py
++++ b/astroid/brain/brain_typing.py
+@@ -357,15 +357,24 @@ def _looks_like_special_alias(node: Call) -> bool:
+     PY37: Callable = _VariadicGenericAlias(collections.abc.Callable, (), special=True)
+     PY39: Callable = _CallableType(collections.abc.Callable, 2)
+     """
+-    return isinstance(node.func, Name) and (
+-        node.func.name == "_TupleType"
+-        and isinstance(node.args[0], Name)
+-        and node.args[0].name == "tuple"
+-        or node.func.name == "_CallableType"
+-        and isinstance(node.args[0], Attribute)
+-        and node.args[0].as_string() == "collections.abc.Callable"
+-    )
++    if not isinstance(node.func, Name):
++        return False
++
++    func_name = node.func.name
++    if func_name not in {"_VariadicGenericAlias", "_TupleType", "_CallableType"}:
++        return False
++
++    if len(node.args) < 1:
++        return False
+ 
++    first_arg = node.args[0]
++    if isinstance(first_arg, Name) and first_arg.name == "tuple":
++        return True
++
++    if isinstance(first_arg, Attribute) and first_arg.attrname == "Callable":
++        return True
++
++    return False
+ 
+ def infer_special_alias(
+     node: Call, ctx: context.InferenceContext | None = None

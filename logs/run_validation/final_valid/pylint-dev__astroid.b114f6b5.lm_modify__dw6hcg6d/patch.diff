@@ -1,0 +1,30 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..64d1731 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -353,14 +353,14 @@ class Module(LocalsDictNodeNG):
+         result = []
+         name_in_locals = name in self.locals
+ 
+-        if name in self.special_attributes and not ignore_locals and not name_in_locals:
++        if not ignore_locals and name_in_locals:
++            result = self.locals[name]
++        elif name in self.special_attributes and not ignore_locals and not name_in_locals:
+             result = [self.special_attributes.lookup(name)]
+             if name == "__name__":
+                 main_const = node_classes.const_factory("__main__")
+                 main_const.parent = AstroidManager().builtins_module
+                 result.append(main_const)
+-        elif not ignore_locals and name_in_locals:
+-            result = self.locals[name]
+         elif self.package:
+             try:
+                 result = [self.import_module(name, relative_only=True)]
+@@ -372,7 +372,6 @@ class Module(LocalsDictNodeNG):
+         if result:
+             return result
+         raise AttributeInferenceError(target=self, attribute=name, context=context)
+-
+     def igetattr(
+         self, name: str, context: InferenceContext | None = None
+     ) -> Iterator[InferenceResult]:

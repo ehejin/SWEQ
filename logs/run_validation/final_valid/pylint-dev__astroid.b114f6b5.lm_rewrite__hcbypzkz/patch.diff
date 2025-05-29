@@ -1,0 +1,24 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..2cc57fc 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -330,15 +330,10 @@ class NodeNG:
+ 
+         :returns: The root node.
+         """
+-        if not (parent := self.parent):
+-            assert isinstance(self, nodes.Module)
+-            return self
+-
+-        while parent.parent:
+-            parent = parent.parent
+-        assert isinstance(parent, nodes.Module)
+-        return parent
+-
++        current_node = self
++        while current_node.parent is not None:
++            current_node = current_node.parent
++        return current_node
+     def child_sequence(self, child):
+         """Search for the sequence that contains this child.
+ 

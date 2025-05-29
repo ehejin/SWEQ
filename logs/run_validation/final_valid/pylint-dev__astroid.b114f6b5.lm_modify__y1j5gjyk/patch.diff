@@ -1,0 +1,32 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..c5ec5e0 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1538,17 +1538,13 @@ class BinOp(_base_nodes.OperatorNode):
+         left = self.left
+         right = self.right
+ 
+-        # we use two separate contexts for evaluating lhs and rhs because
+-        # 1. evaluating lhs may leave some undesired entries in context.path
+-        #    which may not let us infer right value of rhs
+-        context = context or InferenceContext()
+-        lhs_context = copy_context(context)
+         rhs_context = copy_context(context)
++        lhs_context = copy_context(context)
++        context = context or InferenceContext()
+         lhs_iter = left.infer(context=lhs_context)
+         rhs_iter = right.infer(context=rhs_context)
+         for lhs, rhs in itertools.product(lhs_iter, rhs_iter):
+             if any(isinstance(value, util.UninferableBase) for value in (rhs, lhs)):
+-                # Don't know how to process this.
+                 yield util.Uninferable
+                 return
+ 
+@@ -1568,7 +1564,6 @@ class BinOp(_base_nodes.OperatorNode):
+             self._infer_binop, context, util.BadBinaryOperationMessage
+         )
+ 
+-
+ class BoolOp(NodeNG):
+     """Class representing an :class:`ast.BoolOp` node.
+ 

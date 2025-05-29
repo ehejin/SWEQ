@@ -1,0 +1,52 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..89a59ad 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -1023,7 +1023,6 @@ def _is_str_format_call(node: nodes.Call) -> bool:
+ def _infer_str_format_call(
+     node: nodes.Call, context: InferenceContext | None = None, **kwargs: Any
+ ) -> Iterator[ConstFactoryResult | util.UninferableBase]:
+-    """Return a Const node based on the template and passed arguments."""
+     call = arguments.CallSite.from_call(node, context=context)
+     assert isinstance(node.func, (nodes.Attribute, nodes.AssignAttr, nodes.DelAttr))
+ 
+@@ -1036,12 +1035,11 @@ def _infer_str_format_call(
+         value = inferred
+     elif isinstance(node.func.expr, nodes.Const):
+         value = node.func.expr
+-    else:  # pragma: no cover
++    else:
+         return iter([util.Uninferable])
+ 
+     format_template = value.value
+ 
+-    # Get the positional arguments passed
+     inferred_positional: list[nodes.Const] = []
+     for i in call.positional_arguments:
+         one_inferred = util.safe_infer(i, context)
+@@ -1051,7 +1049,6 @@ def _infer_str_format_call(
+ 
+     pos_values: list[str] = [i.value for i in inferred_positional]
+ 
+-    # Get the keyword arguments passed
+     inferred_keyword: dict[str, nodes.Const] = {}
+     for k, v in call.keyword_arguments.items():
+         one_inferred = util.safe_infer(v, context)
+@@ -1063,16 +1060,11 @@ def _infer_str_format_call(
+ 
+     try:
+         formatted_string = format_template.format(*pos_values, **keyword_values)
+-    except (AttributeError, IndexError, KeyError, TypeError, ValueError):
+-        # AttributeError: named field in format string was not found in the arguments
+-        # IndexError: there are too few arguments to interpolate
+-        # TypeError: Unsupported format string
+-        # ValueError: Unknown format code
++    except (TypeError, KeyError, IndexError, AttributeError, ValueError):
+         return iter([util.Uninferable])
+ 
+     return iter([nodes.const_factory(formatted_string)])
+ 
+-
+ def register(manager: AstroidManager) -> None:
+     # Builtins inference
+     register_builtin_transform(manager, infer_bool, "bool")

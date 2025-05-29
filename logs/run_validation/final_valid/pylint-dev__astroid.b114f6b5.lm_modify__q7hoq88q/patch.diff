@@ -1,0 +1,31 @@
+diff --git a/astroid/brain/brain_regex.py b/astroid/brain/brain_regex.py
+index 70fb946..aa15225 100644
+--- a/astroid/brain/brain_regex.py
++++ b/astroid/brain/brain_regex.py
+@@ -51,25 +51,16 @@ def __class_getitem__(cls, item):
+ 
+ 
+ def _looks_like_pattern_or_match(node: nodes.Call) -> bool:
+-    """Check for regex.Pattern or regex.Match call in stdlib.
+-
+-    Match these patterns from stdlib/re.py
+-    ```py
+-    Pattern = type(...)
+-    Match = type(...)
+-    ```
+-    """
+     return (
+         node.root().name == "regex.regex"
+         and isinstance(node.func, nodes.Name)
+         and node.func.name == "type"
+         and isinstance(node.parent, nodes.Assign)
+-        and len(node.parent.targets) == 1
++        and len(node.parent.targets) > 0
+         and isinstance(node.parent.targets[0], nodes.AssignName)
+         and node.parent.targets[0].name in {"Pattern", "Match"}
+     )
+ 
+-
+ def infer_pattern_match(node: nodes.Call, ctx: context.InferenceContext | None = None):
+     """Infer regex.Pattern and regex.Match as classes.
+ 

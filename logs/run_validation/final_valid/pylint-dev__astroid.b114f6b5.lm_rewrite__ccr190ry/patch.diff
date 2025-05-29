@@ -1,0 +1,25 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..fb2010d 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1039,12 +1039,17 @@ class Arguments(
+ 
+ 
+ def _find_arg(argname, args):
+-    for i, arg in enumerate(args):
++    """Find the argument by name in the list of arguments.
++
++    :param argname: The name of the argument to find.
++    :param args: The list of argument nodes to search through.
++    :returns: A tuple of the index and the argument node if found, otherwise (None, None).
++    """
++    for index, arg in enumerate(args):
+         if arg.name == argname:
+-            return i, arg
++            return index, arg
+     return None, None
+ 
+-
+ def _format_args(
+     args, defaults=None, annotations=None, skippable_names: set[str] | None = None
+ ) -> str:

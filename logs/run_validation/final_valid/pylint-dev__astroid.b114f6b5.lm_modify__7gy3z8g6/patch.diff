@@ -1,0 +1,24 @@
+diff --git a/astroid/helpers.py b/astroid/helpers.py
+index ea7523b..ecc0dfb 100644
+--- a/astroid/helpers.py
++++ b/astroid/helpers.py
+@@ -62,10 +62,10 @@ def _object_type(
+ ) -> Generator[InferenceResult | None]:
+     astroid_manager = manager.AstroidManager()
+     builtins = astroid_manager.builtins_module
+-    context = context or InferenceContext()
+ 
+     for inferred in node.infer(context=context):
+         if isinstance(inferred, scoped_nodes.ClassDef):
++            context = context or InferenceContext()
+             metaclass = inferred.metaclass(context=context)
+             if metaclass:
+                 yield metaclass
+@@ -87,7 +87,6 @@ def _object_type(
+         else:  # pragma: no cover
+             raise AssertionError(f"We don't handle {type(inferred)} currently")
+ 
+-
+ def object_type(
+     node: InferenceResult, context: InferenceContext | None = None
+ ) -> InferenceResult | None:

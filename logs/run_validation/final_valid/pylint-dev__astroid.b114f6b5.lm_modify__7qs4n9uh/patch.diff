@@ -1,0 +1,37 @@
+diff --git a/astroid/interpreter/objectmodel.py b/astroid/interpreter/objectmodel.py
+index fd8c0c0..1bc039a 100644
+--- a/astroid/interpreter/objectmodel.py
++++ b/astroid/interpreter/objectmodel.py
+@@ -277,11 +277,6 @@ class FunctionModel(ObjectModel):
+             end_col_offset=self._instance.end_col_offset,
+         )
+ 
+-        if not self._instance.returns:
+-            returns = None
+-        else:
+-            returns = self._instance.returns
+-
+         args = self._instance.args
+         pair_annotations = itertools.chain(
+             zip(args.args or [], args.annotations),
+@@ -292,6 +287,12 @@ class FunctionModel(ObjectModel):
+         annotations = {
+             arg.name: annotation for (arg, annotation) in pair_annotations if annotation
+         }
++
++        if not self._instance.returns:
++            returns = None
++        else:
++            returns = self._instance.returns
++
+         if args.varargannotation:
+             annotations[args.vararg] = args.varargannotation
+         if args.kwargannotation:
+@@ -484,7 +485,6 @@ class FunctionModel(ObjectModel):
+     attr___closure__ = attr___ne__
+     attr___code__ = attr___ne__
+ 
+-
+ class ClassModel(ObjectModel):
+     def __init__(self):
+         # Add a context so that inferences called from an instance don't recurse endlessly

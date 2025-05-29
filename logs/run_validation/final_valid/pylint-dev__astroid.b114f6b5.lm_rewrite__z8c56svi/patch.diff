@@ -1,0 +1,15 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..b898ee4 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -557,9 +557,9 @@ def _is_class_var(node: nodes.NodeNG) -> bool:
+     except (InferenceError, StopIteration):
+         return False
+ 
++    # Check if the inferred node is a ClassVar
+     return getattr(inferred, "name", "") == "ClassVar"
+ 
+-
+ def _is_keyword_only_sentinel(node: nodes.NodeNG) -> bool:
+     """Return True if node is the KW_ONLY sentinel."""
+     if not PY310_PLUS:

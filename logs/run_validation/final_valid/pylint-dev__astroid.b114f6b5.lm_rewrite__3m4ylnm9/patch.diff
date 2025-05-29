@@ -1,0 +1,20 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..aaffbee 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -500,12 +500,11 @@ def get_source_file(
+     raise NoSourceFile(filename)
+ 
+ 
+-def is_python_source(filename: str | None) -> bool:
++def is_python_source(filename: (str | None)) -> bool:
+     """Return: True if the filename is a python source file."""
+-    if not filename:
++    if filename is None:
+         return False
+-    return os.path.splitext(filename)[1][1:] in PY_SOURCE_EXTS
+-
++    return filename.endswith(tuple(f".{ext}" for ext in PY_SOURCE_EXTS))
+ 
+ def is_stdlib_module(modname: str) -> bool:
+     """Return: True if the modname is in the standard library"""

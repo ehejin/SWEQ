@@ -1,0 +1,273 @@
+diff --git a/astroid/raw_building.py b/astroid/raw_building.py
+index c1f7ec1..5d29cc6 100644
+--- a/astroid/raw_building.py
++++ b/astroid/raw_building.py
+@@ -460,142 +460,139 @@ class InspectBuilder:
+         return node
+ 
+     def object_build(
+-        self, node: nodes.Module | nodes.ClassDef, obj: types.ModuleType | type
+-    ) -> None:
+-        """recursive method which create a partial ast from real objects
+-        (only function, class, and method are handled)
+-        """
+-        if obj in self._done:
+-            return None
+-        self._done[obj] = node
+-        for alias in dir(obj):
+-            # inspect.ismethod() and inspect.isbuiltin() in PyPy return
+-            # the opposite of what they do in CPython for __class_getitem__.
+-            pypy__class_getitem__ = IS_PYPY and alias == "__class_getitem__"
+-            try:
+-                with warnings.catch_warnings():
+-                    warnings.simplefilter("ignore")
+-                    member = getattr(obj, alias)
+-            except AttributeError:
+-                # damned ExtensionClass.Base, I know you're there !
+-                attach_dummy_node(node, alias)
+-                continue
+-            if inspect.ismethod(member) and not pypy__class_getitem__:
+-                member = member.__func__
+-            if inspect.isfunction(member):
+-                child = _build_from_function(node, member, self._module)
+-            elif inspect.isbuiltin(member) or pypy__class_getitem__:
+-                if self.imported_member(node, member, alias):
+-                    continue
+-                child = object_build_methoddescriptor(node, member)
+-            elif inspect.isclass(member):
+-                if self.imported_member(node, member, alias):
+-                    continue
+-                if member in self._done:
+-                    child = self._done[member]
+-                    assert isinstance(child, nodes.ClassDef)
+-                else:
+-                    child = object_build_class(node, member)
+-                    # recursion
+-                    self.object_build(child, member)
+-            elif inspect.ismethoddescriptor(member):
+-                child: nodes.NodeNG = object_build_methoddescriptor(node, member)
+-            elif inspect.isdatadescriptor(member):
+-                child = object_build_datadescriptor(node, member)
+-            elif isinstance(member, _CONSTANTS):
+-                if alias in node.special_attributes:
+-                    continue
+-                child = nodes.const_factory(member)
+-            elif inspect.isroutine(member):
+-                # This should be called for Jython, where some builtin
+-                # methods aren't caught by isbuiltin branch.
+-                child = _build_from_function(node, member, self._module)
+-            elif _safe_has_attribute(member, "__all__"):
+-                child: nodes.NodeNG = build_module(alias)
+-                # recursion
+-                self.object_build(child, member)
+-            else:
+-                # create an empty node so that the name is actually defined
+-                child: nodes.NodeNG = build_dummy(member)
+-            if child not in node.locals.get(alias, ()):
+-                node.add_local_node(child, alias)
+-        return None
+-
+-    def imported_member(self, node, member, name: str) -> bool:
+-        """verify this is not an imported class or handle it"""
+-        # /!\ some classes like ExtensionClass doesn't have a __module__
+-        # attribute ! Also, this may trigger an exception on badly built module
+-        # (see http://www.logilab.org/ticket/57299 for instance)
+-        try:
+-            modname = getattr(member, "__module__", None)
+-        except TypeError:
+-            modname = None
+-        if modname is None:
+-            if name in {"__new__", "__subclasshook__"}:
+-                # Python 2.5.1 (r251:54863, Sep  1 2010, 22:03:14)
+-                # >>> print object.__new__.__module__
+-                # None
+-                modname = builtins.__name__
+-            else:
+-                attach_dummy_node(node, name, member)
+-                return True
+-
+-        # On PyPy during bootstrapping we infer _io while _module is
+-        # builtins. In CPython _io names itself io, see http://bugs.python.org/issue18602
+-        # Therefore, this basically checks whether we are not in PyPy.
+-        if modname == "_io" and not self._module.__name__ == "builtins":
+-            return False
+-
+-        real_name = {"gtk": "gtk_gtk"}.get(modname, modname)
+-
+-        if real_name != self._module.__name__:
+-            # check if it sounds valid and then add an import node, else use a
+-            # dummy node
+-            try:
+-                with (
+-                    redirect_stderr(io.StringIO()) as stderr,
+-                    redirect_stdout(io.StringIO()) as stdout,
+-                ):
+-                    getattr(sys.modules[modname], name)
+-                    stderr_value = stderr.getvalue()
+-                    if stderr_value:
+-                        logger.error(
+-                            "Captured stderr while getting %s from %s:\n%s",
+-                            name,
+-                            sys.modules[modname],
+-                            stderr_value,
+-                        )
+-                    stdout_value = stdout.getvalue()
+-                    if stdout_value:
+-                        logger.info(
+-                            "Captured stdout while getting %s from %s:\n%s",
+-                            name,
+-                            sys.modules[modname],
+-                            stdout_value,
+-                        )
+-            except (KeyError, AttributeError):
+-                attach_dummy_node(node, name, member)
+-            else:
+-                attach_import_node(node, modname, name)
+-            return True
+-        return False
++def _astroid_bootstrapping() -> None:
++    """astroid bootstrapping the builtins module"""
++    builder = InspectBuilder()
++    astroid_builtin = builder.inspect_build(builtins)
+ 
++    for cls, node_cls in node_classes.CONST_CLS.items():
++        if cls is TYPE_NONE:
++            proxy = build_class("NoneType", astroid_builtin)
++        elif cls is TYPE_NOTIMPLEMENTED:
++            proxy = build_class("NotImplementedType", astroid_builtin)
++        elif cls is TYPE_ELLIPSIS:
++            proxy = build_class("Ellipsis", astroid_builtin)
++        else:
++            proxy = astroid_builtin.getattr(cls.__name__)[0]
++            assert isinstance(proxy, nodes.ClassDef)
++        if cls in (dict, list, set, tuple):
++            node_cls._proxied = proxy
++        else:
++            _CONST_PROXY[cls] = proxy
++
++    # Set the builtin module as parent for some builtins.
++    nodes.Const._proxied = property(_set_proxied)
++
++    _GeneratorType = nodes.ClassDef(
++        types.GeneratorType.__name__,
++        lineno=0,
++        col_offset=0,
++        end_lineno=0,
++        end_col_offset=0,
++        parent=astroid_builtin,
++    )
++    astroid_builtin.set_local(_GeneratorType.name, _GeneratorType)
++    generator_doc_node = (
++        nodes.Const(value=types.GeneratorType.__doc__)
++        if types.GeneratorType.__doc__
++        else None
++    )
++    _GeneratorType.postinit(
++        bases=[],
++        body=[],
++        decorators=None,
++        doc_node=generator_doc_node,
++    )
++    bases.Generator._proxied = _GeneratorType
++    builder.object_build(bases.Generator._proxied, types.GeneratorType)
+ 
+-# astroid bootstrapping ######################################################
++    if hasattr(types, "AsyncGeneratorType"):
++        _AsyncGeneratorType = nodes.ClassDef(
++            types.AsyncGeneratorType.__name__,
++            lineno=0,
++            col_offset=0,
++            end_lineno=0,
++            end_col_offset=0,
++            parent=astroid_builtin,
++        )
++        astroid_builtin.set_local(_AsyncGeneratorType.name, _AsyncGeneratorType)
++        async_generator_doc_node = (
++            nodes.Const(value=types.AsyncGeneratorType.__doc__)
++            if types.AsyncGeneratorType.__doc__
++            else None
++        )
++        _AsyncGeneratorType.postinit(
++            bases=[],
++            body=[],
++            decorators=None,
++            doc_node=async_generator_doc_node,
++        )
++        bases.AsyncGenerator._proxied = _AsyncGeneratorType
++        builder.object_build(bases.AsyncGenerator._proxied, types.AsyncGeneratorType)
+ 
+-_CONST_PROXY: dict[type, nodes.ClassDef] = {}
++    if hasattr(types, "UnionType"):
++        _UnionTypeType = nodes.ClassDef(
++            types.UnionType.__name__,
++            lineno=0,
++            col_offset=0,
++            end_lineno=0,
++            end_col_offset=0,
++            parent=astroid_builtin,
++        )
++        union_type_doc_node = (
++            nodes.Const(value=types.UnionType.__doc__)
++            if types.UnionType.__doc__
++            else None
++        )
++        _UnionTypeType.postinit(
++            bases=[],
++            body=[],
++            decorators=None,
++            doc_node=union_type_doc_node,
++        )
++        bases.UnionType._proxied = _UnionTypeType
++        builder.object_build(bases.UnionType._proxied, types.UnionType)
+ 
++    builtin_types = (
++        types.GetSetDescriptorType,
++        types.GeneratorType,
++        types.MemberDescriptorType,
++        TYPE_NONE,
++        TYPE_NOTIMPLEMENTED,
++        types.FunctionType,
++        types.MethodType,
++        types.BuiltinFunctionType,
++        types.ModuleType,
++        types.TracebackType,
++    )
++    for _type in builtin_types:
++        if _type.__name__ not in astroid_builtin:
++            klass = nodes.ClassDef(
++                _type.__name__,
++                lineno=0,
++                col_offset=0,
++                end_lineno=0,
++                end_col_offset=0,
++                parent=astroid_builtin,
++            )
++            doc = _type.__doc__ if isinstance(_type.__doc__, str) else None
++            klass.postinit(
++                bases=[],
++                body=[],
++                decorators=None,
++                doc_node=nodes.Const(doc) if doc else None,
++            )
++            builder.object_build(klass, _type)
++            astroid_builtin[_type.__name__] = klass
+ 
+-def _set_proxied(const) -> nodes.ClassDef:
+-    # TODO : find a nicer way to handle this situation;
+-    return _CONST_PROXY[const.value.__class__]
++    InspectBuilder.bootstrapped = True
+ 
++    # pylint: disable-next=import-outside-toplevel
++    from astroid.brain.brain_builtin_inference import on_bootstrap
+ 
+-def _astroid_bootstrapping() -> None:
+-    """astroid bootstrapping the builtins module"""
+-    # this boot strapping is necessary since we need the Const nodes to
+-    # inspect_build builtins, and then we can proxy Const
+-    builder = InspectBuilder()
++    # Instantiates an AstroidBuilder(), which is where
++    # InspectBuilder.bootstrapped is checked, so place after bootstrapped=True.
++    on_bootstrap()    builder = InspectBuilder()
+     astroid_builtin = builder.inspect_build(builtins)
+ 
+     for cls, node_cls in node_classes.CONST_CLS.items():

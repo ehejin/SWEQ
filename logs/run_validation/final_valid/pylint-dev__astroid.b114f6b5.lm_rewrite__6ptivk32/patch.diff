@@ -1,0 +1,12 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..7487901 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -534,7 +534,6 @@ class AsStringVisitor:
+         if node.finalbody:
+             trys.append(f"finally:\n{self._stmt_list(node.finalbody)}")
+         return "\n".join(trys)
+-
+     def visit_tuple(self, node: nodes.Tuple) -> str:
+         """return an astroid.Tuple node as string"""
+         if len(node.elts) == 1:

