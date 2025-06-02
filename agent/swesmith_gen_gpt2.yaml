@@ -1,0 +1,81 @@
+# run_batch.config.yaml
+
+instances:
+  type: swesmith
+  path: /lfs/hyperturing1/0/echoi1//SWEQ/logs/task_insts/ig_v2/test_openai1__ig_v2_n1.json
+  shuffle: true
+  deployment:
+    type: docker
+    image: swesmith.x86_64.pylint-dev__astroid.b114f6b5
+    docker_args:
+      - --memory=10g
+    remove_container: true
+  preexisting_repo:
+    type: local
+    path: /testbed
+    base_commit: main
+
+agent:
+  type: default
+
+  templates:
+    system_template: |-
+      You are a helpful assistant that can interact with a computer to solve tasks.
+
+    instance_template: |-
+      <uploaded_files>
+      {{working_dir}}
+      </uploaded_files>
+      I've uploaded a python code repository in the directory {{working_dir}}. Consider the following PR description:
+
+      <pr_description>
+      {{problem_statement}}
+      </pr_description>
+
+      Your task is to make the **minimal** edits to non-test files so that the PR requirements pass.
+      **When done**, output exactly one JSON function call (and nothing else), for example:
+
+      ```
+      {"name":"apply_patch","arguments":{"patch":"<unified-diff here>"}}
+      ```
+
+    next_step_template: |-
+      OBSERVATION:
+      {{observation}}
+
+    next_step_no_output_template: |-
+      Your command ran successfully and did not produce any output.
+
+  tools:
+    bundles:
+      - path: tools/registry
+      - path: tools/edit_anthropic
+      - path: tools/submit
+    enable_bash_tool: true
+    execution_timeout: 300
+    env_variables:
+      USE_FILEMAP: 'true'
+
+    # <— function-calling config must live under tools.parse_function
+    parse_function:
+      type: function_calling
+      functions:
+        - name: apply_patch
+          description: "Apply a unified-diff patch to the repository.  Respond only with the JSON function call."
+          parameters:
+            type: object
+            properties:
+              patch:
+                type: string
+                description: "The unified-diff patch. Include file headers and hunk context."
+            required: [patch]
+
+  model:
+    name: qwen7b-vllm
+    temperature: 0.0
+    per_instance_call_limit: 75
+    per_instance_cost_limit: 2.0
+
+num_workers: 20
+output_dir: trajectories/ehejin/new_RUN3
+random_delay_multiplier: 1
